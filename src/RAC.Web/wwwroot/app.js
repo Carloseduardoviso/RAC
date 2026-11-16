@@ -31,6 +31,9 @@ function render(state){
   $('drawdown').textContent=`Queda acumulada: ${pct(state.peakDrawdownPct)} / ${pct(state.settings.maxCumulativeDrawdownPct)} · Dia: ${pct(state.dayDrawdownPct)}`;
   $('contributions').textContent=`Aportes virtuais acumulados: ${usd(state.totalContributionsBrl)} (${state.contributedMonths} meses)`;
   $('riskMessage').textContent=state.riskMessage;
+  $('start').disabled=state.riskLocked;
+  $('reset').disabled=state.riskLocked;
+  $('step').disabled=state.riskLocked;
   $('tick').textContent=`Tick ${state.tick}`;
   $('supervisors').innerHTML=state.supervisors.map(a=>`<article class="agent"><div class="agent-top"><b>${safe(a.name)}</b><span>${safe(a.status)}</span></div><p>${safe(a.function)}</p><p>${safe(a.detail)}</p></article>`).join('');
   $('agents').innerHTML=state.agents.map(a=>`<article class="agent ${a.status==='EM OPERAÇÃO'?'active':''}"><div class="agent-top"><b>${safe(a.symbol)}</b><span>● ${safe(a.status)}</span></div><div class="price">${decimal(a.price)}</div><div class="foot"><span class="${a.changePct>=0?'positive':'negative'}">${a.changePct>0?'+':''}${pct(a.changePct)}</span><span class="signal ${a.signal.toLowerCase()}">${safe(a.signal)}</span></div><div class="foot" style="margin-top:10px"><span>${a.wins}W / ${a.losses}L</span><span>${usd(a.realizedPnl)}</span></div></article>`).join('');
@@ -48,3 +51,24 @@ $('reset').onclick=()=>command('control/reset');
 $('settings').onsubmit=e=>e.preventDefault();
 $('ping').onclick=async()=>{try{const data=await api('binance/testnet/ping');$('binanceStatus').textContent=data.connected?'Binance Spot Testnet: API pública acessível (sem envio de ordens)':'Binance Spot Testnet: indisponível';}catch(e){$('binanceStatus').textContent='Binance Spot Testnet: indisponível ('+e.message+')';}};
 refresh(); setInterval(refresh,2000);
+
+const formatDate = value => new Date(value).toLocaleString('pt-BR', {dateStyle:'short',timeStyle:'short'});
+async function refreshHistory() {
+  try {
+    const history = await api('history');
+    $('historyStatus').textContent = 'SQL Server conectado';
+    $('persistedOrders').innerHTML = history.orders.length
+      ? history.orders.slice(0,10).map(o => '<tr><td>'+safe(formatDate(o.createdUtc))+'</td><td>'+safe(o.symbol)+'</td><td>'+safe(o.side)+'</td><td>'+decimal(o.quantity)+'</td><td>'+decimal(o.price)+'</td></tr>').join('')
+      : '<tr><td colspan="5">Nenhuma ordem simulada registrada</td></tr>';
+    $('persistedEquity').innerHTML = history.equity.length
+      ? history.equity.slice(0,10).map(e => '<tr><td>'+safe(formatDate(e.recordedUtc))+'</td><td>'+usd(e.equityBrl)+'</td><td>'+usd(e.totalContributionsBrl)+'</td><td>'+pct(e.drawdownPercent)+'</td></tr>').join('')
+      : '<tr><td colspan="4">Nenhum registro patrimonial</td></tr>';
+    const active = history.riskLocks.filter(r => r.active);
+    $('persistedRisk').textContent = 'Aportes registrados: '+history.contributions.length+' | Bloqueios ativos: '+active.length;
+  } catch (error) {
+    $('historyStatus').textContent = 'HistÃ³rico indisponÃ­vel';
+    $('persistedRisk').textContent = 'NÃ£o foi possÃ­vel consultar o SQL Server: '+error.message;
+  }
+}
+refreshHistory();
+setInterval(refreshHistory,5000);

@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\RAC.Domain\RAC.Domain.csproj" />
     <ProjectReference Include="..\..\src\RAC.Infrastructure\RAC.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\RAC.Api\RAC.Api.csproj" />
   </ItemGroup>
 
 </Project>

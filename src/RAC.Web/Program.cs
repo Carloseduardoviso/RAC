@@ -18,7 +18,7 @@ app.UseStaticFiles();
 // Requests from the browser stay on the same origin; only allow explicitly defined API paths.
 var getRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
-    "/api/health", "/api/state", "/api/binance/testnet/ping"
+    "/api/health", "/api/state", "/api/history", "/api/binance/testnet/ping"
 };
 var postRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {

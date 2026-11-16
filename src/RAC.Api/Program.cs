@@ -4,14 +4,14 @@ using RAC.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
-var racConnection = builder.Configuration.GetConnectionString("RAC")
-    ?? Environment.GetEnvironmentVariable("RAC_SQLSERVER_CONNECTION");
-if (!string.IsNullOrWhiteSpace(racConnection))
-{
-    builder.Services.AddDbContext<RacDbContext>(options => options.UseSqlServer(racConnection));
-}
+var racConnection = Environment.GetEnvironmentVariable("RAC_SQLSERVER_CONNECTION")
+    ?? builder.Configuration.GetConnectionString("RAC");
+if (string.IsNullOrWhiteSpace(racConnection))
+    throw new InvalidOperationException("RAC requer conexão SQL Server configurada; execução bloqueada.");
+builder.Services.AddDbContextFactory<RacDbContext>(options => options.UseSqlServer(racConnection));
 builder.Services.AddSingleton(builder.Configuration.GetSection("Rac:Risk").Get<RiskPolicy>() ?? new RiskPolicy());
 builder.Services.AddSingleton<RacSimulator>();
+builder.Services.AddSingleton<RacPersistentEngine>();
 builder.Services.AddHostedService<RacWorker>();
 builder.Services.AddHttpClient("binance", client =>
 {
@@ -21,11 +21,32 @@ builder.Services.AddHttpClient("binance", client =>
 var app = builder.Build();
 // RAC.Web serves the frontend separately.
 app.MapGet("/api/health", () => new { status = "ok", project = "RAC", environment = "SIMULACAO_LOCAL", realOrdersEnabled = false, testnetOrderEnabled = false });
-app.MapGet("/api/state", (RacSimulator s) => s.Snapshot());
-app.MapPost("/api/control/start", (RacSimulator s) => { s.Start(); return s.Snapshot(); });
-app.MapPost("/api/control/pause", (RacSimulator s) => { s.Pause(); return s.Snapshot(); });
-app.MapPost("/api/control/step", (RacSimulator s) => { s.Tick(); return s.Snapshot(); });
-app.MapPost("/api/control/reset", (RacSimulator s) => { s.Reset(); return s.Snapshot(); });
+app.MapGet("/api/state", (RacPersistentEngine engine, CancellationToken ct) => engine.SnapshotAsync(ct));
+app.MapPost("/api/control/start", (RacPersistentEngine engine, CancellationToken ct) =>
+    HandleControlAsync(() => engine.StartAsync(ct)));
+app.MapPost("/api/control/pause", (RacPersistentEngine engine, CancellationToken ct) =>
+    HandleControlAsync(() => engine.PauseAsync(ct)));
+app.MapPost("/api/control/step", (RacPersistentEngine engine, CancellationToken ct) =>
+    HandleControlAsync(() => engine.StepAsync(ct)));
+app.MapPost("/api/control/reset", (RacPersistentEngine engine, CancellationToken ct) =>
+    HandleControlAsync(() => engine.ResetAsync(ct)));
+app.MapGet("/api/history", async (RacDbContext db, CancellationToken ct) => new
+{
+    equity = await db.EquitySnapshots.AsNoTracking().OrderByDescending(x => x.Id).Take(100)
+        .Select(x => new { x.EquityBrl, x.TotalContributionsBrl, x.DrawdownPercent, x.RecordedUtc }).ToListAsync(ct),
+    orders = await db.Orders.AsNoTracking().OrderByDescending(x => x.CreatedUtc).Take(30)
+        .Select(x => new { x.ClientOrderId, x.Symbol, x.Side, x.Quantity, x.Price, x.CreatedUtc, x.Mode }).ToListAsync(ct),
+    contributions = await db.Contributions.AsNoTracking().OrderByDescending(x => x.OccurredUtc).Take(30)
+        .Select(x => new { x.AmountBrl, x.IsVirtual, x.OccurredUtc }).ToListAsync(ct),
+    riskLocks = await db.RiskLocks.AsNoTracking().OrderByDescending(x => x.CreatedUtc).Take(20)
+        .Select(x => new { x.Reason, x.Active, x.CreatedUtc }).ToListAsync(ct)
+});
+
+static async Task<IResult> HandleControlAsync(Func<Task<RacState>> change)
+{
+    try { return Results.Ok(await change()); }
+    catch (InvalidOperationException ex) { return Results.Conflict(new { error = ex.Message }); }
+}
 app.MapGet("/api/binance/testnet/ping", async (IHttpClientFactory factory, CancellationToken ct) =>
 {
     try

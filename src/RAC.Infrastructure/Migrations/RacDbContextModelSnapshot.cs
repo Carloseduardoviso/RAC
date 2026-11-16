@@ -152,6 +152,10 @@ namespace RAC.Infrastructure.Migrations
                         .HasPrecision(28, 12)
                         .HasColumnType("decimal(28,12)");
 
+                    b.Property<string>("SimulationKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<decimal?>("StopPrice")
                         .HasPrecision(28, 12)
                         .HasColumnType("decimal(28,12)");
@@ -162,6 +166,10 @@ namespace RAC.Infrastructure.Migrations
                         .HasColumnType("nvarchar(24)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SimulationKey")
+                        .IsUnique()
+                        .HasFilter("[SimulationKey] IS NOT NULL");
 
                     b.HasIndex("Symbol", "IsOpen");
 
@@ -193,6 +201,35 @@ namespace RAC.Infrastructure.Migrations
                     b.HasIndex("Active");
 
                     b.ToTable("RiskLocks", "rac");
+                });
+
+            modelBuilder.Entity("RAC.Domain.SimulationCheckpoint", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<string>("StateJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Tick")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("UpdatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SimulationCheckpoints", "rac");
                 });
 
             modelBuilder.Entity("RAC.Domain.Strategy", b =>

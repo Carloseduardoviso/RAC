@@ -1,8 +1,6 @@
-using RAC.Api.Models;
-
 namespace RAC.Api.Services;
 
-public sealed class RacWorker(RacSimulator sim, ILogger<RacWorker> logger) : BackgroundService
+public sealed class RacWorker(RacPersistentEngine engine, ILogger<RacWorker> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -11,11 +9,18 @@ public sealed class RacWorker(RacSimulator sim, ILogger<RacWorker> logger) : Bac
         {
             while (await timer.WaitForNextTickAsync(stoppingToken))
             {
-                try { if (sim.Snapshot().Running) sim.Tick(); }
-                catch (Exception e) { logger.LogError(e, "Erro no simulador RAC"); sim.Pause(); }
+                try { await engine.TickAsync(stoppingToken); }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
+                catch (Exception error)
+                {
+                    logger.LogCritical(error, "Simulador interrompido: erro na persistência ou regra de risco.");
+                    break; // Never retry automatically after a storage failure.
+                }
             }
         }
-        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { logger.LogInformation("RAC worker stopped."); }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            logger.LogInformation("RAC worker stopped.");
+        }
     }
 }
-

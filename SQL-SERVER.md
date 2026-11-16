@@ -1,52 +1,58 @@
-# RAC 0.4 — SQL Server / Entity Framework Core
+# RAC — Persistência simulada no SQL Server (MVP 0.5)
 
-## Organização
-
-- `RAC.Api`: endpoints HTTP e simulador atual (em memória).
-- `RAC.Web`: painel web.
-- `RAC.Domain`: entidades para persistência.
-- `RAC.Application`: projeto preparado para serviços e agentes.
-- `RAC.Infrastructure`: `RacDbContext`, Fluent API e migrations.
-- `RAC.Tests`: testes do mapeamento do EF.
-
-## Banco de desenvolvimento
+## Ambiente local
 
 - Instância: `(localdb)\MSSQLLocalDB`
 - Banco: `RAC`
 - Schema: `rac`
-- Autenticação: integrada do Windows.
-- Certificado confiável dispensado **somente para desenvolvimento local** (`TrustServerCertificate=True`).
-- Em produção, configurar TLS com certificado válido e a connection string via variáveis protegidas, nunca no Git.
+- Autenticação integrada do Windows; **sem usuário sa ou senha no projeto**.
+- Configuração da API: `src/RAC.Api/appsettings.Development.json`.
+- Configuração das ferramentas EF Core: `src/RAC.Infrastructure/RacDbContextFactory.cs`.
+- Variável opcional de substituição: `RAC_SQLSERVER_CONNECTION` (tem precedência sobre appsettings).
 
-A primeira migration `InitialCreate` foi aplicada na instância local. Ela criou as tabelas:
-`Agents`, `Strategies`, `Orders`, `Executions`, `Positions`,
-`Contributions`, `EquitySnapshots`, `RiskLocks` e `AuditEvents`.
+`TrustServerCertificate=True` é usado apenas no LocalDB de desenvolvimento. Em um servidor real, instale e valide o certificado TLS, use uma identidade restrita e mantenha segredos fora do Git.
 
-## Atualizar banco (sob controle do desenvolvedor)
+## Migrations aplicadas ao banco RAC
+
+- `InitialCreate`: tabelas de agentes, estratégias, ordens, execuções, posições, aportes, patrimônio, bloqueios e auditoria.
+- `DurableSimulatorState`: tabela `rac.SimulationCheckpoints` com versão de linha (rowversion) e identificador de posição simulada único.
+
+A API **não aplica migrations automaticamente**. Atualize explicitamente em ambiente controlado:
 
 ```powershell
 dotnet ef database update --project src/RAC.Infrastructure --startup-project src/RAC.Infrastructure --context RacDbContext
 ```
 
-Para alterar a conexão do design-time, defina `RAC_SQLSERVER_CONNECTION` no ambiente.
-O projeto API usa `ConnectionStrings:RAC` em `appsettings.Development.json` e
-pode ser substituído por configuração segura do ambiente.
+## Estado e histórico
 
-## Testes
+O serviço `RacPersistentEngine` grava em uma única transação, a cada alteração:
+- Checkpoint integral de mercados sintéticos, sinais, capital, aportes, posições, histórico de trades, limites e bloqueios.
+- Série temporal em `rac.EquitySnapshots`.
+- Entradas e saídas simuladas em `rac.Orders` e `rac.Executions`.
+- Posições em `rac.Positions`, incluindo identificação da sessão sintética.
+- Aportes virtuais em `rac.Contributions`, bloqueios em `rac.RiskLocks` e trilha em `rac.AuditEvents`.
+
+Na reinicialização, a API recarrega o último checkpoint do banco e **sempre inicia pausada**. Se houver bloqueio de risco ativo, o painel recusa Iniciar e Reiniciar (HTTP 409). Uma revisão autorizada para liberar bloqueios ainda requer fluxo autenticado, que será desenvolvido depois.
+
+Falha de persistência interrompe a simulação; não há execução real de ordens. O sistema valida migrations pendentes antes de iniciar.
+
+## API e painel
+
+- `GET /api/state`: estado simulado atual restaurado do checkpoint.
+- `GET /api/history`: patrimônio, ordens, aportes e bloqueios consultados do SQL Server.
+- `POST /api/control/{start|pause|step|reset}`: salva checkpoint e eventos transacionalmente.
+
+A página RAC.Web mostra uma seção de histórico armazenado. Seu navegador consulta a API via proxy local restrito.
+
+## Limitações e segurança
+
+O motor continua sintético e **não é um algoritmo de trading pronto para dinheiro real**. Sem autenticação de usuários, não publique API ou Web na Internet. A API não oferece rotas de envio de ordens reais ou autenticadas na Testnet. Não há fluxo de revisão de bloqueio; o reset HTTP não supera um bloqueio. Execute apenas uma instância ativa da API por banco de simulação.
+
+## Validar
 
 ```powershell
 dotnet build RAC.slnx
 dotnet test RAC.slnx
 ```
 
-## Limitações desta etapa
-
-O simulador ainda guarda saldos e bloqueios de risco na memória; as novas tabelas
-não são usadas automaticamente pelo simulador. **Não reinicie a aplicação confiando
-que o estado financeiro simulado já será recuperado do banco.**
-
-Faltam: serviços de persistência, reconciliação de dados, gravação transacional de
-ordens/execuções, autenticação, testes de falhas e backtesting.
-
-A Binance continua apenas em consulta pública da Testnet.
-**Não há ordens reais nem ordens autenticadas na Testnet** nesta versão.
+Testes incluem serialização e recuperação do checkpoint, pausa após reinício e recusa de reset quando bloqueado.

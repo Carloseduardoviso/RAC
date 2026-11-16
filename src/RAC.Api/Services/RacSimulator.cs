@@ -32,6 +32,8 @@ public sealed class RacSimulator
     private readonly List<ClosedTrade> _trades = new();
     private readonly List<decimal> _curve = new();
     private readonly RiskPolicy _policy;
+    private readonly List<SimEvent> _pendingEvents = new();
+    private Guid _sessionId = Guid.NewGuid();
     private static decimal RandomUnit() => RandomNumberGenerator.GetInt32(0, 1000000) / 1000000m;
     private decimal _cash, _startDayEquity, _totalContributions, _adjustedPeak;
     private int _contributedMonths;
@@ -55,10 +57,10 @@ public sealed class RacSimulator
     }
     public void Start() { lock (_gate) { if (!_riskLocked) _running = true; } }
     public void Pause() { lock (_gate) _running = false; }
-    public void Reset() { lock (_gate) ResetInside(); }
+    public void Reset() { lock (_gate) { if (_riskLocked) throw new InvalidOperationException("Bloqueio de risco exige revisao autorizada; reiniciar nao libera o bloqueio."); ResetInside(); Emit("RESET", null, null, 0m, 0m, 0m, 0m, "Cenario simulado reiniciado."); } }
     private void ResetInside()
     {
-        _traders.Clear(); _positions.Clear(); _trades.Clear(); _curve.Clear();
+        _sessionId = Guid.NewGuid(); _pendingEvents.Clear(); _traders.Clear(); _positions.Clear(); _trades.Clear(); _curve.Clear();
         foreach (var (symbol, price, vol) in Markets)
         {
             var t = new Trader { Symbol = symbol, Price = price, Previous = price, Vol = vol };
@@ -114,6 +116,7 @@ public sealed class RacSimulator
         _totalContributions += amount;
         _adjustedPeak += amount;
         _contributedMonths++;
+        Emit("CONTRIBUTION", null, null, 0m, 0m, 0m, amount, "Aporte virtual mensal");
         _riskMessage = $"Aporte virtual de R$ {amount:N2} no mes simulado {_contributedMonths}.";
     }
 
@@ -156,11 +159,12 @@ public sealed class RacSimulator
         var peakLoss = _adjustedPeak > 0 ? (_adjustedPeak - equity) / _adjustedPeak * 100m : 0m;
         if (dailyLoss < _policy.MaxDailyLossPct && peakLoss < _policy.MaxCumulativeDrawdownPct) return;
         _riskLocked = true;
+        Emit("RISK_LOCK", null, null, 0m, 0m, 0m, 0m, "Limite de risco atingido; bloqueio exige revisao.");
         _running = false;
         if (peakLoss >= _policy.MaxCumulativeDrawdownPct)
-            _riskMessage = "Carlos: queda acumulada de 10% desde o pico ajustado por aportes. REVISAO MANUAL obrigatoria; simulacao travada.";
+            _riskMessage = $"Carlos: queda acumulada de {_policy.MaxCumulativeDrawdownPct:N2}% desde o pico ajustado por aportes. REVISAO MANUAL obrigatoria; simulacao travada.";
         else
-            _riskMessage = "Carlos: perda diaria de 1% atingida. REVISAO MANUAL obrigatoria; simulacao travada.";
+            _riskMessage = $"Carlos: perda diaria de {_policy.MaxDailyLossPct:N2}% atingida. REVISAO MANUAL obrigatoria; simulacao travada.";
         foreach (var position in _positions.ToArray()) Close(position, "BLOQUEIO_RISCO");
         _adjustedPeak = Math.Max(_adjustedPeak, Equity());
     }
@@ -196,6 +200,7 @@ public sealed class RacSimulator
         _positions.Add(new Position(++_id, trader.Symbol, trader.Price, quantity,
             trader.Price * (1m - distance), trader.Price * (1m + distance * 1.5m), allocation, fee, _tick));
         _entriesToday++;
+        Emit("OPEN", _id, trader.Symbol, trader.Price, quantity, fee, allocation, "Compra Spot simulada");
     }
     private void Close(Position p, string reason)
     {
@@ -209,6 +214,85 @@ public sealed class RacSimulator
         _trades.Insert(0, new ClosedTrade(p.Symbol, Math.Round(pnl, 2), reason, _tick));
         if (_trades.Count > 100) _trades.RemoveAt(_trades.Count - 1);
         _positions.Remove(p);
+        Emit("CLOSE", p.Id, p.Symbol, _traders[p.Symbol].Price, p.Qty, exitFee, pnl, reason);
+    }
+    private void Emit(string kind, long? positionId, string? symbol,
+        decimal price, decimal qty, decimal fee, decimal amount, string detail) =>
+        _pendingEvents.Add(new SimEvent(Guid.NewGuid(), kind, positionId, symbol,
+            price, qty, fee, amount, detail, _tick));
+
+    public SimulationState ExportState()
+    {
+        lock (_gate)
+        {
+            return new SimulationState(1, _sessionId, _policy, _cash, _startDayEquity,
+                _totalContributions, _adjustedPeak, _contributedMonths, _tick,
+                _entriesToday, _id, _running, _riskLocked, _riskMessage,
+                _traders.Values.Select(t => new SimTraderState(t.Symbol, t.Price,
+                    t.Previous, t.History.ToArray(), t.Signal, t.Wins, t.Losses, t.RealizedPnl)).ToArray(),
+                _positions.Select(p => new SimPositionState(p.Id, p.Symbol, p.Entry,
+                    p.Qty, p.Stop, p.Target, p.EntryCostBrl, p.EntryFeeBrl, p.OpenedTick)).ToArray(),
+                _trades.ToArray(), _curve.ToArray(), _pendingEvents.ToArray());
+        }
+    }
+
+    public void RestoreState(SimulationState state, bool resume = false)
+    {
+        if (state.Version != 1 || state.SessionId == Guid.Empty || state.Policy != _policy ||
+            state.Traders is null || state.Traders.Length != Markets.Length ||
+            state.Traders.Any(t => !Markets.Any(m => m.Symbol == t.Symbol) ||
+                t.Price <= 0m || t.Previous <= 0m || t.History is null || t.History.Length == 0) ||
+            state.Positions is null || state.Positions.Any(p => p.Qty <= 0m ||
+                !Markets.Any(m => m.Symbol == p.Symbol)) ||
+            state.Cash < 0m || state.Tick < 0 || state.EquityHistory is null ||
+            state.Trades is null || state.PendingEvents is null)
+            throw new InvalidOperationException("Checkpoint RAC invalido ou politica de risco diferente. Inicializacao bloqueada.");
+
+        lock (_gate)
+        {
+            _traders.Clear();
+            foreach (var t in state.Traders)
+            {
+                var market = Markets.Single(m => m.Symbol == t.Symbol);
+                var trader = new Trader
+                {
+                    Symbol = t.Symbol, Price = t.Price, Previous = t.Previous,
+                    Vol = market.Vol, Signal = t.Signal,
+                    Wins = t.Wins, Losses = t.Losses, RealizedPnl = t.RealizedPnl
+                };
+                foreach (var h in t.History) trader.History.Enqueue(h);
+                _traders.Add(t.Symbol, trader);
+            }
+            _positions.Clear();
+            _positions.AddRange(state.Positions.Select(p =>
+                new Position(p.Id, p.Symbol, p.Entry, p.Qty, p.Stop,
+                    p.Target, p.EntryCostBrl, p.EntryFeeBrl, p.OpenedTick)));
+            _trades.Clear(); _trades.AddRange(state.Trades);
+            _curve.Clear(); _curve.AddRange(state.EquityHistory);
+            _pendingEvents.Clear(); _pendingEvents.AddRange(state.PendingEvents);
+            _sessionId = state.SessionId;
+            _cash = state.Cash; _startDayEquity = state.StartDayEquity;
+            _totalContributions = state.TotalContributions;
+            _adjustedPeak = state.AdjustedPeak;
+            _contributedMonths = state.ContributedMonths;
+            _tick = state.Tick; _entriesToday = state.EntriesToday; _id = state.LastPositionId;
+            _riskLocked = state.RiskLocked;
+            _riskMessage = state.RiskMessage;
+            // Never auto-resume after an application restart.
+            _running = resume && state.Running && !_riskLocked;
+        }
+    }
+
+    public void ConfirmSavedEvents() { lock (_gate) _pendingEvents.Clear(); }
+
+    public void StorageFailure()
+    {
+        lock (_gate)
+        {
+            _running = false;
+            _riskLocked = true;
+            _riskMessage = "Carlos: falha de persistencia. Simulacao bloqueada ate verificar o banco e reiniciar.";
+        }
     }
     public RacState Snapshot()
     {

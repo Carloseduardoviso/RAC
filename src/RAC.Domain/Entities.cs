@@ -42,6 +42,7 @@ public sealed class TradeExecution
 }
 public sealed class Position
 {
+    public string? SimulationKey { get; set; }
     public Guid Id { get; set; } = Guid.NewGuid();
     public required string Symbol { get; set; }
     public decimal Quantity { get; set; }

@@ -14,6 +14,7 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public DbSet<EquitySnapshot> EquitySnapshots => Set<EquitySnapshot>();
     public DbSet<RiskLock> RiskLocks => Set<RiskLock>();
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+    public DbSet<SimulationCheckpoint> SimulationCheckpoints => Set<SimulationCheckpoint>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
@@ -55,6 +56,8 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
         {
             e.HasKey(x => x.Id);
             e.Property(x => x.Symbol).HasMaxLength(24).IsRequired();
+            e.Property(x => x.SimulationKey).HasMaxLength(100);
+            e.HasIndex(x => x.SimulationKey).IsUnique();
             e.Property(x => x.Quantity).HasPrecision(28, 12);
             e.Property(x => x.AverageEntry).HasPrecision(28, 12);
             e.Property(x => x.StopPrice).HasPrecision(28, 12);
@@ -78,6 +81,12 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
             e.HasKey(x => x.Id);
             e.Property(x => x.Reason).HasMaxLength(500).IsRequired();
             e.HasIndex(x => x.Active);
+        });
+        model.Entity<SimulationCheckpoint>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.StateJson).HasColumnType("nvarchar(max)").IsRequired();
+            e.Property(x => x.RowVersion).IsRowVersion();
         });
         model.Entity<AuditEvent>(e =>
         {
