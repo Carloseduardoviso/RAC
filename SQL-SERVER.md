@@ -1,4 +1,4 @@
-# RAC — Persistência simulada no SQL Server (MVP 0.5)
+# RAC — Persistência e segurança no SQL Server (MVP 0.6)
 
 ## Ambiente local
 
@@ -16,6 +16,7 @@
 
 - `InitialCreate`: tabelas de agentes, estratégias, ordens, execuções, posições, aportes, patrimônio, bloqueios e auditoria.
 - `DurableSimulatorState`: tabela `rac.SimulationCheckpoints` com versão de linha (rowversion) e identificador de posição simulada único.
+- `RacUserSecurity`: tabela `rac.Users` com usuário, hash de senha, função, habilitação e bloqueio temporário.
 
 A API **não aplica migrations automaticamente**. Atualize explicitamente em ambiente controlado:
 
@@ -32,7 +33,7 @@ O serviço `RacPersistentEngine` grava em uma única transação, a cada altera�
 - Posições em `rac.Positions`, incluindo identificação da sessão sintética.
 - Aportes virtuais em `rac.Contributions`, bloqueios em `rac.RiskLocks` e trilha em `rac.AuditEvents`.
 
-Na reinicialização, a API recarrega o último checkpoint do banco e **sempre inicia pausada**. Se houver bloqueio de risco ativo, o painel recusa Iniciar e Reiniciar (HTTP 409). Uma revisão autorizada para liberar bloqueios ainda requer fluxo autenticado, que será desenvolvido depois.
+Na reinicialização, a API recarrega o último checkpoint do banco e **sempre inicia pausada**. Se houver bloqueio de risco ativo, o painel recusa Iniciar e Reiniciar (HTTP 409). A revisão autorizada já possui fluxo autenticado: o servidor valida papel e justificativa e registra a liberação do bloqueio e o novo checkpoint na mesma transação.
 
 Falha de persistência interrompe a simulação; não há execução real de ordens. O sistema valida migrations pendentes antes de iniciar.
 
@@ -46,7 +47,7 @@ A página RAC.Web mostra uma seção de histórico armazenado. Seu navegador con
 
 ## Limitações e segurança
 
-O motor continua sintético e **não é um algoritmo de trading pronto para dinheiro real**. Sem autenticação de usuários, não publique API ou Web na Internet. A API não oferece rotas de envio de ordens reais ou autenticadas na Testnet. Não há fluxo de revisão de bloqueio; o reset HTTP não supera um bloqueio. Execute apenas uma instância ativa da API por banco de simulação.
+O motor continua sintético e **não é um algoritmo de trading pronto para dinheiro real**. A autenticação local e o fluxo de revisão de risco foram adicionados no MVP 0.6 (consulte `SEGURANCA.md`), mas **a API e o Web não devem ser publicados na Internet** sem HTTPS completo, MFA, recuperação de contas e avaliação de segurança. A API não oferece rotas de envio de ordens reais ou autenticadas na Testnet. Execute apenas uma instância ativa da API por banco de simulação.
 
 ## Validar
 

@@ -126,7 +126,7 @@ public static class RacAuthentication
         IPasswordHasher<RacUser> passwords,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.UserName) || request.UserName.Length > 80 ||
+        if (request is null || string.IsNullOrWhiteSpace(request.UserName) || request.UserName.Length > 80 ||
             string.IsNullOrEmpty(request.Password) || request.Password.Length > 1024)
             return Results.Unauthorized();
 

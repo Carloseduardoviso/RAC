@@ -47,7 +47,7 @@ app.MapPost("/api/control/reset", (RacPersistentEngine engine, ClaimsPrincipal u
 app.MapPost("/api/risk/review", (RacRiskReviewRequest request,
     RacPersistentEngine engine, ClaimsPrincipal user, CancellationToken ct) =>
     HandleControlAsync(() => engine.ReviewAndResetAsync(
-        user.Identity?.Name ?? "reviewer", request.Justification, ct)))
+        user.Identity?.Name ?? "reviewer", request?.Justification ?? string.Empty, ct)))
     .RequireAuthorization("RacRiskReviewer");
 
 app.MapGet("/api/history", async (RacDbContext db, CancellationToken ct) => new

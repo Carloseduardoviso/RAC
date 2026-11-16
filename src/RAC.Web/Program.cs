@@ -1,4 +1,5 @@
 using System.Net.Http.Headers;
+using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
 var backendUrl = builder.Configuration["RacApi:BaseUrl"] ?? "http://localhost:5080";
@@ -47,6 +48,8 @@ app.MapMethods("/api/{**path}", ["GET", "POST"], async (HttpContext context, IHt
 
     if (HttpMethods.IsPost(context.Request.Method))
     {
+        var maxBody = context.Features.Get<IHttpMaxRequestBodySizeFeature>();
+        if (maxBody is { IsReadOnly: false }) maxBody.MaxRequestBodySize = 16_384;
         if (context.Request.ContentLength > 16_384)
             return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
         if (!context.Request.HasJsonContentType())

@@ -1,19 +1,51 @@
-﻿# RAC - Solucao Visual Studio
+# RAC — Solução Visual Studio (.NET 10)
 
-Abra **RAC.slnx** no Visual Studio com suporte a .NET 10.
+Abra `RAC.slnx` no Visual Studio.
 
-Projetos:
-- RAC.Api: API REST e simulador local, http://localhost:5080
-- RAC.Web: painel web responsivo, http://localhost:5081
+## Banco de dados local
 
-No Visual Studio configure **Multiple startup projects** e selecione **Start** para RAC.Api e RAC.Web.
-Ou execute em dois terminais:
+- SQL Server LocalDB: `(localdb)\MSSQLLocalDB`
+- Banco de desenvolvimento: `RAC`
+- Entity Framework Core 10 (migrations em `src/RAC.Infrastructure/Migrations`).
 
-    dotnet run --project src/RAC.Api --launch-profile RAC.Api
-    dotnet run --project src/RAC.Web --launch-profile RAC.Web
+Atualize o banco explicitamente a partir da raiz do repositório:
 
-A interface RAC.Web consulta a API atraves de um proxy restrito no proprio servidor web. A URL interna esta em src/RAC.Web/appsettings.json.
+```powershell
+dotnet ef database update --project src/RAC.Infrastructure --startup-project src/RAC.Infrastructure --context RacDbContext
+```
 
-**Seguranca:** somente simulacao, sem ordens reais e sem chaves API. A API ainda nao possui login. Nao exponha nenhum dos serviços à Internet.
+## Crie o administrador inicial (somente uma vez)
 
-SQL Server, agentes inteligentes e persistencia serao implementados nas proximas fases.
+Abra o **Terminal** do Visual Studio:
+
+```powershell
+dotnet run --project tools/RAC.AdminSetup -- --user admin
+```
+
+Digite uma senha nova de pelo menos 12 caracteres, incluindo letras, números e símbolos. O terminal não mostra os caracteres. **Não compartilhe a senha nem a coloque no código**. Nenhuma conta é criada automaticamente pelo sistema.
+
+## Inicie os dois serviços
+
+Configure **Vários projetos de inicialização**:
+- `RAC.Api` — Iniciar — `http://localhost:5080`
+- `RAC.Web` — Iniciar — `http://localhost:5081`
+
+Ou use dois terminais:
+
+```powershell
+dotnet run --project src/RAC.Api --launch-profile RAC.Api
+dotnet run --project src/RAC.Web --launch-profile RAC.Web
+```
+
+Abra `http://localhost:5081` e entre com o administrador criado.
+
+**Somente desenvolvimento local:** preços simulados, sem ordens reais na Binance. `RAC.Web` encaminha apenas rotas permitidas para a API; não exponha os serviços à Internet nesta fase.
+
+Leia `SEGURANCA.md` para permissões, cookies e revisão do agente Carlos. Leia `SQL-SERVER.md` para persistência e histórico.
+
+## Testes
+
+```powershell
+dotnet build RAC.slnx
+dotnet test RAC.slnx
+```
