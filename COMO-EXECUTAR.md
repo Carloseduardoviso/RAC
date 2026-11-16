@@ -22,7 +22,7 @@ Abra o **Terminal** do Visual Studio:
 dotnet run --project tools/RAC.AdminSetup -- --user admin
 ```
 
-Digite uma senha nova de pelo menos 12 caracteres, incluindo letras, números e símbolos. O terminal não mostra os caracteres. **Não compartilhe a senha nem a coloque no código**. Nenhuma conta é criada automaticamente pelo sistema.
+Digite uma senha nova de pelo menos 9 caracteres, incluindo letras, números e símbolos. O terminal não mostra os caracteres. **Não compartilhe a senha nem a coloque no código**. Nenhuma conta é criada automaticamente pelo sistema.
 
 ## Inicie os dois serviços
 

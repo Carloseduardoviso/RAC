@@ -12,7 +12,7 @@ Para criar a **primeira e única conta inicial de administrador**, abra o Termin
 dotnet run --project tools/RAC.AdminSetup -- --user admin
 ```
 
-O terminal solicita uma senha de 12 a 128 caracteres, com letras, números e símbolo. **Digite a senha somente no seu terminal**, nunca no chat, em comandos de linha, no Git ou em `appsettings.json`. A senha é salva apenas como hash Identity no SQL Server.
+O terminal solicita uma senha de 9 a 128 caracteres, com letras, números e símbolo. **Digite a senha somente no seu terminal**, nunca no chat, em comandos de linha, no Git ou em `appsettings.json`. A senha é salva apenas como hash Identity no SQL Server.
 
 Se aparecer "Já existe uma conta RAC", a etapa inicial já foi concluída. O utilitário não cria outros administradores silenciosamente.
 

@@ -32,12 +32,12 @@ if (db.Users.Any())
 
 Console.WriteLine("Configuração local do administrador RAC.");
 Console.WriteLine("A senha será solicitada neste terminal e não será exibida.");
-var password = ReadPassword("Nova senha (mínimo 12 caracteres): ");
-if (password.Length is < 12 or > 128 ||
+var password = ReadPassword("Nova senha (mínimo 9 caracteres): ");
+if (password.Length is < 9 or > 128 ||
     !password.Any(char.IsLetter) || !password.Any(char.IsDigit) ||
     !password.Any(c => !char.IsLetterOrDigit(c)))
 {
-    Console.Error.WriteLine("Senha inválida: use 12 a 128 caracteres com letras, números e símbolos.");
+    Console.Error.WriteLine("Senha inválida: use 9 a 128 caracteres com letras, números e símbolos.");
     return 1;
 }
 var confirmation = ReadPassword("Confirme a senha: ");
