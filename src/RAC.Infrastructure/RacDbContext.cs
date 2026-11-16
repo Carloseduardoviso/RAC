@@ -16,10 +16,35 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
     public DbSet<SimulationCheckpoint> SimulationCheckpoints => Set<SimulationCheckpoint>();
     public DbSet<RacUser> Users => Set<RacUser>();
+    public DbSet<MarketQuote> MarketQuotes => Set<MarketQuote>();
+    public DbSet<MarketCandle> MarketCandles => Set<MarketCandle>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<MarketQuote>(e =>
+        {
+            e.HasKey(x => x.Symbol);
+            e.Property(x => x.Symbol).HasMaxLength(24).IsRequired();
+            e.Property(x => x.Source).HasMaxLength(40).IsRequired();
+            e.Property(x => x.PriceUsdt).HasPrecision(28, 12);
+            e.HasIndex(x => x.ObservedUtc);
+        });
+        model.Entity<MarketCandle>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Symbol).HasMaxLength(24).IsRequired();
+            e.Property(x => x.Interval).HasMaxLength(5).IsRequired();
+            e.Property(x => x.Source).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Open).HasPrecision(28, 12);
+            e.Property(x => x.High).HasPrecision(28, 12);
+            e.Property(x => x.Low).HasPrecision(28, 12);
+            e.Property(x => x.Close).HasPrecision(28, 12);
+            e.Property(x => x.Volume).HasPrecision(28, 12);
+            e.Property(x => x.QuoteVolume).HasPrecision(28, 12);
+            e.HasIndex(x => new { x.Symbol, x.Interval, x.OpenUtc }).IsUnique();
+            e.HasIndex(x => x.CloseUtc);
+        });
         model.Entity<RacUser>(e =>
         {
             e.HasKey(x => x.Id);

@@ -17,6 +17,7 @@
 - `InitialCreate`: tabelas de agentes, estratégias, ordens, execuções, posições, aportes, patrimônio, bloqueios e auditoria.
 - `DurableSimulatorState`: tabela `rac.SimulationCheckpoints` com versão de linha (rowversion) e identificador de posição simulada único.
 - `RacUserSecurity`: tabela `rac.Users` com usuário, hash de senha, função, habilitação e bloqueio temporário.
+- `BinancePublicMarketData`: tabelas `rac.MarketQuotes` (última cotação por par) e `rac.MarketCandles` (candles públicos de 1 minuto, somente fechados, índice único por par/intervalo/abertura).
 
 A API **não aplica migrations automaticamente**. Atualize explicitamente em ambiente controlado:
 
@@ -48,6 +49,27 @@ A página RAC.Web mostra uma seção de histórico armazenado. Seu navegador con
 ## Limitações e segurança
 
 O motor continua sintético e **não é um algoritmo de trading pronto para dinheiro real**. A autenticação local e o fluxo de revisão de risco foram adicionados no MVP 0.6 (consulte `SEGURANCA.md`), mas **a API e o Web não devem ser publicados na Internet** sem HTTPS completo, MFA, recuperação de contas e avaliação de segurança. A API não oferece rotas de envio de ordens reais ou autenticadas na Testnet. Execute apenas uma instância ativa da API por banco de simulação.
+
+## Mercado público Binance Spot (MVP 0.7)
+
+- Fonte **somente leitura**: `https://data-api.binance.vision/`, endpoints `GET /api/v3/ticker/price` e `GET /api/v3/klines`. **Não exige API Key.**
+- O `RacMarketDataWorker` atualiza as 12 cotações e obtém os candles fechados de 1 minuto com intervalo mínimo de **60 segundos**. Faz a carga inicial dos últimos ~90 candles por ativo, sem salvar o candle em formação.
+- As cotações são mantidas em `rac.MarketQuotes`, uma linha por par. O histórico OHLCV é gravado em `rac.MarketCandles` e dados com mais de **14 dias** são excluídos pela coleta (retenção básica).
+- Em HTTP **429** ou **418**, o trabalhador interrompe as requisições e aguarda antes de tentar novamente; falhas de rede ou banco deixam as cotações marcadas como desatualizadas, sem afetar o simulador.
+- `Rac:MarketData:Enabled` e `Rac:MarketData:RefreshSeconds` podem ser ajustados em `src/RAC.Api/appsettings.Development.json`. O intervalo é limitado entre **60 e 600 segundos**.
+- A autenticação existente protege os endpoints `GET /api/market/overview` e `GET /api/market/candles/{symbol}`, que consultam exclusivamente o SQL Server.
+- **Nunca** confunda essas cotações reais em USDT com o estado financeiro **sintético**: o motor do trader, seus sinais, operações e patrimônio ainda não utilizam preço público e não têm integração de ordens.
+
+Consultas para verificar dados no SQL Server:
+
+```sql
+SELECT Symbol, PriceUsdt, ObservedUtc
+FROM rac.MarketQuotes ORDER BY Symbol;
+
+SELECT TOP (20) Symbol, OpenUtc, [Open], High, Low, [Close], Volume
+FROM rac.MarketCandles WHERE Symbol = 'BTCUSDT'
+ORDER BY OpenUtc DESC;
+```
 
 ## Validar
 

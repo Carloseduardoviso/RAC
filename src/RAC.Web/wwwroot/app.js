@@ -53,7 +53,7 @@ function render(state){
   if(first){ $('startingBalance').value=state.settings.referenceCapitalBrl; $('riskPct').value=state.settings.maxRiskPerTradePct; $('dailyLimit').value=state.settings.maxDailyLossPct; $('maxOpen').value=state.settings.maxOpenPositions; $('cumulativeLimit').value=state.settings.maxCumulativeDrawdownPct; $('monthlyContribution').value=state.settings.monthlyContributionBrl; first=false; }
 }
 async function refresh(){try{render(await api('state'));}catch(e){$('error').textContent=`Falha ao carregar o simulador: ${e.message}`;$('error').hidden=false;}}
-async function command(path,body){try{render(await api(path,{method:'POST',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined}));}catch(e){$('error').textContent=e.message;$('error').hidden=false;}}
+async function command(path,body){try{render(await api(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body ?? {})}));}catch(e){$('error').textContent=e.message;$('error').hidden=false;}}
 $('start').onclick=()=>command('control/start');
 $('pause').onclick=()=>command('control/pause');
 $('step').onclick=()=>command('control/step');
@@ -76,8 +76,8 @@ async function refreshHistory() {
     const active = history.riskLocks.filter(r => r.active);
     $('persistedRisk').textContent = 'Aportes registrados: '+history.contributions.length+' | Bloqueios ativos: '+active.length;
   } catch (error) {
-    $('historyStatus').textContent = 'HistÃ³rico indisponÃ­vel';
-    $('persistedRisk').textContent = 'NÃ£o foi possÃ­vel consultar o SQL Server: '+error.message;
+    $('historyStatus').textContent = 'Histórico indisponível';
+    $('persistedRisk').textContent = 'Não foi possível consultar o SQL Server: '+error.message;
   }
 }
 setInterval(() => { if(authenticated) refreshHistory(); },5000);
@@ -99,6 +99,8 @@ async function loadSession() {
     showSession(session);
     await refresh();
     await refreshHistory();
+    await refreshMarketData();
+    await refreshMarketCandles();
   } catch {
     showSession(null);
   }
@@ -145,3 +147,46 @@ $('riskReviewForm').onsubmit = async event => {
   }
 };
 loadSession();
+
+async function refreshMarketData() {
+  if (!authenticated) return;
+  try {
+    const market = await api('market/overview');
+    const feed = market.feed;
+    const label = {
+      LIVE: 'Cotações atuais', DEGRADED: 'Atualização parcial',
+      STALE: 'Cotações desatualizadas', WAITING: 'Aguardando coleta'
+    };
+    $('marketFeedStatus').textContent = label[feed.status] || 'Indisponível';
+    const last = feed.lastSuccessUtc ? formatDate(feed.lastSuccessUtc) : 'nenhuma consulta concluída';
+    $('marketUpdated').textContent = 'Binance Spot pública • USDT • Última coleta: ' + last +
+      (feed.error ? ' • ' + feed.error : '') +
+      ' • Sem vínculo com as operações sintéticas';
+    $('marketQuotes').innerHTML = market.quotes.length
+      ? market.quotes.map(q => '<article class="agent"><div class="agent-top"><b>'+
+          safe(q.symbol)+'</b><span>'+(q.stale?'DESATUALIZADO':'SPOT PÚBLICO')+
+          '</span></div><div class="price">'+decimal(q.priceUsdt)+
+          '</div><div class="foot"><span>USDT</span><span>Binance</span></div></article>').join('')
+      : '<p>Nenhuma cotação persistida. A coleta automática pode estar iniciando ou indisponível.</p>';
+  } catch (error) {
+    $('marketFeedStatus').textContent = 'Consulta indisponível';
+    $('marketUpdated').textContent = 'Não foi possível consultar as cotações: ' + error.message;
+  }
+}
+async function refreshMarketCandles() {
+  if (!authenticated) return;
+  try {
+    const candles = await api('market/candles/'+encodeURIComponent($('marketPair').value));
+    $('marketCandles').innerHTML = candles.candles.length
+      ? candles.candles.slice(-12).reverse().map(c =>
+        '<tr><td>'+safe(formatDate(c.openUtc))+'</td><td>'+decimal(c.open)+'</td><td>'+
+        decimal(c.high)+'</td><td>'+decimal(c.low)+'</td><td>'+decimal(c.close)+
+        '</td><td>'+decimal(c.volume)+'</td></tr>').join('')
+      : '<tr><td colspan="6">Aguardando candles fechados da Binance</td></tr>';
+  } catch (error) {
+    $('marketCandles').innerHTML = '<tr><td colspan="6">Histórico temporariamente indisponível</td></tr>';
+  }
+}
+$('marketPair').onchange = refreshMarketCandles;
+setInterval(() => { if(authenticated) {refreshMarketData();refreshMarketCandles();} }, 20000);
+

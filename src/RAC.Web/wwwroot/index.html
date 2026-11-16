@@ -7,7 +7,7 @@
 </head>
 <body>
 <div class="shell">
-<header><div class="brand"><div class="logo">R<span>●</span></div><div><strong>RAC</strong><small>Rebeca · Ana · Carlos | MVP 0.6</small></div></div><div class="mode">● SIMULAÇÃO • ORDENS REAIS DESATIVADAS</div></header>
+<header><div class="brand"><div class="logo">R<span>●</span></div><div><strong>RAC</strong><small>Rebeca · Ana · Carlos | MVP 0.7</small></div></div><div class="mode">● SIMULAÇÃO • ORDENS REAIS DESATIVADAS</div></header>
 <section id="authPanel" class="panel login-box">
   <h2>Acesso ao RAC</h2>
   <p>Entre com uma conta autorizada para visualizar e controlar a simulação.</p>
@@ -21,19 +21,36 @@
 <div id="sessionPanel" class="session-panel" hidden>
   <span id="sessionUser"></span><button id="logout" type="button">Sair</button>
 </div>
-<section class="intro"><div><div class="eyebrow">CENTRAL DE OPERAÇÕES</div><h1>Seu escritório de agentes</h1><p>12 traders Spot monitoram dados <strong>sintéticos</strong>. Nenhum investimento ou operação real é realizado.</p></div><div class="actions"><button id="start" class="primary">▶ Iniciar</button><button id="pause">Ⅱ Pausar</button><button id="step">↳ Avançar 1 tick</button><button id="reset" class="danger">↻ Reiniciar</button></div></section>
+<section class="intro"><div><div class="eyebrow">CENTRAL DE OPERAÇÕES</div><h1>Seu escritório de agentes</h1><p>12 traders simulam operações com preços <strong>sintéticos</strong>. As cotações reais da Binance aparecem separadamente, sem enviar ordens.</p></div><div class="actions"><button id="start" class="primary">▶ Iniciar</button><button id="pause">Ⅱ Pausar</button><button id="step">↳ Avançar 1 tick</button><button id="reset" class="danger">↻ Reiniciar</button></div></section>
 <div id="error" role="alert" hidden></div>
 <section class="metrics"><div class="metric"><span>Patrimônio simulado</span><strong id="equity">—</strong><small id="balance">Saldo: —</small></div><div class="metric"><span>Resultado do trading (sem aportes)</span><strong id="pnl">—</strong><small id="daily">Hoje: —</small></div><div class="metric"><span>Posições abertas</span><strong id="open">—</strong><small id="limit">Limite: —</small></div><div class="metric"><span>Status de risco</span><strong id="risk">—</strong><small id="drawdown">Queda acumulada: —</small></div></section>
 <section class="panel"><div class="section-head"><div><h2>Supervisores RAC</h2><p>Ana coordena, Rebeca monitora notícias (pendente), Carlos controla o risco</p></div></div><div class="agent-grid" id="supervisors"></div><p id="binanceStatus">Binance Spot Testnet: conectividade não verificada</p><button id="ping">Verificar conexão pública da Testnet</button></section><div class="layout"><main><section class="panel"><div class="section-head"><div><h2>Mapa dos agentes</h2><p>12 criptomoedas Spot, preços simulados e sinais experimentais</p></div><span id="tick" class="chip">Tick 0</span></div><div class="agent-grid" id="agents"></div></section><section class="panel"><div class="section-head"><div><h2>Evolução do patrimônio</h2><p>Curva sintética em reais de referência (BRL), incluindo aportes virtuais</p></div></div><div class="chart"><svg id="chart" viewBox="0 0 700 200" preserveAspectRatio="none" role="img" aria-label="Evolução do patrimônio simulado"><path id="area" fill="rgba(44,221,157,.12)"/><polyline id="line" fill="none" stroke="#2cdd9d" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg></div></section><section class="panel"><div class="section-head"><div><h2>Operações</h2><p>Posições ativas e últimos fechamentos</p></div></div><h3>Em andamento</h3><div class="scroll"><table><thead><tr><th>Ativo</th><th>Direção</th><th>Entrada</th><th>Atual</th><th>P/L estimado</th></tr></thead><tbody id="positions"></tbody></table></div><h3>Concluídas</h3><div class="scroll"><table><thead><tr><th>Ativo</th><th>Resultado</th><th>Motivo</th><th>Tick</th></tr></thead><tbody id="trades"></tbody></table></div></section><section class="panel">
   <div class="section-head">
-    <div><h2>HistÃ³rico persistido no SQL Server</h2><p>OperaÃ§Ãµes e patrimÃ´nio registrados em RAC (LocalDB)</p></div>
+    <div><h2>Histórico persistido no SQL Server</h2><p>Operações e patrimônio registrados em RAC (LocalDB)</p></div>
     <span id="historyStatus" class="chip">Consultando banco...</span>
   </div>
-  <h3>Ãšltimas ordens simuladas</h3>
-  <div class="scroll"><table><thead><tr><th>Data</th><th>Ativo</th><th>Tipo</th><th>Quantidade</th><th>PreÃ§o (USDT)</th></tr></thead><tbody id="persistedOrders"><tr><td colspan="5">Carregando...</td></tr></tbody></table></div>
-  <h3>Ãšltimos registros de patrimÃ´nio</h3>
-  <div class="scroll"><table><thead><tr><th>Data</th><th>PatrimÃ´nio (BRL)</th><th>Aportes (BRL)</th><th>Queda</th></tr></thead><tbody id="persistedEquity"><tr><td colspan="4">Carregando...</td></tr></tbody></table></div>
+  <h3>Últimas ordens simuladas</h3>
+  <div class="scroll"><table><thead><tr><th>Data</th><th>Ativo</th><th>Tipo</th><th>Quantidade</th><th>Preço (USDT)</th></tr></thead><tbody id="persistedOrders"><tr><td colspan="5">Carregando...</td></tr></tbody></table></div>
+  <h3>Últimos registros de patrimônio</h3>
+  <div class="scroll"><table><thead><tr><th>Data</th><th>Patrimônio (BRL)</th><th>Aportes (BRL)</th><th>Queda</th></tr></thead><tbody id="persistedEquity"><tr><td colspan="4">Carregando...</td></tr></tbody></table></div>
   <p id="persistedRisk">Bloqueios registrados: verificando...</p>
+</section><section class="panel">
+  <div class="section-head">
+    <div><h2>Mercado Binance Spot — dados públicos reais</h2><p>12 pares USDT, consulta somente leitura. Não altera a simulação, patrimônio ou as decisões de compra.</p></div>
+    <span id="marketFeedStatus" class="chip">Aguardando atualização...</span>
+  </div>
+  <p id="marketUpdated">Fonte: Binance Spot pública • USDT • atualização em até 60 segundos</p>
+  <div id="marketQuotes" class="agent-grid"><p>Aguardando cotações públicas da Binance.</p></div>
+  <h3>Histórico de candles reais fechados (1 minuto)</h3>
+  <label>Par monitorado <select id="marketPair">
+    <option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option>
+    <option>XRPUSDT</option><option>ADAUSDT</option><option>DOGEUSDT</option><option>LINKUSDT</option>
+    <option>AVAXUSDT</option><option>LTCUSDT</option><option>DOTUSDT</option><option>TRXUSDT</option>
+  </select></label>
+  <div class="scroll"><table>
+    <thead><tr><th>Horário local</th><th>Abertura (USDT)</th><th>Máxima</th><th>Mínima</th><th>Fechamento</th><th>Volume base</th></tr></thead>
+    <tbody id="marketCandles"><tr><td colspan="6">Aguardando candles fechados</td></tr></tbody>
+  </table></div>
 </section></main><aside><section class="panel control"><h2>Gestão de risco</h2><p>R$ 100 iniciais, R$ 200 por mês simulado, reinvestimento integral, revisão após queda acumulada de 10%. Ordens reais proibidas.</p><p id="contributions">Aportes acumulados: —</p><p id="riskMessage">—</p><form id="settings"><label>Capital de referência (BRL)<input id="startingBalance" type="number" min="100" max="100" step="1" readonly required></label><label>Risco por operação (%)<input id="riskPct" type="number" min="0.5" max="0.5" step="0.1" readonly required></label><label>Limite de perda diária (%)<input id="dailyLimit" type="number" min="1" max="1" step="0.5" readonly required></label><label>Limite de queda acumulada (%)<input id="cumulativeLimit" type="number" value="10" readonly></label><label>Aporte mensal virtual (R$)<input id="monthlyContribution" type="number" value="200" readonly></label><label>Posições simultâneas<select id="maxOpen"><option>1</option></select></label><button type="submit" class="primary wide" disabled>Política de risco bloqueada</button></form></section><section id="riskReviewPanel" class="panel" hidden>
   <h2>Revisão humana — Carlos</h2>
   <p>Somente administradores e revisores autorizados. A aprovação encerra o bloqueio, registra a justificativa e inicia um novo cenário simulado pausado; não recupera perdas.</p>
@@ -45,6 +62,6 @@
   </form>
   <p id="reviewMessage" role="status"></p>
 </section>
-<section class="panel note"><h2>Sobre este MVP</h2><p><b>Não são cotações reais.</b> O gerador sintético produz variações aleatórias; os sinais vêm de uma regra de momentum, não de um modelo de IA treinado.</p><p>O resultado inclui taxa ilustrativa de 0,1% por lado e câmbio fictício de R$ 5 por USDT. Não prevê slippage real, spreads variáveis ou outras condições de mercado.</p><p>Apenas consultas públicas de conectividade e filtros da Binance Spot Testnet estão disponíveis. Não existem endpoints de ordens, credenciais, login da corretora nem pagamentos.</p></section></aside></div>
+<section class="panel note"><h2>Sobre este MVP</h2><p><b>As operações e o patrimônio seguem sintéticos.</b> O simulador produz variações aleatórias; os sinais vêm de uma regra de momentum, não de um modelo de IA treinado.</p><p>O resultado inclui taxa ilustrativa de 0,1% por lado e câmbio fictício de R$ 5 por USDT. Não prevê slippage real, spreads variáveis ou outras condições de mercado.</p><p>O painel também consulta cotações e candles públicos reais da Binance Spot, sem vincular esses dados ao motor sintético. A Testnet permanece disponível para verificações públicas. Não existem endpoints de ordens, credenciais, login da corretora nem pagamentos.</p></section></aside></div>
 <footer>RAC • Protótipo educacional • Nenhuma promessa de rentabilidade</footer>
 </div><script src="app.js" defer></script></body></html>

@@ -4,6 +4,7 @@ using RAC.Api.Models;
 using RAC.Api.Security;
 using RAC.Api.Services;
 using RAC.Infrastructure;
+using RAC.Domain;
 
 var builder = WebApplication.CreateBuilder(args);
 var racConnection = Environment.GetEnvironmentVariable("RAC_SQLSERVER_CONNECTION")
@@ -17,6 +18,14 @@ builder.Services.AddSingleton(builder.Configuration.GetSection("Rac:Risk").Get<R
 builder.Services.AddSingleton<RacSimulator>();
 builder.Services.AddSingleton<RacPersistentEngine>();
 builder.Services.AddHostedService<RacWorker>();
+builder.Services.AddHttpClient<BinancePublicMarketClient>(client =>
+{
+    client.BaseAddress = new Uri("https://data-api.binance.vision/");
+    client.Timeout = TimeSpan.FromSeconds(12);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("RAC-MarketObserver/0.7");
+});
+builder.Services.AddSingleton<RacMarketDataService>();
+builder.Services.AddHostedService<RacMarketDataWorker>();
 builder.Services.AddHttpClient("binance", client =>
 {
     client.BaseAddress = new Uri("https://testnet.binance.vision/");
@@ -60,6 +69,41 @@ app.MapGet("/api/history", async (RacDbContext db, CancellationToken ct) => new
         .Select(x => new { x.AmountBrl, x.IsVirtual, x.OccurredUtc }).ToListAsync(ct),
     riskLocks = await db.RiskLocks.AsNoTracking().OrderByDescending(x => x.CreatedUtc).Take(20)
         .Select(x => new { x.Reason, x.Active, x.CreatedUtc, x.ReleasedUtc }).ToListAsync(ct)
+}).RequireAuthorization();
+
+app.MapGet("/api/market/overview", async (
+    RacDbContext db, RacMarketDataService feed, CancellationToken ct) =>
+{
+    var quotes = await db.MarketQuotes.AsNoTracking().OrderBy(x => x.Symbol)
+        .Select(x => new { x.Symbol, x.PriceUsdt, x.ObservedUtc, x.Source })
+        .ToListAsync(ct);
+    return Results.Ok(new
+    {
+        feed = feed.Health, unit = "USDT",
+        simulationLinked = false, orderPlacementEnabled = false,
+        quotes = quotes.Select(q => new {
+            q.Symbol, q.PriceUsdt, q.ObservedUtc, q.Source,
+            stale = q.ObservedUtc < DateTimeOffset.UtcNow.AddMinutes(-3)
+        })
+    });
+}).RequireAuthorization();
+
+app.MapGet("/api/market/candles/{symbol}", async (
+    string symbol, int? limit, RacDbContext db, CancellationToken ct) =>
+{
+    if (!RacMarketSymbols.IsSupported(symbol))
+        return Results.BadRequest(new { error = "Par não monitorado pelo RAC." });
+    if (limit is < 1 or > 120)
+        return Results.BadRequest(new { error = "Limite permitido: 1 a 120 candles." });
+    var candles = await db.MarketCandles.AsNoTracking()
+        .Where(x => x.Symbol == symbol && x.Interval == RacMarketSymbols.CandleInterval)
+        .OrderByDescending(x => x.OpenUtc).Take(limit ?? 40)
+        .Select(x => new { x.OpenUtc, x.CloseUtc, x.Open, x.High,
+            x.Low, x.Close, x.Volume, x.QuoteVolume, x.Trades })
+        .ToListAsync(ct);
+    candles.Reverse();
+    return Results.Ok(new { symbol, interval = "1m", source = RacMarketSymbols.Source,
+        onlyClosed = true, candles });
 }).RequireAuthorization();
 
 app.MapGet("/api/binance/testnet/ping", async (IHttpClientFactory factory, CancellationToken ct) =>

@@ -132,6 +132,97 @@ namespace RAC.Infrastructure.Migrations
                     b.ToTable("EquitySnapshots", "rac");
                 });
 
+            modelBuilder.Entity("RAC.Domain.MarketCandle", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Close")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<DateTimeOffset>("CloseUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("High")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<string>("Interval")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)");
+
+                    b.Property<decimal>("Low")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<decimal>("Open")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<DateTimeOffset>("OpenUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("QuoteVolume")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.Property<long>("Trades")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("Volume")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CloseUtc");
+
+                    b.HasIndex("Symbol", "Interval", "OpenUtc")
+                        .IsUnique();
+
+                    b.ToTable("MarketCandles", "rac");
+                });
+
+            modelBuilder.Entity("RAC.Domain.MarketQuote", b =>
+                {
+                    b.Property<string>("Symbol")
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.Property<DateTimeOffset>("ObservedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("PriceUsdt")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.HasKey("Symbol");
+
+                    b.HasIndex("ObservedUtc");
+
+                    b.ToTable("MarketQuotes", "rac");
+                });
+
             modelBuilder.Entity("RAC.Domain.Position", b =>
                 {
                     b.Property<Guid>("Id")
