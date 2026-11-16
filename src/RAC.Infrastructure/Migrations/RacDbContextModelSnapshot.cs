@@ -369,6 +369,156 @@ namespace RAC.Infrastructure.Migrations
                     b.ToTable("SimulationCheckpoints", "rac");
                 });
 
+            modelBuilder.Entity("RAC.Domain.SpotCashFlowNote", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("AmountBrl")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(240)
+                        .HasColumnType("nvarchar(240)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateOnly>("OccurredOn")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("RecordedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId", "OccurredOn");
+
+                    b.ToTable("SpotCashFlowNotes", "rac");
+                });
+
+            modelBuilder.Entity("RAC.Domain.SpotInvestmentPlan", b =>
+                {
+                    b.Property<Guid>("OwnerUserId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("MonthlyContributionBrl")
+                        .HasPrecision(19, 4)
+                        .HasColumnType("decimal(19,4)");
+
+                    b.Property<decimal>("ReinvestRealizedProfitPercent")
+                        .HasPrecision(7, 2)
+                        .HasColumnType("decimal(7,2)");
+
+                    b.Property<DateTimeOffset>("UpdatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("OwnerUserId");
+
+                    b.ToTable("SpotInvestmentPlans", "rac");
+                });
+
+            modelBuilder.Entity("RAC.Domain.SpotPortfolioHolding", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Asset")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.Property<decimal?>("EstimatedValueBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<decimal>("Free")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<decimal>("Locked")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<string>("PriceSource")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<long>("SnapshotId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal?>("UnitPriceBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SnapshotId", "Asset")
+                        .IsUnique();
+
+                    b.ToTable("SpotPortfolioHoldings", "rac");
+                });
+
+            modelBuilder.Entity("RAC.Domain.SpotPortfolioSnapshot", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("CompleteValuation")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("PricedAssetCount")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("QuotesObservedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal?>("TotalEstimatedBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<int>("UnpricedAssetCount")
+                        .HasColumnType("int");
+
+                    b.Property<decimal?>("UsdtBrlRate")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<decimal>("ValuedSubsetBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<DateTimeOffset>("WalletObservedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId", "WalletObservedUtc");
+
+                    b.ToTable("SpotPortfolioSnapshots", "rac");
+                });
+
             modelBuilder.Entity("RAC.Domain.Strategy", b =>
                 {
                     b.Property<Guid>("Id")
@@ -475,6 +625,17 @@ namespace RAC.Infrastructure.Migrations
                     b.ToTable("Orders", "rac");
                 });
 
+            modelBuilder.Entity("RAC.Domain.SpotPortfolioHolding", b =>
+                {
+                    b.HasOne("RAC.Domain.SpotPortfolioSnapshot", "Snapshot")
+                        .WithMany("Holdings")
+                        .HasForeignKey("SnapshotId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Snapshot");
+                });
+
             modelBuilder.Entity("RAC.Domain.TradeExecution", b =>
                 {
                     b.HasOne("RAC.Domain.TradeOrder", "Order")
@@ -484,6 +645,11 @@ namespace RAC.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("RAC.Domain.SpotPortfolioSnapshot", b =>
+                {
+                    b.Navigation("Holdings");
                 });
 #pragma warning restore 612, 618
         }

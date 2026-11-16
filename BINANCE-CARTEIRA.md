@@ -35,9 +35,11 @@ Na raiz `C:\Users\05035144208\source\repos\RAC`, abra um **PowerShell independen
 ```powershell
 dotnet run --project tools/RAC.BinanceSetup -- --status
 dotnet run --project tools/RAC.BinanceSetup
+# Opcional: mostrar somente a API Key enquanto digita (Secret Key continua oculta)
+dotnet run --project tools/RAC.BinanceSetup -- --show-api-key
 ```
 
-Digite a **API Key** e **Secret Key** quando solicitado. O texto é ocultado no terminal.
+Por padrão, ambas as informações ficam ocultas no terminal. Se usar `--show-api-key`, **somente a API Key aparece enquanto você digita**; a Secret Key sempre permanece oculta. Não compartilhe a tela nem faça capturas com a chave visível. Após o cadastro, execute `Clear-Host` no PowerShell para limpar a visualização.
 
 O configurador criptografa os dois valores com **Windows DPAPI, CurrentUser** e salva somente o arquivo criptografado em `%LOCALAPPDATA%\RAC\binance-spot-readonly.dpapi`. Nenhuma chave é salva no projeto Git, no SQL Server ou no navegador.
 
@@ -61,6 +63,12 @@ Você também pode revogar a chave diretamente no site oficial da Binance.
 A consulta é feita **somente quando você clica no botão**. Os saldos **não são gravados no SQL Server nem armazenados no navegador** (respostas HTTP com `Cache-Control: no-store`). Ao sair do sistema, o painel apaga os valores visíveis.
 
 Endpoints: `GET /api/binance/spot/status` e `GET /api/binance/spot/balances`. Ambos exigem a função **Administrator**.
+
+## MVP 0.8: patrimônio estimado e histórico SQL Server
+
+O RAC possui agora uma segunda seção, **Patrimônio real Binance Spot — gestão e histórico**. Somente quando o administrador clicar em **Consultar Binance e registrar patrimônio**, a API consulta novamente os saldos reais, combina com as cotações Spot públicas, estima os valores em BRL e grava um histórico no SQL Server. **A consulta simples anterior de saldo não grava histórico.**
+
+Também existe um plano informativo de aportes de R$ 200/mês e reinvestimento pretendido de 100%, além de anotações manuais de depósitos/retiradas; nenhum botão realiza movimentação financeira. Consulte `MVP-0.8.md` para detalhes, limites e proteção de dados.
 
 ## Controle financeiro e reinvestimento
 

@@ -7,7 +7,7 @@
 </head>
 <body>
 <div class="shell">
-<header><div class="brand"><div class="logo">R<span>●</span></div><div><strong>RAC</strong><small>Rebeca · Ana · Carlos | MVP 0.7</small></div></div><div class="mode">● SIMULAÇÃO • ORDENS REAIS DESATIVADAS</div></header>
+<header><div class="brand"><div class="logo">R<span>●</span></div><div><strong>RAC</strong><small>Rebeca · Ana · Carlos | MVP 0.8</small></div></div><div class="mode">● SIMULAÇÃO • ORDENS REAIS DESATIVADAS</div></header>
 <section id="authPanel" class="panel login-box">
   <h2>Acesso ao RAC</h2>
   <p>Entre com uma conta autorizada para visualizar e controlar a simulação.</p>
@@ -41,6 +41,74 @@
     <tbody id="walletAssets"><tr><td colspan="4">Saldo ainda não consultado.</td></tr></tbody>
   </table></div>
   <p><small>Não inclui outras carteiras Binance (Funding, Earn, Futuros). Ativos não são somados em BRL; o saldo em USDT não representa autorização de investimento.</small></p>
+</section><section class="panel" id="portfolioPanel" hidden>
+  <div class="section-head">
+    <div>
+      <h2>Patrimônio real Binance Spot — gestão e histórico</h2>
+      <p>Estimativa em BRL usando cotações Spot públicas. Somente consulta; sem negociação ou transferência.</p>
+    </div>
+    <span id="portfolioStatus" class="chip">Sem registro</span>
+  </div>
+  <div class="metrics" style="margin:16px 0">
+    <div class="metric"><span>Estimativa total Spot em BRL</span><strong id="portfolioTotal">—</strong>
+      <small id="portfolioTotalNote">Aguardando consulta</small></div>
+    <div class="metric"><span>Parcial avaliado em BRL</span><strong id="portfolioPriced">—</strong>
+      <small>Não inclui ativos sem cotação</small></div>
+    <div class="metric"><span>Cotação USDT/BRL</span><strong id="portfolioRate">—</strong>
+      <small>Binance Spot pública, não câmbio oficial</small></div>
+    <div class="metric"><span>Ativos sem cotação</span><strong id="portfolioUnpriced">—</strong>
+      <small>Não estimamos preços ausentes</small></div>
+  </div>
+  <p id="portfolioInfo">Nenhum histórico de carteira registrado.</p>
+  <button type="button" id="portfolioCapture">Consultar Binance e registrar patrimônio</button>
+  <p><small>Essa ação consulta sua carteira privada e salva um instantâneo no SQL Server. É manual, não automática. Variação entre registros não é lucro líquido.</small></p>
+  <h3>Composição do último instantâneo</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Ativo</th><th>Disponível</th><th>Bloqueado</th><th>BRL estimado</th><th>Origem</th></tr></thead>
+    <tbody id="portfolioHoldings"><tr><td colspan="5">Nenhuma consulta registrada.</td></tr></tbody>
+  </table></div>
+  <h3>Evolução das consultas reais</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Consulta</th><th>Estimativa total</th><th>Parcial avaliado</th><th>Cobertura</th></tr></thead>
+    <tbody id="portfolioSnapshots"><tr><td colspan="4">Sem registros.</td></tr></tbody>
+  </table></div>
+  <div class="portfolio-forms">
+    <div>
+      <h3>Plano de aportes e reinvestimento</h3>
+      <p>Somente planejamento. Lucro realizado ainda não está conciliado pela Binance.</p>
+      <form id="portfolioPlanForm">
+        <label>Aporte mensal planejado (R$)
+          <input id="plannedMonthly" type="number" min="0" max="1000000" step="0.01" value="200" required></label>
+        <label>Reinvestir lucro líquido verificado (%)
+          <input id="plannedReinvest" type="number" min="0" max="100" step="0.01" value="100" required></label>
+        <button type="submit">Salvar plano (sem movimentar dinheiro)</button>
+      </form>
+      <p id="portfolioPlanMessage" role="status"></p>
+    </div>
+    <div>
+      <h3>Registrar aporte ou retirada informada</h3>
+      <p>Declaração manual — não é depósito ou saque confirmado pela Binance.</p>
+      <form id="portfolioCashFlowForm">
+        <label>Tipo
+          <select id="cashflowKind"><option value="CONTRIBUTION">Aporte informado</option>
+            <option value="WITHDRAWAL">Retirada informada</option></select></label>
+        <label>Valor em BRL
+          <input id="cashflowAmount" type="number" min="0.01" max="1000000" step="0.01" required></label>
+        <label>Data
+          <input id="cashflowDate" type="date" required></label>
+        <label>Observação (opcional)
+          <input id="cashflowDescription" maxlength="240" placeholder="Ex.: valor enviado à Binance"></label>
+        <button type="submit">Registrar anotação (não transferir)</button>
+      </form>
+      <p id="portfolioCashflowMessage" role="status"></p>
+    </div>
+  </div>
+  <h3>Aportes e retiradas informados manualmente</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Data</th><th>Tipo</th><th>Valor</th><th>Observação</th><th>Confirmação Binance</th></tr></thead>
+    <tbody id="portfolioCashflows"><tr><td colspan="5">Nenhuma anotação.</td></tr></tbody>
+  </table></div>
+  <p><small>Observação: somente Binance Spot. Não inclui Funding, Earn, margem ou Futuros. Os registros mostram estimativas, não comprovam depósitos, lucro, rendimento ou imposto devido.</small></p>
 </section><section class="panel"><div class="section-head"><div><h2>Supervisores RAC</h2><p>Ana coordena, Rebeca monitora notícias (pendente), Carlos controla o risco</p></div></div><div class="agent-grid" id="supervisors"></div><p id="binanceStatus">Binance Spot Testnet: conectividade não verificada</p><button id="ping">Verificar conexão pública da Testnet</button></section><div class="layout"><main><section class="panel"><div class="section-head"><div><h2>Mapa dos agentes</h2><p>12 criptomoedas Spot, preços simulados e sinais experimentais</p></div><span id="tick" class="chip">Tick 0</span></div><div class="agent-grid" id="agents"></div></section><section class="panel"><div class="section-head"><div><h2>Evolução do patrimônio</h2><p>Curva sintética em reais de referência (BRL), incluindo aportes virtuais</p></div></div><div class="chart"><svg id="chart" viewBox="0 0 700 200" preserveAspectRatio="none" role="img" aria-label="Evolução do patrimônio simulado"><path id="area" fill="rgba(44,221,157,.12)"/><polyline id="line" fill="none" stroke="#2cdd9d" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg></div></section><section class="panel"><div class="section-head"><div><h2>Operações</h2><p>Posições ativas e últimos fechamentos</p></div></div><h3>Em andamento</h3><div class="scroll"><table><thead><tr><th>Ativo</th><th>Direção</th><th>Entrada</th><th>Atual</th><th>P/L estimado</th></tr></thead><tbody id="positions"></tbody></table></div><h3>Concluídas</h3><div class="scroll"><table><thead><tr><th>Ativo</th><th>Resultado</th><th>Motivo</th><th>Tick</th></tr></thead><tbody id="trades"></tbody></table></div></section><section class="panel">
   <div class="section-head">
     <div><h2>Histórico persistido no SQL Server</h2><p>Operações e patrimônio registrados em RAC (LocalDB)</p></div>
@@ -79,6 +147,6 @@
   </form>
   <p id="reviewMessage" role="status"></p>
 </section>
-<section class="panel note"><h2>Sobre este MVP</h2><p><b>As operações e o patrimônio seguem sintéticos.</b> O simulador produz variações aleatórias; os sinais vêm de uma regra de momentum, não de um modelo de IA treinado.</p><p>O resultado inclui taxa ilustrativa de 0,1% por lado e câmbio fictício de R$ 5 por USDT. Não prevê slippage real, spreads variáveis ou outras condições de mercado.</p><p>O painel também consulta cotações e candles públicos reais da Binance Spot, sem vincular esses dados ao motor sintético. A Testnet permanece disponível para verificações públicas. Não existem endpoints de ordens, credenciais, login da corretora nem pagamentos.</p></section></aside></div>
+<section class="panel note"><h2>Sobre este MVP</h2><p><b>As operações e o patrimônio seguem sintéticos.</b> O simulador produz variações aleatórias; os sinais vêm de uma regra de momentum, não de um modelo de IA treinado.</p><p>O resultado inclui taxa ilustrativa de 0,1% por lado e câmbio fictício de R$ 5 por USDT. Não prevê slippage real, spreads variáveis ou outras condições de mercado.</p><p>O RAC consulta cotações públicas reais e, quando o administrador solicita, lê a carteira Spot pela API com permissão exclusivamente de leitura. O histórico real em BRL representa estimativas de mercado, sem conciliação de lucro. A Testnet está disponível para verificações públicas. Não existem endpoints para ordens reais, saques ou pagamentos.</p></section></aside></div>
 <footer>RAC • Protótipo educacional • Nenhuma promessa de rentabilidade</footer>
 </div><script src="app.js" defer></script></body></html>

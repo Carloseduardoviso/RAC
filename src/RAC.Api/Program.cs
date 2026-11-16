@@ -6,6 +6,7 @@ using RAC.Api.Security;
 using RAC.Api.Services;
 using RAC.Infrastructure;
 using RAC.Domain;
+using RAC.Application;
 
 var builder = WebApplication.CreateBuilder(args);
 var racConnection = Environment.GetEnvironmentVariable("RAC_SQLSERVER_CONNECTION")
@@ -27,6 +28,13 @@ builder.Services.AddHttpClient<BinancePublicMarketClient>(client =>
 });
 builder.Services.AddSingleton<RacMarketDataService>();
 builder.Services.AddHostedService<RacMarketDataWorker>();
+builder.Services.AddHttpClient<BinancePortfolioPricesClient>(client =>
+{
+    client.BaseAddress = new Uri("https://data-api.binance.vision/");
+    client.Timeout = TimeSpan.FromSeconds(12);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("RAC-Spot-Portfolio-0.8");
+});
+builder.Services.AddSingleton<RacSpotPortfolioService>();
 
 // Real account inspection is read-only, explicitly requested and never scheduled.
 builder.Services.AddSingleton<BinanceSpotCredentialStore>();
@@ -160,6 +168,40 @@ app.MapGet("/api/binance/spot/balances", async (BinanceSpotAccountClient wallet,
     }
 }).RequireAuthorization("RacWalletOwner");
 
+app.MapGet("/api/portfolio/history", async (
+    ClaimsPrincipal user, RacSpotPortfolioService portfolio, HttpContext context, CancellationToken ct) =>
+{
+    context.Response.Headers.CacheControl = "no-store";
+    return Results.Ok(await portfolio.HistoryAsync(
+        Guid.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier)!), ct));
+}).RequireAuthorization("RacWalletOwner");
+
+app.MapPost("/api/portfolio/snapshot", async (
+    ClaimsPrincipal user, RacSpotPortfolioService portfolio, HttpContext context, CancellationToken ct) =>
+{
+    context.Response.Headers.CacheControl = "no-store";
+    return await HandlePortfolioAsync(() => portfolio.CaptureAsync(
+        Guid.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier)!), ct));
+}).RequireAuthorization("RacWalletOwner");
+
+app.MapPost("/api/portfolio/plan", async (
+    SpotPlanRequest request, ClaimsPrincipal user,
+    RacSpotPortfolioService portfolio, HttpContext context, CancellationToken ct) =>
+{
+    context.Response.Headers.CacheControl = "no-store";
+    return await HandlePortfolioAsync(() => portfolio.SavePlanAsync(
+        Guid.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier)!), request, ct));
+}).RequireAuthorization("RacWalletOwner");
+
+app.MapPost("/api/portfolio/cashflows", async (
+    SpotContributionRequest request, ClaimsPrincipal user,
+    RacSpotPortfolioService portfolio, HttpContext context, CancellationToken ct) =>
+{
+    context.Response.Headers.CacheControl = "no-store";
+    return await HandlePortfolioAsync(() => portfolio.AddCashFlowAsync(
+        Guid.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier)!), request, ct));
+}).RequireAuthorization("RacWalletOwner");
+
 app.MapGet("/api/binance/testnet/ping", async (IHttpClientFactory factory, CancellationToken ct) =>
 {
     try
@@ -195,6 +237,19 @@ app.MapGet("/api/binance/testnet/symbol/{symbol}", async (string symbol, IHttpCl
 
 // No routes for real orders, credentials or Testnet order placement.
 await app.RunAsync();
+
+static async Task<IResult> HandlePortfolioAsync(Func<Task<object>> operation)
+{
+    try { return Results.Ok(await operation()); }
+    catch (ArgumentException ex) { return Results.BadRequest(new { error = ex.Message }); }
+    catch (InvalidOperationException ex) when (
+        ex.Message.StartsWith("Aguarde 45 segundos", StringComparison.Ordinal))
+    { return Results.Conflict(new { error = ex.Message }); }
+    catch (BinanceUnsafePermissionsException)
+    { return Results.BadRequest(new { error = "A chave Binance deve ter permissão exclusivamente de leitura." }); }
+    catch (Exception)
+    { return Results.Json(new { error = "Falha ao consultar ou registrar o patrimônio. Verifique a Binance e o SQL Server." }, statusCode: 503); }
+}
 
 static async Task<IResult> HandleControlAsync(Func<Task<RacState>> change)
 {

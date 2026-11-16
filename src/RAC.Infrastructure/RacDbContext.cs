@@ -18,10 +18,49 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public DbSet<RacUser> Users => Set<RacUser>();
     public DbSet<MarketQuote> MarketQuotes => Set<MarketQuote>();
     public DbSet<MarketCandle> MarketCandles => Set<MarketCandle>();
+    public DbSet<SpotPortfolioSnapshot> SpotPortfolioSnapshots => Set<SpotPortfolioSnapshot>();
+    public DbSet<SpotPortfolioHolding> SpotPortfolioHoldings => Set<SpotPortfolioHolding>();
+    public DbSet<SpotCashFlowNote> SpotCashFlowNotes => Set<SpotCashFlowNote>();
+    public DbSet<SpotInvestmentPlan> SpotInvestmentPlans => Set<SpotInvestmentPlan>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<SpotPortfolioSnapshot>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.OwnerUserId, x.WalletObservedUtc });
+            e.Property(x => x.UsdtBrlRate).HasPrecision(28, 12);
+            e.Property(x => x.ValuedSubsetBrl).HasPrecision(28, 12);
+            e.Property(x => x.TotalEstimatedBrl).HasPrecision(28, 12);
+            e.HasMany(x => x.Holdings).WithOne(x => x.Snapshot)
+                .HasForeignKey(x => x.SnapshotId).OnDelete(DeleteBehavior.Cascade);
+        });
+        model.Entity<SpotPortfolioHolding>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Asset).HasMaxLength(24).IsRequired();
+            e.Property(x => x.PriceSource).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Free).HasPrecision(28, 12);
+            e.Property(x => x.Locked).HasPrecision(28, 12);
+            e.Property(x => x.UnitPriceBrl).HasPrecision(28, 12);
+            e.Property(x => x.EstimatedValueBrl).HasPrecision(28, 12);
+            e.HasIndex(x => new { x.SnapshotId, x.Asset }).IsUnique();
+        });
+        model.Entity<SpotCashFlowNote>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.OwnerUserId, x.OccurredOn });
+            e.Property(x => x.Kind).HasMaxLength(20).IsRequired();
+            e.Property(x => x.AmountBrl).HasPrecision(19, 4);
+            e.Property(x => x.Description).HasMaxLength(240).IsRequired();
+        });
+        model.Entity<SpotInvestmentPlan>(e =>
+        {
+            e.HasKey(x => x.OwnerUserId);
+            e.Property(x => x.MonthlyContributionBrl).HasPrecision(19, 4);
+            e.Property(x => x.ReinvestRealizedProfitPercent).HasPrecision(7, 2);
+        });
         model.Entity<MarketQuote>(e =>
         {
             e.HasKey(x => x.Symbol);

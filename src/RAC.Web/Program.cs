@@ -24,12 +24,14 @@ var getRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
     "/api/health", "/api/state", "/api/history", "/api/auth/me",
     "/api/market/overview", "/api/binance/testnet/ping",
-    "/api/binance/spot/status", "/api/binance/spot/balances"
+    "/api/binance/spot/status", "/api/binance/spot/balances",
+    "/api/portfolio/history"
 };
 var postRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
     "/api/auth/login", "/api/auth/logout", "/api/risk/review",
-    "/api/control/start", "/api/control/pause", "/api/control/step", "/api/control/reset"
+    "/api/control/start", "/api/control/pause", "/api/control/step", "/api/control/reset",
+    "/api/portfolio/snapshot", "/api/portfolio/plan", "/api/portfolio/cashflows"
 };
 
 app.MapMethods("/api/{**path}", ["GET", "POST"], async (HttpContext context, IHttpClientFactory factory) =>

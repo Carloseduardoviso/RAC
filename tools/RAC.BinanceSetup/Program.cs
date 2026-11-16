@@ -30,9 +30,10 @@ if (args.Length == 1 && args[0] == "--remove")
     return 0;
 }
 
-if (args.Length != 0)
+var showApiKey = args.Length == 1 && args[0] == "--show-api-key";
+if (args.Length != 0 && !showApiKey)
 {
-    Console.Error.WriteLine("Use sem argumentos, --status ou --remove.");
+    Console.Error.WriteLine("Use sem argumentos, --show-api-key, --status ou --remove.");
     return 1;
 }
 
@@ -45,8 +46,13 @@ if (store.IsConfigured)
     Console.Write("Já existe uma chave protegida. Substituir? Digite SIM: ");
     if (Console.ReadLine() != "SIM") return 1;
 }
-var apiKey = ReadHidden("API Key: ");
-var apiSecret = ReadHidden("Secret Key: ");
+if (showApiKey)
+{
+    Console.WriteLine("ATENÇÃO: a API Key ficará visível neste terminal até você limpar a tela.");
+    Console.WriteLine("Não faça capturas de tela nem compartilhe o conteúdo do terminal.");
+}
+var apiKey = showApiKey ? ReadVisible("API Key (visível): ") : ReadHidden("API Key: ");
+var apiSecret = ReadHidden("Secret Key (sempre oculta): ");
 try
 {
     store.Save(apiKey, apiSecret);
@@ -63,6 +69,12 @@ catch (Exception)
 {
     Console.Error.WriteLine("Falha ao salvar credenciais locais; confirme acesso ao perfil Windows.");
     return 1;
+}
+
+static string ReadVisible(string prompt)
+{
+    Console.Write(prompt);
+    return Console.ReadLine() ?? string.Empty;
 }
 
 static string ReadHidden(string prompt)

@@ -140,8 +140,10 @@ function showSession(session) {
   canReview = !!session?.canReview;
   canViewWallet = !!session?.canViewWallet;
   $('walletPanel').hidden = !authenticated || !canViewWallet;
+  $('portfolioPanel').hidden = !authenticated || !canViewWallet;
   if (!authenticated || !canViewWallet) {
     clearWalletDisplay();
+    clearPortfolioDisplay();
     $('walletStatus').textContent = 'Não consultado';
     $('walletInfo').textContent = 'Configure uma chave exclusivamente de leitura no Windows.';
   }
@@ -161,6 +163,7 @@ async function loadSession() {
     await refreshMarketData();
     await refreshMarketCandles();
     await checkWalletStatus();
+    if (canViewWallet) await refreshPortfolioHistory();
   } catch {
     showSession(null);
   }
@@ -250,3 +253,143 @@ async function refreshMarketCandles() {
 $('marketPair').onchange = refreshMarketCandles;
 setInterval(() => { if(authenticated) {refreshMarketData();refreshMarketCandles();} }, 20000);
 
+const brlEstimate = value => Number(value).toLocaleString('pt-BR', {
+  style:'currency', currency:'BRL', minimumFractionDigits:2, maximumFractionDigits:8
+});
+
+function clearPortfolioDisplay() {
+  for (const id of ['portfolioTotal','portfolioPriced','portfolioRate','portfolioUnpriced'])
+    $(id).textContent = '—';
+  $('portfolioInfo').textContent = 'Nenhum dado privado carregado.';
+  $('portfolioStatus').textContent = 'Sem consulta';
+  $('portfolioHoldings').innerHTML = '<tr><td colspan="5">Nenhuma consulta registrada.</td></tr>';
+  $('portfolioSnapshots').innerHTML = '<tr><td colspan="4">Sem registros.</td></tr>';
+  $('portfolioCashflows').innerHTML = '<tr><td colspan="5">Nenhuma anotação.</td></tr>';
+  $('plannedMonthly').value = '200';
+  $('plannedReinvest').value = '100';
+  $('cashflowAmount').value = '';
+  $('cashflowDescription').value = '';
+  $('portfolioPlanMessage').textContent = '';
+  $('portfolioCashflowMessage').textContent = '';
+}
+
+function renderPortfolioHistory(data) {
+  if (data.source !== 'BINANCE_SPOT_REAL' || data.realOrdersEnabled)
+    throw new Error('Origem de patrimônio incompatível com modo de leitura.');
+  const latest = data.latest;
+  $('portfolioStatus').textContent = latest ? 'Histórico SQL Server' : 'Aguardando 1ª consulta';
+  $('portfolioTotal').textContent = latest
+    ? (latest.completeValuation && latest.totalEstimatedBrl !== null
+      ? brlEstimate(latest.totalEstimatedBrl) : 'Parcial — sem total')
+    : '—';
+  $('portfolioPriced').textContent = latest ? brlEstimate(latest.valuedSubsetBrl) : '—';
+  $('portfolioRate').textContent = latest?.usdtBrlRate
+    ? brlEstimate(latest.usdtBrlRate) : 'Sem cotação';
+  $('portfolioUnpriced').textContent = latest ? String(latest.unpricedAssetCount) : '—';
+  $('portfolioTotalNote').textContent = !latest ? 'Sem histórico'
+    : latest.completeValuation ? 'Estimativa Spot sem taxas e spreads'
+    : 'Total indisponível: ativos sem cotação';
+  $('portfolioInfo').textContent = latest
+    ? 'Última leitura privada: '+formatDate(latest.walletObservedUtc)+
+      ' • preços públicos: '+formatDate(latest.quotesObservedUtc)+
+      ' • variação entre datas não representa lucro.'
+    : 'Clique em Consultar Binance e registrar patrimônio para criar o primeiro instantâneo.';
+  $('portfolioHoldings').innerHTML = data.holdings?.length
+    ? data.holdings.map(h =>
+        '<tr><td>'+safe(h.asset)+'</td><td>'+walletNumber(h.free)+
+        '</td><td>'+walletNumber(h.locked)+'</td><td>'+
+        (h.estimatedValueBrl === null ? 'Sem cotação' : brlEstimate(h.estimatedValueBrl))+
+        '</td><td>'+safe(h.priceSource)+'</td></tr>').join('')
+    : '<tr><td colspan="5">Nenhum ativo registrado no instantâneo.</td></tr>';
+  $('portfolioSnapshots').innerHTML = data.snapshots?.length
+    ? data.snapshots.slice(0,12).map(s =>
+        '<tr><td>'+safe(formatDate(s.walletObservedUtc))+'</td><td>'+
+        (s.totalEstimatedBrl === null ? 'Incompleto' : brlEstimate(s.totalEstimatedBrl))+
+        '</td><td>'+brlEstimate(s.valuedSubsetBrl)+
+        '</td><td>'+s.pricedAssetCount+' avaliado(s) / '+s.unpricedAssetCount+
+        ' sem cotação</td></tr>').join('')
+    : '<tr><td colspan="4">Nenhum registro ainda.</td></tr>';
+  $('portfolioCashflows').innerHTML = data.cashFlows?.length
+    ? data.cashFlows.slice(0,15).map(c =>
+        '<tr><td>'+safe(c.occurredOn.split('-').reverse().join('/'))+
+        '</td><td>'+(c.kind === 'CONTRIBUTION' ? 'Aporte' : 'Retirada')+
+        '</td><td>'+brlEstimate(c.amountBrl)+
+        '</td><td>'+safe(c.description)+
+        '</td><td>Não verificado (manual)</td></tr>').join('')
+    : '<tr><td colspan="5">Nenhuma anotação manual.</td></tr>';
+  $('plannedMonthly').value = data.plan.monthlyContributionBrl;
+  $('plannedReinvest').value = data.plan.reinvestRealizedProfitPercent;
+}
+
+async function refreshPortfolioHistory() {
+  if (!authenticated || !canViewWallet) return;
+  try {
+    renderPortfolioHistory(await api('portfolio/history'));
+  } catch (error) {
+    $('portfolioStatus').textContent = 'Histórico indisponível';
+    $('portfolioInfo').textContent = 'Falha ao consultar patrimônio no SQL Server: '+error.message;
+  }
+}
+
+$('portfolioCapture').onclick = async () => {
+  if (!authenticated || !canViewWallet) return;
+  $('portfolioCapture').disabled = true;
+  $('portfolioStatus').textContent = 'Consultando Binance...';
+  try {
+    await api('portfolio/snapshot', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:'{}'
+    });
+    await refreshPortfolioHistory();
+  } catch (error) {
+    $('portfolioStatus').textContent = 'Falha ao registrar';
+    $('portfolioInfo').textContent = error.message;
+  } finally { $('portfolioCapture').disabled = false; }
+};
+
+$('portfolioPlanForm').onsubmit = async event => {
+  event.preventDefault();
+  if (!authenticated || !canViewWallet) return;
+  const monthlyContributionBrl = Number($('plannedMonthly').value);
+  const reinvestRealizedProfitPercent = Number($('plannedReinvest').value);
+  $('portfolioPlanMessage').textContent = 'Salvando plano...';
+  try {
+    await api('portfolio/plan',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({monthlyContributionBrl,reinvestRealizedProfitPercent})
+    });
+    $('portfolioPlanMessage').textContent = 'Plano salvo no SQL Server. Nenhuma operação real realizada.';
+    await refreshPortfolioHistory();
+  } catch(error) {
+    $('portfolioPlanMessage').textContent = error.message;
+  }
+};
+
+const nowLocal = new Date();
+$('cashflowDate').value = [
+  nowLocal.getFullYear(),
+  String(nowLocal.getMonth()+1).padStart(2,'0'),
+  String(nowLocal.getDate()).padStart(2,'0')
+].join('-');
+
+$('portfolioCashFlowForm').onsubmit = async event => {
+  event.preventDefault();
+  if (!authenticated || !canViewWallet) return;
+  $('portfolioCashflowMessage').textContent = 'Registrando anotação...';
+  try {
+    await api('portfolio/cashflows',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        kind:$('cashflowKind').value,
+        amountBrl:Number($('cashflowAmount').value),
+        occurredOn:$('cashflowDate').value,
+        description:$('cashflowDescription').value
+      })
+    });
+    $('portfolioCashflowMessage').textContent = 'Anotação salva. Não é uma transferência e não comprova aporte na Binance.';
+    $('cashflowAmount').value = '';
+    $('cashflowDescription').value = '';
+    await refreshPortfolioHistory();
+  } catch(error) {
+    $('portfolioCashflowMessage').textContent = error.message;
+  }
+};
