@@ -11,8 +11,8 @@
 
 ## Banco de desenvolvimento
 
-- Instância: `.\\SQLEXPRESS`
-- Banco: `RAC_Development`
+- Instância: `(localdb)\MSSQLLocalDB`
+- Banco: `RAC`
 - Schema: `rac`
 - Autenticação: integrada do Windows.
 - Certificado confiável dispensado **somente para desenvolvimento local** (`TrustServerCertificate=True`).

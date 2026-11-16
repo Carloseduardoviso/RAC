@@ -9,7 +9,7 @@ public sealed class RacDbContextFactory : IDesignTimeDbContextFactory<RacDbConte
     public RacDbContext CreateDbContext(string[] args)
     {
         var connection = Environment.GetEnvironmentVariable("RAC_SQLSERVER_CONNECTION")
-            ?? @"Server=.\SQLEXPRESS;Database=RAC_Development;Integrated Security=True;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True";
+            ?? @"Server=(localdb)\MSSQLLocalDB;Database=RAC;Integrated Security=True;Encrypt=True;TrustServerCertificate=True;MultipleActiveResultSets=True";
         var options = new DbContextOptionsBuilder<RacDbContext>()
             .UseSqlServer(connection, sql => sql.MigrationsAssembly(typeof(RacDbContext).Assembly.FullName))
             .Options;
