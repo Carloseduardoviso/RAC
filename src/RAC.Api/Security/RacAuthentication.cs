@@ -61,7 +61,9 @@ public static class RacAuthentication
             .AddPolicy("RacOperator", p => p.RequireAuthenticatedUser()
                 .RequireRole(RacRoles.Administrator, RacRoles.Operator))
             .AddPolicy("RacRiskReviewer", p => p.RequireAuthenticatedUser()
-                .RequireRole(RacRoles.Administrator, RacRoles.RiskReviewer));
+                .RequireRole(RacRoles.Administrator, RacRoles.RiskReviewer))
+            .AddPolicy("RacWalletOwner", p => p.RequireAuthenticatedUser()
+                .RequireRole(RacRoles.Administrator));
 
         services.AddRateLimiter(options =>
         {
@@ -107,7 +109,8 @@ public static class RacAuthentication
             userName = user.Identity?.Name,
             role = user.FindFirstValue(ClaimTypes.Role),
             canControl = user.IsInRole(RacRoles.Administrator) || user.IsInRole(RacRoles.Operator),
-            canReview = user.IsInRole(RacRoles.Administrator) || user.IsInRole(RacRoles.RiskReviewer)
+            canReview = user.IsInRole(RacRoles.Administrator) || user.IsInRole(RacRoles.RiskReviewer),
+            canViewWallet = user.IsInRole(RacRoles.Administrator)
         })).RequireAuthorization();
 
         endpoints.MapPost("/api/auth/login", LoginAsync).RequireRateLimiting("RacLogin");

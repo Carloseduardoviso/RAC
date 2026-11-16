@@ -43,6 +43,14 @@ Abra `http://localhost:5081` e entre com o administrador criado.
 
 Leia `SEGURANCA.md` para permissões, cookies e revisão do agente Carlos. Leia `SQL-SERVER.md` para persistência e histórico.
 
+**Carteira Binance Spot real (leitura):** consulte `BINANCE-CARTEIRA.md`. Para cadastrar uma chave HMAC **somente leitura**, execute no PowerShell local:
+
+```powershell
+dotnet run --project tools/RAC.BinanceSetup
+```
+
+Não habilite compra, venda, saques ou transferências nessa chave. O botão do painel mostra os saldos reais somente depois dessa configuração; as operações seguem sintéticas.
+
 ## Testes
 
 ```powershell

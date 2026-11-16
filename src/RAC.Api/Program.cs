@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using RAC.Api.Models;
 using RAC.Api.Security;
@@ -26,6 +27,21 @@ builder.Services.AddHttpClient<BinancePublicMarketClient>(client =>
 });
 builder.Services.AddSingleton<RacMarketDataService>();
 builder.Services.AddHostedService<RacMarketDataWorker>();
+
+// Real account inspection is read-only, explicitly requested and never scheduled.
+builder.Services.AddSingleton<BinanceSpotCredentialStore>();
+builder.Services.AddHttpClient<BinanceSpotAccountClient>(client =>
+{
+    client.BaseAddress = new Uri("https://api.binance.com/");
+    client.Timeout = TimeSpan.FromSeconds(12);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("RAC-Spot-Wallet-ReadOnly/0.7");
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    UseCookies = false,
+    AllowAutoRedirect = false
+});
+// Signed URLs contain HMAC signatures: never log outgoing request URIs.
+builder.Logging.AddFilter("System.Net.Http.HttpClient.BinanceSpotAccountClient", LogLevel.None);
 builder.Services.AddHttpClient("binance", client =>
 {
     client.BaseAddress = new Uri("https://testnet.binance.vision/");
@@ -105,6 +121,44 @@ app.MapGet("/api/market/candles/{symbol}", async (
     return Results.Ok(new { symbol, interval = "1m", source = RacMarketSymbols.Source,
         onlyClosed = true, candles });
 }).RequireAuthorization();
+
+app.MapGet("/api/binance/spot/status", (BinanceSpotCredentialStore store,
+    HttpContext context) =>
+{
+    context.Response.Headers.CacheControl = "no-store";
+    return Results.Ok(new { configured = store.IsConfigured,
+        source = "BINANCE_SPOT_REAL", mode = "READ_ONLY",
+        realOrdersEnabled = false, note = "Apenas saldos Spot; sem ordens ou transferências." });
+}).RequireAuthorization("RacWalletOwner");
+
+app.MapGet("/api/binance/spot/balances", async (BinanceSpotAccountClient wallet,
+    BinanceSpotCredentialStore store, HttpContext context, CancellationToken ct) =>
+{
+    context.Response.Headers.CacheControl = "no-store";
+    if (!store.IsConfigured)
+        return Results.Json(new { error = "Configure uma chave Binance somente leitura no terminal local." },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    try { return Results.Ok(await wallet.GetWalletAsync(ct)); }
+    catch (BinanceUnsafePermissionsException)
+    {
+        return Results.BadRequest(new { error =
+            "A chave Binance possui permissões de movimentação ou não comprovou acesso somente leitura. Desative trading, saques e transferências e configure outra chave." });
+    }
+    catch (BinanceWalletRequestException)
+    {
+        return Results.Json(new { error =
+            "A Binance recusou a consulta da carteira. Verifique a chave, IP permitido e permissões somente leitura." },
+            statusCode: StatusCodes.Status502BadGateway);
+    }
+    catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or
+        CryptographicException or InvalidOperationException or FormatException or
+        System.Text.Json.JsonException)
+    {
+        return Results.Json(new { error =
+            "Não foi possível consultar a carteira. Verifique a rede e o usuário Windows que protege as credenciais." },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+}).RequireAuthorization("RacWalletOwner");
 
 app.MapGet("/api/binance/testnet/ping", async (IHttpClientFactory factory, CancellationToken ct) =>
 {

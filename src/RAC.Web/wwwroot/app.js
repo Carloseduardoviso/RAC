@@ -6,6 +6,58 @@ let first = true;
 let authenticated = false;
 let canControl = false;
 let canReview = false;
+
+let canViewWallet = false;
+const walletNumber = n => Number(n).toLocaleString('pt-BR', {maximumFractionDigits:12});
+
+function clearWalletDisplay() {
+  $('walletAvailable').textContent = '—';
+  $('walletLocked').textContent = '—';
+  $('walletAssets').innerHTML = '<tr><td colspan="4">Saldo ainda não consultado.</td></tr>';
+}
+
+async function checkWalletStatus() {
+  if (!authenticated || !canViewWallet) return;
+  try {
+    const status = await api('binance/spot/status');
+    $('walletStatus').textContent = status.configured ? 'Pronto para consultar' : 'Chave não configurada';
+    $('walletInfo').textContent = status.configured
+      ? 'Binance Spot real • somente leitura • clique para consultar o saldo atual.'
+      : 'Configure as credenciais HMAC somente leitura com tools/RAC.BinanceSetup no PowerShell.';
+    $('walletRefresh').disabled = !status.configured;
+  } catch {
+    $('walletStatus').textContent = 'Serviço indisponível';
+    $('walletRefresh').disabled = true;
+  }
+}
+
+$('walletRefresh').onclick = async () => {
+  if (!authenticated || !canViewWallet) return;
+  $('walletRefresh').disabled = true;
+  $('walletStatus').textContent = 'Consultando Binance...';
+  clearWalletDisplay();
+  try {
+    const data = await api('binance/spot/balances');
+    if (data.source !== 'BINANCE_SPOT_REAL' || data.realOrdersEnabled) {
+      throw new Error('Resposta de carteira incompatível com modo somente leitura.');
+    }
+    $('walletAvailable').textContent = walletNumber(data.availableUsdt) + ' USDT';
+    $('walletLocked').textContent = walletNumber(data.lockedUsdt) + ' USDT';
+    $('walletAssets').innerHTML = data.assets.length
+      ? data.assets.map(a => '<tr><td>'+safe(a.asset)+'</td><td>'+walletNumber(a.free)+
+         '</td><td>'+walletNumber(a.locked)+'</td><td>'+walletNumber(Number(a.free)+Number(a.locked))+'</td></tr>').join('')
+      : '<tr><td colspan="4">Sem ativos com saldo positivo na carteira Spot.</td></tr>';
+    $('walletStatus').textContent = 'Saldo real consultado';
+    $('walletInfo').textContent = 'Binance Spot real • atualização: ' +
+      formatDate(data.observedUtc) + ' • nenhuma negociação realizada pelo RAC.';
+  } catch (error) {
+    $('walletStatus').textContent = 'Falha na consulta';
+    $('walletInfo').textContent = error.message;
+  } finally {
+    $('walletRefresh').disabled = !authenticated || !canViewWallet;
+  }
+};
+
 const safe = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(path, options={}) {
   const headers = {...(options.headers || {})};
@@ -86,6 +138,13 @@ function showSession(session) {
   authenticated = !!session;
   canControl = !!session?.canControl;
   canReview = !!session?.canReview;
+  canViewWallet = !!session?.canViewWallet;
+  $('walletPanel').hidden = !authenticated || !canViewWallet;
+  if (!authenticated || !canViewWallet) {
+    clearWalletDisplay();
+    $('walletStatus').textContent = 'Não consultado';
+    $('walletInfo').textContent = 'Configure uma chave exclusivamente de leitura no Windows.';
+  }
   document.body.classList.toggle('authenticated', authenticated);
   $('authPanel').hidden = authenticated;
   $('sessionPanel').hidden = !authenticated;
@@ -101,6 +160,7 @@ async function loadSession() {
     await refreshHistory();
     await refreshMarketData();
     await refreshMarketCandles();
+    await checkWalletStatus();
   } catch {
     showSession(null);
   }
