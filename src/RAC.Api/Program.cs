@@ -1,7 +1,15 @@
 using RAC.Api.Models;
 using RAC.Api.Services;
+using RAC.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+var racConnection = builder.Configuration.GetConnectionString("RAC")
+    ?? Environment.GetEnvironmentVariable("RAC_SQLSERVER_CONNECTION");
+if (!string.IsNullOrWhiteSpace(racConnection))
+{
+    builder.Services.AddDbContext<RacDbContext>(options => options.UseSqlServer(racConnection));
+}
 builder.Services.AddSingleton(builder.Configuration.GetSection("Rac:Risk").Get<RiskPolicy>() ?? new RiskPolicy());
 builder.Services.AddSingleton<RacSimulator>();
 builder.Services.AddHostedService<RacWorker>();
