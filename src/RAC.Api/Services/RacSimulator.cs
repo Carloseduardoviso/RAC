@@ -58,6 +58,16 @@ public sealed class RacSimulator
     public void Start() { lock (_gate) { if (!_riskLocked) _running = true; } }
     public void Pause() { lock (_gate) _running = false; }
     public void Reset() { lock (_gate) { if (_riskLocked) throw new InvalidOperationException("Bloqueio de risco exige revisao autorizada; reiniciar nao libera o bloqueio."); ResetInside(); Emit("RESET", null, null, 0m, 0m, 0m, 0m, "Cenario simulado reiniciado."); } }
+    internal void ResetAfterAuthorizedReview()
+    {
+        lock (_gate)
+        {
+            if (!_riskLocked) throw new InvalidOperationException("Não há bloqueio de risco ativo para revisar.");
+            if (_positions.Count != 0) throw new InvalidOperationException("Posições abertas exigem reconciliação antes de liberar o risco.");
+            ResetInside();
+            Emit("REVIEW_RESET", null, null, 0m, 0m, 0m, 0m, "Novo cenário autorizado após revisão humana.");
+        }
+    }
     private void ResetInside()
     {
         _sessionId = Guid.NewGuid(); _pendingEvents.Clear(); _traders.Clear(); _positions.Clear(); _trades.Clear(); _curve.Clear();

@@ -10,38 +10,61 @@ builder.Services.AddHttpClient("RAC.Api", client =>
 {
     client.BaseAddress = backend;
     client.Timeout = TimeSpan.FromSeconds(15);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    UseCookies = false, // Never pool browser authentication cookies across users.
+    AllowAutoRedirect = false
 });
 var app = builder.Build();
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-// Requests from the browser stay on the same origin; only allow explicitly defined API paths.
 var getRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
-    "/api/health", "/api/state", "/api/history", "/api/binance/testnet/ping"
+    "/api/health", "/api/state", "/api/history", "/api/auth/me", "/api/binance/testnet/ping"
 };
 var postRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
+    "/api/auth/login", "/api/auth/logout", "/api/risk/review",
     "/api/control/start", "/api/control/pause", "/api/control/step", "/api/control/reset"
 };
+
 app.MapMethods("/api/{**path}", ["GET", "POST"], async (HttpContext context, IHttpClientFactory factory) =>
 {
     var path = context.Request.Path.Value ?? "";
     var validSymbolPath = path.StartsWith("/api/binance/testnet/symbol/", StringComparison.OrdinalIgnoreCase) &&
         path["/api/binance/testnet/symbol/".Length..] is var symbol &&
         symbol.Length is > 0 and <= 12 && symbol.All(char.IsAsciiLetterOrDigit);
-
-    var permitted = context.Request.Method == "GET" ? getRoutes.Contains(path) || validSymbolPath :
-        context.Request.Method == "POST" && postRoutes.Contains(path);
+    var permitted = HttpMethods.IsGet(context.Request.Method)
+        ? getRoutes.Contains(path) || validSymbolPath
+        : HttpMethods.IsPost(context.Request.Method) && postRoutes.Contains(path);
     if (!permitted) return Results.NotFound();
 
+    // These routes are a fixed allowlist, not an unrestricted reverse proxy.
     using var request = new HttpRequestMessage(new HttpMethod(context.Request.Method), path);
+    if (context.Request.Cookies.TryGetValue("RAC.Session", out var session))
+        request.Headers.TryAddWithoutValidation("Cookie", "RAC.Session=" + session);
+
+    if (HttpMethods.IsPost(context.Request.Method))
+    {
+        if (context.Request.ContentLength > 16_384)
+            return Results.StatusCode(StatusCodes.Status413PayloadTooLarge);
+        if (!context.Request.HasJsonContentType())
+            return Results.StatusCode(StatusCodes.Status415UnsupportedMediaType);
+        if (context.Request.Headers["X-RAC-CSRF"] != "1")
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
+        request.Headers.TryAddWithoutValidation("X-RAC-CSRF", "1");
+        request.Content = new StreamContent(context.Request.Body);
+        request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+    }
+
     using var response = await factory.CreateClient("RAC.Api")
         .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, context.RequestAborted);
     var body = await response.Content.ReadAsByteArrayAsync(context.RequestAborted);
-    var contentType = response.Content.Headers.ContentType?.ToString() ?? "application/json";
+    if (response.Headers.TryGetValues("Set-Cookie", out var setCookies))
+        foreach (var cookie in setCookies) context.Response.Headers.Append("Set-Cookie", cookie);
+    context.Response.Headers.CacheControl = "no-store";
     context.Response.StatusCode = (int)response.StatusCode;
-    return Results.Bytes(body, contentType);
+    return Results.Bytes(body, response.Content.Headers.ContentType?.ToString() ?? "application/json");
 });
 await app.RunAsync();
-

@@ -15,10 +15,20 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public DbSet<RiskLock> RiskLocks => Set<RiskLock>();
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
     public DbSet<SimulationCheckpoint> SimulationCheckpoints => Set<SimulationCheckpoint>();
+    public DbSet<RacUser> Users => Set<RacUser>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<RacUser>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.UserName).HasMaxLength(80).IsRequired();
+            e.Property(x => x.NormalizedUserName).HasMaxLength(80).IsRequired();
+            e.HasIndex(x => x.NormalizedUserName).IsUnique();
+            e.Property(x => x.PasswordHash).HasMaxLength(512).IsRequired();
+            e.Property(x => x.Role).HasMaxLength(30).IsRequired();
+        });
         model.Entity<Agent>(e =>
         {
             e.HasKey(x => x.Id);

@@ -8,6 +8,19 @@
 <body>
 <div class="shell">
 <header><div class="brand"><div class="logo">R<span>●</span></div><div><strong>RAC</strong><small>Rebeca · Ana · Carlos | MVP 0.5</small></div></div><div class="mode">● SIMULAÇÃO • ORDENS REAIS DESATIVADAS</div></header>
+<section id="authPanel" class="panel login-box">
+  <h2>Acesso ao RAC</h2>
+  <p>Entre com uma conta autorizada para visualizar e controlar a simulação.</p>
+  <form id="loginForm">
+    <label>Usuário<input id="loginUser" autocomplete="username" required maxlength="80"></label>
+    <label>Senha<input id="loginPassword" type="password" autocomplete="current-password" required></label>
+    <button class="primary" type="submit">Entrar</button>
+  </form>
+  <p id="loginMessage" role="status">O administrador inicial deve ser criado no terminal local.</p>
+</section>
+<div id="sessionPanel" class="session-panel" hidden>
+  <span id="sessionUser"></span><button id="logout" type="button">Sair</button>
+</div>
 <section class="intro"><div><div class="eyebrow">CENTRAL DE OPERAÇÕES</div><h1>Seu escritório de agentes</h1><p>12 traders Spot monitoram dados <strong>sintéticos</strong>. Nenhum investimento ou operação real é realizado.</p></div><div class="actions"><button id="start" class="primary">▶ Iniciar</button><button id="pause">Ⅱ Pausar</button><button id="step">↳ Avançar 1 tick</button><button id="reset" class="danger">↻ Reiniciar</button></div></section>
 <div id="error" role="alert" hidden></div>
 <section class="metrics"><div class="metric"><span>Patrimônio simulado</span><strong id="equity">—</strong><small id="balance">Saldo: —</small></div><div class="metric"><span>Resultado do trading (sem aportes)</span><strong id="pnl">—</strong><small id="daily">Hoje: —</small></div><div class="metric"><span>Posições abertas</span><strong id="open">—</strong><small id="limit">Limite: —</small></div><div class="metric"><span>Status de risco</span><strong id="risk">—</strong><small id="drawdown">Queda acumulada: —</small></div></section>
@@ -21,6 +34,17 @@
   <h3>Ãšltimos registros de patrimÃ´nio</h3>
   <div class="scroll"><table><thead><tr><th>Data</th><th>PatrimÃ´nio (BRL)</th><th>Aportes (BRL)</th><th>Queda</th></tr></thead><tbody id="persistedEquity"><tr><td colspan="4">Carregando...</td></tr></tbody></table></div>
   <p id="persistedRisk">Bloqueios registrados: verificando...</p>
-</section></main><aside><section class="panel control"><h2>Gestão de risco</h2><p>R$ 100 iniciais, R$ 200 por mês simulado, reinvestimento integral, revisão após queda acumulada de 10%. Ordens reais proibidas.</p><p id="contributions">Aportes acumulados: —</p><p id="riskMessage">—</p><form id="settings"><label>Capital de referência (BRL)<input id="startingBalance" type="number" min="100" max="100" step="1" readonly required></label><label>Risco por operação (%)<input id="riskPct" type="number" min="0.5" max="0.5" step="0.1" readonly required></label><label>Limite de perda diária (%)<input id="dailyLimit" type="number" min="1" max="1" step="0.5" readonly required></label><label>Limite de queda acumulada (%)<input id="cumulativeLimit" type="number" value="10" readonly></label><label>Aporte mensal virtual (R$)<input id="monthlyContribution" type="number" value="200" readonly></label><label>Posições simultâneas<select id="maxOpen"><option>1</option></select></label><button type="submit" class="primary wide" disabled>Política de risco bloqueada</button></form></section><section class="panel note"><h2>Sobre este MVP</h2><p><b>Não são cotações reais.</b> O gerador sintético produz variações aleatórias; os sinais vêm de uma regra de momentum, não de um modelo de IA treinado.</p><p>O resultado inclui taxa ilustrativa de 0,1% por lado e câmbio fictício de R$ 5 por USDT. Não prevê slippage real, spreads variáveis ou outras condições de mercado.</p><p>Apenas consultas públicas de conectividade e filtros da Binance Spot Testnet estão disponíveis. Não existem endpoints de ordens, credenciais, login da corretora nem pagamentos.</p></section></aside></div>
+</section></main><aside><section class="panel control"><h2>Gestão de risco</h2><p>R$ 100 iniciais, R$ 200 por mês simulado, reinvestimento integral, revisão após queda acumulada de 10%. Ordens reais proibidas.</p><p id="contributions">Aportes acumulados: —</p><p id="riskMessage">—</p><form id="settings"><label>Capital de referência (BRL)<input id="startingBalance" type="number" min="100" max="100" step="1" readonly required></label><label>Risco por operação (%)<input id="riskPct" type="number" min="0.5" max="0.5" step="0.1" readonly required></label><label>Limite de perda diária (%)<input id="dailyLimit" type="number" min="1" max="1" step="0.5" readonly required></label><label>Limite de queda acumulada (%)<input id="cumulativeLimit" type="number" value="10" readonly></label><label>Aporte mensal virtual (R$)<input id="monthlyContribution" type="number" value="200" readonly></label><label>Posições simultâneas<select id="maxOpen"><option>1</option></select></label><button type="submit" class="primary wide" disabled>Política de risco bloqueada</button></form></section><section id="riskReviewPanel" class="panel" hidden>
+  <h2>Revisão humana — Carlos</h2>
+  <p>Somente administradores e revisores autorizados. A aprovação encerra o bloqueio, registra a justificativa e inicia um novo cenário simulado pausado; não recupera perdas.</p>
+  <form id="riskReviewForm">
+    <label>Justificativa da revisão (mínimo 20 caracteres)
+      <textarea id="reviewReason" minlength="20" maxlength="500" rows="4" required></textarea>
+    </label>
+    <button type="submit" class="primary">Aprovar novo cenário simulado</button>
+  </form>
+  <p id="reviewMessage" role="status"></p>
+</section>
+<section class="panel note"><h2>Sobre este MVP</h2><p><b>Não são cotações reais.</b> O gerador sintético produz variações aleatórias; os sinais vêm de uma regra de momentum, não de um modelo de IA treinado.</p><p>O resultado inclui taxa ilustrativa de 0,1% por lado e câmbio fictício de R$ 5 por USDT. Não prevê slippage real, spreads variáveis ou outras condições de mercado.</p><p>Apenas consultas públicas de conectividade e filtros da Binance Spot Testnet estão disponíveis. Não existem endpoints de ordens, credenciais, login da corretora nem pagamentos.</p></section></aside></div>
 <footer>RAC • Protótipo educacional • Nenhuma promessa de rentabilidade</footer>
 </div><script src="app.js" defer></script></body></html>

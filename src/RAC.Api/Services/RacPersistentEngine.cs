@@ -64,13 +64,48 @@ public sealed class RacPersistentEngine
         finally { _gate.Release(); }
     }
 
-    public Task<RacState> StartAsync(CancellationToken ct) => ChangeAsync("START", ct);
-    public Task<RacState> PauseAsync(CancellationToken ct) => ChangeAsync("PAUSE", ct);
-    public Task<RacState> StepAsync(CancellationToken ct) => ChangeAsync("STEP", ct);
-    public Task<RacState> ResetAsync(CancellationToken ct) => ChangeAsync("RESET", ct);
+    public Task<RacState> StartAsync(CancellationToken ct, string? actor = null) => ChangeAsync("START", ct, actor);
+    public Task<RacState> PauseAsync(CancellationToken ct, string? actor = null) => ChangeAsync("PAUSE", ct, actor);
+    public Task<RacState> StepAsync(CancellationToken ct, string? actor = null) => ChangeAsync("STEP", ct, actor);
+    public Task<RacState> ResetAsync(CancellationToken ct, string? actor = null) => ChangeAsync("RESET", ct, actor);
     public Task<RacState> TickAsync(CancellationToken ct) => ChangeAsync("TICK", ct);
 
-    private async Task<RacState> ChangeAsync(string action, CancellationToken ct)
+    public async Task<RacState> ReviewAndResetAsync(string reviewer, string justification, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(justification) || justification.Trim().Length < 20 ||
+            justification.Length > 500)
+            throw new ArgumentException("Informe uma justificativa entre 20 e 500 caracteres.", nameof(justification));
+
+        await _gate.WaitAsync(ct);
+        try
+        {
+            if (_storageFault)
+                throw new InvalidOperationException("Persistência indisponível; revisão não autorizada.");
+            if (!_simulator.Snapshot().RiskLocked)
+                throw new InvalidOperationException("Não existe bloqueio de risco a liberar.");
+
+            var before = _simulator.ExportState();
+            _simulator.ResetAfterAuthorizedReview();
+            var state = _simulator.ExportState();
+            try
+            {
+                await SaveAsync(state, "REVIEW_RESET", ct, reviewer, justification.Trim());
+                _simulator.ConfirmSavedEvents();
+            }
+            catch (Exception exception)
+            {
+                _logger.LogCritical(exception, "Falha na revisão de risco RAC; execução bloqueada.");
+                _simulator.RestoreState(before);
+                _simulator.StorageFailure();
+                _storageFault = true;
+                throw new InvalidOperationException("Não foi possível registrar a revisão; cenário bloqueado.", exception);
+            }
+            return _simulator.Snapshot();
+        }
+        finally { _gate.Release(); }
+    }
+
+    private async Task<RacState> ChangeAsync(string action, CancellationToken ct, string? actor = null)
     {
         await _gate.WaitAsync(ct);
         try
@@ -97,7 +132,7 @@ public sealed class RacPersistentEngine
             var state = _simulator.ExportState();
             try
             {
-                await SaveAsync(state, action, ct);
+                await SaveAsync(state, action, ct, actor);
                 _simulator.ConfirmSavedEvents();
             }
             catch (Exception exception)
@@ -113,7 +148,8 @@ public sealed class RacPersistentEngine
         finally { _gate.Release(); }
     }
 
-    private async Task SaveAsync(SimulationState state, string action, CancellationToken ct)
+    private async Task SaveAsync(SimulationState state, string action, CancellationToken ct,
+        string? actor = null, string? justification = null)
     {
         await using var db = await _database.CreateDbContextAsync(ct);
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
@@ -151,10 +187,26 @@ public sealed class RacPersistentEngine
             db.AuditEvents.Add(new AuditEvent
             {
                 EventType = "SIM_CONTROL_" + action,
-                Description = $"Comando {action} executado no tick {state.Tick}; sessão {state.SessionId:N}"
+                Description = $"Comando {action} por {actor ?? "sistema"} no tick {state.Tick}; sessão {state.SessionId:N}"
             });
         }
 
+        if (action == "REVIEW_RESET")
+        {
+            var activeLocks = await db.RiskLocks.Where(x => x.Active).ToArrayAsync(ct);
+            if (activeLocks.Length == 0)
+                throw new InvalidOperationException("O SQL Server não possui bloqueio ativo para esta revisão.");
+            foreach (var riskLock in activeLocks)
+            {
+                riskLock.Active = false;
+                riskLock.ReleasedUtc = DateTimeOffset.UtcNow;
+            }
+            db.AuditEvents.Add(new AuditEvent
+            {
+                EventType = "RISK_REVIEW_APPROVED",
+                Description = $"Revisor: {actor}; nova sessão: {state.SessionId:N}; justificativa: {justification}"
+            });
+        }
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
         _checkpointVersion = checkpoint.RowVersion.ToArray();

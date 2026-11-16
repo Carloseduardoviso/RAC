@@ -9,4 +9,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/RAC.Tests/RAC.Tests.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/RAC.AdminSetup/RAC.AdminSetup.csproj" />
+  </Folder>
 </Solution>

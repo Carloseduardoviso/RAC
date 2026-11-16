@@ -3,10 +3,18 @@ const usd = n => new Intl.NumberFormat('pt-BR', {style:'currency',currency:'BRL'
 const pct = n => `${Number(n).toFixed(2)}%`;
 const decimal = n => Number(n).toLocaleString('pt-BR',{maximumFractionDigits:5});
 let first = true;
+let authenticated = false;
+let canControl = false;
+let canReview = false;
 const safe = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function api(path, options={}) {
-  const response = await fetch(`/api/${path}`, options);
-  if (!response.ok) throw new Error((await response.text()).slice(0,300));
+  const headers = {...(options.headers || {})};
+  if (options.method === 'POST') headers['X-RAC-CSRF'] = '1';
+  const response = await fetch(`/api/${path}`, {...options, credentials:'same-origin', headers});
+  if (!response.ok) {
+    const details = await response.json().catch(() => ({}));
+    throw new Error(details.error || `HTTP ${response.status}`);
+  }
   return response.json();
 }
 function draw(history) {
@@ -31,9 +39,11 @@ function render(state){
   $('drawdown').textContent=`Queda acumulada: ${pct(state.peakDrawdownPct)} / ${pct(state.settings.maxCumulativeDrawdownPct)} · Dia: ${pct(state.dayDrawdownPct)}`;
   $('contributions').textContent=`Aportes virtuais acumulados: ${usd(state.totalContributionsBrl)} (${state.contributedMonths} meses)`;
   $('riskMessage').textContent=state.riskMessage;
-  $('start').disabled=state.riskLocked;
-  $('reset').disabled=state.riskLocked;
-  $('step').disabled=state.riskLocked;
+  $('start').disabled=!canControl || state.riskLocked;
+  $('pause').disabled=!canControl;
+  $('reset').disabled=!canControl || state.riskLocked;
+  $('step').disabled=!canControl || state.riskLocked;
+  $('riskReviewPanel').hidden=!(canReview && state.riskLocked);
   $('tick').textContent=`Tick ${state.tick}`;
   $('supervisors').innerHTML=state.supervisors.map(a=>`<article class="agent"><div class="agent-top"><b>${safe(a.name)}</b><span>${safe(a.status)}</span></div><p>${safe(a.function)}</p><p>${safe(a.detail)}</p></article>`).join('');
   $('agents').innerHTML=state.agents.map(a=>`<article class="agent ${a.status==='EM OPERAÇÃO'?'active':''}"><div class="agent-top"><b>${safe(a.symbol)}</b><span>● ${safe(a.status)}</span></div><div class="price">${decimal(a.price)}</div><div class="foot"><span class="${a.changePct>=0?'positive':'negative'}">${a.changePct>0?'+':''}${pct(a.changePct)}</span><span class="signal ${a.signal.toLowerCase()}">${safe(a.signal)}</span></div><div class="foot" style="margin-top:10px"><span>${a.wins}W / ${a.losses}L</span><span>${usd(a.realizedPnl)}</span></div></article>`).join('');
@@ -50,7 +60,7 @@ $('step').onclick=()=>command('control/step');
 $('reset').onclick=()=>command('control/reset');
 $('settings').onsubmit=e=>e.preventDefault();
 $('ping').onclick=async()=>{try{const data=await api('binance/testnet/ping');$('binanceStatus').textContent=data.connected?'Binance Spot Testnet: API pública acessível (sem envio de ordens)':'Binance Spot Testnet: indisponível';}catch(e){$('binanceStatus').textContent='Binance Spot Testnet: indisponível ('+e.message+')';}};
-refresh(); setInterval(refresh,2000);
+setInterval(() => { if(authenticated) refresh(); },2000);
 
 const formatDate = value => new Date(value).toLocaleString('pt-BR', {dateStyle:'short',timeStyle:'short'});
 async function refreshHistory() {
@@ -70,5 +80,68 @@ async function refreshHistory() {
     $('persistedRisk').textContent = 'NÃ£o foi possÃ­vel consultar o SQL Server: '+error.message;
   }
 }
-refreshHistory();
-setInterval(refreshHistory,5000);
+setInterval(() => { if(authenticated) refreshHistory(); },5000);
+
+function showSession(session) {
+  authenticated = !!session;
+  canControl = !!session?.canControl;
+  canReview = !!session?.canReview;
+  document.body.classList.toggle('authenticated', authenticated);
+  $('authPanel').hidden = authenticated;
+  $('sessionPanel').hidden = !authenticated;
+  $('sessionUser').textContent = authenticated ? session.userName + ' · ' + session.role : '';
+  $('riskReviewPanel').hidden = true;
+}
+
+async function loadSession() {
+  try {
+    const session = await api('auth/me');
+    showSession(session);
+    await refresh();
+    await refreshHistory();
+  } catch {
+    showSession(null);
+  }
+}
+
+$('loginForm').onsubmit = async event => {
+  event.preventDefault();
+  const userName = $('loginUser').value.trim();
+  const password = $('loginPassword').value;
+  $('loginPassword').value = '';
+  $('loginMessage').textContent = 'Verificando credenciais...';
+  try {
+    await api('auth/login', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({userName,password})
+    });
+    $('loginMessage').textContent = '';
+    await loadSession();
+  } catch (error) {
+    $('loginMessage').textContent = 'Não foi possível entrar: ' + error.message;
+  }
+};
+$('logout').onclick = async () => {
+  try { await api('auth/logout', {method:'POST', headers:{'Content-Type':'application/json'},body:'{}'}); }
+  catch { /* Clear local UI even when the backend is inaccessible. */ }
+  showSession(null);
+};
+$('riskReviewForm').onsubmit = async event => {
+  event.preventDefault();
+  const justification = $('reviewReason').value.trim();
+  if (!canReview || justification.length < 20) return;
+  $('reviewMessage').textContent = 'Registrando revisão...';
+  try {
+    const state = await api('risk/review', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({justification})
+    });
+    $('reviewReason').value = '';
+    $('reviewMessage').textContent = 'Revisão registrada. Novo cenário criado e pausado.';
+    render(state);
+    await refreshHistory();
+  } catch (error) {
+    $('reviewMessage').textContent = 'Revisão recusada: ' + error.message;
+  }
+};
+loadSession();
