@@ -1,0 +1,6 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RAC.Api/RAC.Api.csproj" />
+    <Project Path="src/RAC.Web/RAC.Web.csproj" />
+  </Folder>
+</Solution>

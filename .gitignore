@@ -1,0 +1,7 @@
+.vs/
+**/bin/
+**/obj/
+*.user
+*.suo
+rac-transfer.b64
+rac-mvp-0.3-transfer.zip
