@@ -47,6 +47,28 @@ public sealed class PaperSqlRecoveryIntegrationTests
                 NullLogger<RacPaperMonitoringService>.Instance);
             await watcher.ObserveAsync(CancellationToken.None);
             await watcher.ObserveAsync(CancellationToken.None);
+            // The batch validation is read-only, preserves every trade, and
+            // honestly reports insufficient candles rather than fake returns.
+            var validationService = new RacStrategyService(factory);
+            using (var validation = System.Text.Json.JsonDocument.Parse(
+                System.Text.Json.JsonSerializer.Serialize(
+                    await validationService.ValidationAsync(CancellationToken.None))))
+            {
+                var root = validation.RootElement;
+                Assert.Equal("READ_ONLY_VALIDATION", root.GetProperty("mode").GetString());
+                Assert.False(root.GetProperty("orderPlacementEnabled").GetBoolean());
+                Assert.False(root.GetProperty("simulationModified").GetBoolean());
+                Assert.Equal(0.01m, root.GetProperty("assumptions").GetProperty("halfSpreadPctPerSide").GetDecimal());
+                Assert.True(root.GetProperty("assumptions").GetProperty("spreadModeledSeparately").GetBoolean());
+                Assert.Equal("NEXT_CANDLE_OPEN", root.GetProperty("assumptions").GetProperty("execution").GetString());
+                Assert.Equal(12, root.GetProperty("agents").GetArrayLength());
+                Assert.All(root.GetProperty("agents").EnumerateArray(), x =>
+                    Assert.Equal("INSUFFICIENT_DATA", x.GetProperty("verdict").GetString()));
+                var btcValidation = root.GetProperty("agents").EnumerateArray()
+                    .Single(x => x.GetProperty("symbol").GetString() == "BTCUSDT");
+                Assert.Equal(1, btcValidation.GetProperty("paper").GetProperty("buys").GetInt32());
+                Assert.False(btcValidation.GetProperty("comparablePnl").GetBoolean());
+            }
             var reportJson = System.Text.Json.JsonSerializer.Serialize(
                 await watcher.ReportAsync(CancellationToken.None));
             using (var report = System.Text.Json.JsonDocument.Parse(reportJson))

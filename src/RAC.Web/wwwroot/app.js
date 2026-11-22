@@ -685,6 +685,38 @@ async function refreshRealStrategies() {
 }
 
 $('refreshRealStrategies').onclick = refreshRealStrategies;
+$('runStrategyValidation').onclick = async () => {
+  if (!authenticated) return;
+  $('runStrategyValidation').disabled = true;
+  $('strategyValidationStatus').textContent = 'Validando os 12 agentes com candles publicos persistidos...';
+  $('strategyValidationRows').innerHTML = '<tr><td colspan="11">Calculando...</td></tr>';
+  try {
+    const r = await api('strategy/validation');
+    if (r.mode !== 'READ_ONLY_VALIDATION' || r.source !== 'BINANCE_SPOT_PUBLIC' ||
+        r.orderPlacementEnabled || r.simulationModified || r.count !== 12 ||
+        !Array.isArray(r.agents) || r.agents.length !== 12)
+      throw new Error('Relatorio fora do modo seguro de validacao.');
+    $('strategyValidationStatus').textContent = r.agents.filter(x => x.backtest.status === 'COMPLETE').length+
+      '/12 com backtest concluido • '+safe(r.strategyVersion)+' • custo assumido: taxa '+
+      pct(r.assumptions.feePctPerSide)+', slippage '+pct(r.assumptions.slippagePctPerSide)+
+      ' e meio spread '+pct(r.assumptions.halfSpreadPctPerSide)+
+      ' por lado. Apenas in-sample, sem promessa de retorno.';
+    $('strategyValidationRows').innerHTML = r.agents.map(x =>
+      '<tr><td>'+safe(x.symbol)+'</td><td>'+Number(x.backtest.candleCount)+
+      '</td><td>'+Number(x.backtest.trades)+'</td><td>'+
+      (x.backtest.status === 'COMPLETE' ? pct(x.backtest.returnPct) : 'indisponivel')+
+      '</td><td>'+(x.backtest.status === 'COMPLETE' ? pct(x.backtest.maxDrawdownPct) : 'indisponivel')+
+      '</td><td>'+Number(x.backtest.winningTrades)+' / '+Number(x.backtest.losingTrades)+
+      '</td><td>'+Number(x.backtest.maxConsecutiveLosses)+
+      '</td><td>'+pct(x.backtest.feePctPerSide)+' / '+pct(x.backtest.slippagePctPerSide)+' / '+pct(x.backtest.halfSpreadPctPerSide)+
+      '</td><td>'+Number(x.paper.sells)+'</td><td>'+brl(x.paper.realizedPnlBrl)+
+      '</td><td title="'+safe(x.backtest.note || '')+'">'+safe(x.verdict)+'</td></tr>').join('');
+  } catch(error) {
+    $('strategyValidationStatus').textContent = 'Validacao indisponivel: '+error.message;
+    $('strategyValidationRows').innerHTML = '<tr><td colspan="11">Dados indisponiveis.</td></tr>';
+  } finally { $('runStrategyValidation').disabled = false; }
+};
+
 $('strategyBacktestForm').onsubmit = async event => {
   event.preventDefault();
   if (!authenticated) return;
@@ -703,7 +735,10 @@ $('strategyBacktestForm').onsubmit = async event => {
         '% • drawdown máximo: '+result.maxDrawdownPct+
         '% • taxa assumida por lado: '+result.feePctPerSide+
         '% • slippage por lado: '+result.slippagePctPerSide+
-        '%. Não é promessa de rentabilidade.';
+        '% • meio spread por lado: '+result.halfSpreadPctPerSide+
+        '% • vitorias/derrotas: '+result.winningTrades+'/'+result.losingTrades+
+        ' • maximo de perdas seguidas: '+result.maxConsecutiveLosses+
+        '. Não é promessa de rentabilidade.';
   } catch(error) {
     $('strategyBacktestResult').textContent = 'Backtest indisponível: '+error.message;
   } finally { $('runStrategyBacktest').disabled = false; }

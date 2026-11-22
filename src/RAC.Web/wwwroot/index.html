@@ -238,6 +238,12 @@
     <button id="runStrategyBacktest" type="submit">Executar backtest (sem ordens)</button>
   </form>
   <p id="strategyBacktestResult" role="status">Sem backtest executado.</p>
+  <h3>MVP 1.2.8 - Validacao exploratoria dos 12 agentes</h3>
+  <button id="runStrategyValidation" type="button">Validar 12 agentes (somente leitura)</button>
+  <p id="strategyValidationStatus" role="status">Nenhuma validacao executada nesta sessao.</p>
+  <p><small>Backtest ilustrativo in-sample, proximo candle e custos assumidos (incluindo meio spread de 0,01% por lado). O PAPER usa capital BRL, dimensionamento e stops diferentes: lucros nominais nao sao comparaveis. Spread real, liquidez e walk-forward ainda nao sao modelados.</small></p>
+  <div class="scroll"><table><thead><tr><th>Par</th><th>Candles</th><th>Trades fechados</th><th>Retorno historico</th><th>Drawdown historico</th><th>Vitorias / derrotas</th><th>Max. perdas seguidas</th><th>Taxa / slippage / meio spread</th><th>Vendas PAPER</th><th>Resultado PAPER (BRL)</th><th>Interpretacao</th></tr></thead>
+  <tbody id="strategyValidationRows"><tr><td colspan="11">Sem validacao executada.</td></tr></tbody></table></div>
   <p><small>Backtest inicial com 100 USDT fictícios, taxa assumida de 0,1% e slippage assumido de 0,05% por lado. Resultados históricos não preveem rentabilidade. Para operar automaticamente será necessário validar mais períodos, testar na Testnet e autorizar separadamente o modo real.</small></p>
 </section>
 <section class="panel" id="activityPanel" hidden>

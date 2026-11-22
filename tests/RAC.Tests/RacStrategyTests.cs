@@ -85,6 +85,11 @@ public sealed class RacStrategyTests
         Assert.Equal(100m, first.InitialUsdt);
         Assert.Equal(0.1m, first.FeePctPerSide);
         Assert.Equal(0.05m, first.SlippagePctPerSide);
+        Assert.Equal(0.01m, first.HalfSpreadPctPerSide);
+        Assert.True(first.WinningTrades >= 0);
+        Assert.True(first.LosingTrades >= 0);
+        Assert.InRange(first.WinningTrades + first.LosingTrades, 0, first.Trades);
+        Assert.InRange(first.MaxConsecutiveLosses, 0, first.LosingTrades);
         Assert.False(first.OrderPlacementEnabled);
         Assert.InRange(first.MaxDrawdownPct, 0m, 100m);
     }

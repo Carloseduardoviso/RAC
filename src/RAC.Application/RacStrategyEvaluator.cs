@@ -107,7 +107,9 @@ public sealed record StrategyBacktest(
     string Symbol, string Source, string StrategyVersion, string Status,
     int CandleCount, int Trades, decimal InitialUsdt, decimal FinalUsdt,
     decimal ReturnPct, decimal MaxDrawdownPct, decimal FeePctPerSide,
-    decimal SlippagePctPerSide, string? Note, bool OrderPlacementEnabled);
+    decimal SlippagePctPerSide, string? Note, bool OrderPlacementEnabled,
+    decimal HalfSpreadPctPerSide, int WinningTrades, int LosingTrades,
+    int MaxConsecutiveLosses);
 
 /// <summary>
 /// Long-only, one position, all-in toy comparison. Signal from candle i executes
@@ -118,7 +120,9 @@ public static class RacBacktest
     public static StrategyBacktest Run(string symbol, IReadOnlyList<MarketCandlePoint> data,
         DateTimeOffset observedUtc)
     {
-        const decimal fee = 0.1m, slip = 0.05m;
+        // Half-spread is paid at each side, in addition to fee and slippage.
+        // Fixed assumptions are NOT a historical order-book reconstruction.
+        const decimal fee = 0.1m, slip = 0.05m, halfSpread = 0.01m;
         if (!RacMarketSymbols.IsSupported(symbol))
             throw new ArgumentException("Par não monitorado.");
         if (data.Count < RacStrategyEvaluator.MinimumCandles + 5 ||
@@ -130,7 +134,8 @@ public static class RacBacktest
         if (all.Status != "READY")
             return Blocked(symbol, data.Count, all.Note ?? "Dados inválidos.");
         decimal cash = 100m, quantity = 0m, peak = 100m, maxDd = 0m;
-        int completedTrades = 0;
+        decimal entryCash = 0m;
+        int completedTrades = 0, wins = 0, losses = 0, losingStreak = 0, maxLosingStreak = 0;
         for (int i = RacStrategyEvaluator.MinimumCandles - 1; i < data.Count - 1; i++)
         {
             var context = data.Take(i + 1).ToArray();
@@ -140,34 +145,38 @@ public static class RacBacktest
             if (signal.Status != "READY" || nextOpen <= 0m) continue;
             if (quantity == 0m && signal.Action == "COMPRA_OBSERVACIONAL")
             {
-                var executionPrice = nextOpen * (1m + slip / 100m);
+                var executionPrice = nextOpen * (1m + (slip + halfSpread) / 100m);
+                entryCash = cash;
                 quantity = cash * (1m - fee / 100m) / executionPrice;
                 cash = 0m;
             }
             else if (quantity > 0m && signal.Action == "SAIDA_OBSERVACIONAL")
             {
-                cash = quantity * nextOpen * (1m - slip / 100m) * (1m - fee / 100m);
+                cash = quantity * nextOpen * (1m - (slip + halfSpread) / 100m) * (1m - fee / 100m);
                 quantity = 0m;
                 completedTrades++;
+                if (cash > entryCash) { wins++; losingStreak = 0; }
+                else if (cash < entryCash) { losses++; losingStreak++; maxLosingStreak = Math.Max(maxLosingStreak, losingStreak); }
+                else losingStreak = 0;
             }
             var equity = cash + quantity * data[i + 1].Close;
             peak = Math.Max(peak, equity);
             if (peak > 0m) maxDd = Math.Max(maxDd, (peak - equity) / peak * 100m);
         }
         var finalEquity = cash + quantity * data[^1].Close *
-            (1m - slip / 100m) * (1m - fee / 100m);
+            (1m - (slip + halfSpread) / 100m) * (1m - fee / 100m);
         peak = Math.Max(peak, finalEquity);
         maxDd = Math.Max(maxDd, (peak - finalEquity) / peak * 100m);
         return new StrategyBacktest(symbol, "BINANCE_SPOT_PUBLIC", RacStrategyEvaluator.Version,
             "COMPLETE", data.Count, completedTrades, 100m,
             Math.Round(finalEquity, 6), Math.Round(finalEquity - 100m, 4),
             Math.Round(maxDd, 4), fee, slip,
-            "Backtest ilustrativo in-sample: não valida lucro futuro, tamanho mínimo, liquidez ou taxas reais.",
-            false);
+            "Backtest ilustrativo in-sample: nao valida lucro futuro, tamanho minimo, liquidez ou taxas reais.",
+            false, halfSpread, wins, losses, maxLosingStreak);
     }
 
     private static StrategyBacktest Blocked(string symbol, int count, string note) =>
         new(symbol, "BINANCE_SPOT_PUBLIC", RacStrategyEvaluator.Version,
             "BLOCKED", count, 0, 100m, 100m, 0m, 0m,
-            0.1m, 0.05m, note, false);
+            0.1m, 0.05m, note, false, 0.01m, 0, 0, 0);
 }
