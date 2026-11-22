@@ -685,6 +685,32 @@ async function refreshRealStrategies() {
 }
 
 $('refreshRealStrategies').onclick = refreshRealStrategies;
+$('runShadowComparison').onclick = async () => {
+  if (!authenticated) return;
+  $('runShadowComparison').disabled = true;
+  $('shadowComparisonStatus').textContent = 'Comparando 12 agentes em duas janelas historicas...';
+  $('shadowComparisonRows').innerHTML = '<tr><td colspan="6">Calculando...</td></tr>';
+  try {
+    const r = await api('strategy/shadow-comparison');
+    if (r.mode !== 'SHADOW_COMPARISON_ONLY' || r.orderPlacementEnabled ||
+        r.paperModified || r.promotionAllowed || r.count !== 12 ||
+        !Array.isArray(r.agents) || r.agents.length !== 12)
+      throw new Error('Comparacao fora do modo exclusivamente observacional.');
+    $('shadowComparisonStatus').textContent = r.agents.filter(x => x.status === 'COMPLETE').length+
+      '/12 agentes com historico suficiente. Sao cenarios ilustrativos, sem alteracao do PAPER.';
+    $('shadowComparisonRows').innerHTML = r.agents.map(x =>
+      '<tr><td>'+safe(x.symbol)+'</td><td>'+safe(x.status)+'</td><td>'+
+      (x.status === 'COMPLETE' ? pct(x.earlierBaseline.returnPct)+' / '+pct(x.earlierCooldown.returnPct) : '-')+
+      '</td><td>'+
+      (x.status === 'COMPLETE' ? pct(x.laterBaseline.returnPct)+' / '+pct(x.laterCooldown.returnPct) : '-')+
+      '</td><td>'+Number(x.laterBaseline.atrStops)+' / '+Number(x.laterCooldown.atrStops)+
+      '</td><td>'+Number(x.laterCooldown.skippedReentries)+'</td></tr>').join('');
+  } catch(error) {
+    $('shadowComparisonStatus').textContent = 'Comparacao indisponivel: '+error.message;
+    $('shadowComparisonRows').innerHTML = '<tr><td colspan="6">Dados indisponiveis.</td></tr>';
+  } finally { $('runShadowComparison').disabled = false; }
+};
+
 $('runStrategyValidation').onclick = async () => {
   if (!authenticated) return;
   $('runStrategyValidation').disabled = true;

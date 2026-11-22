@@ -172,6 +172,11 @@ app.MapGet("/api/strategy/overview", async (
     Results.Ok(await strategies.OverviewAsync(ct)))
     .RequireAuthorization();
 
+app.MapGet("/api/strategy/shadow-comparison", async (
+    RacStrategyService strategies, CancellationToken ct) =>
+    Results.Ok(await strategies.ShadowComparisonAsync(ct)))
+    .RequireAuthorization();
+
 app.MapGet("/api/strategy/validation", async (
     RacStrategyService strategies, CancellationToken ct) =>
     Results.Ok(await strategies.ValidationAsync(ct)))

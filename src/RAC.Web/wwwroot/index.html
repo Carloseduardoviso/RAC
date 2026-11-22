@@ -241,6 +241,11 @@
   <h3>MVP 1.2.8 - Validacao exploratoria dos 12 agentes</h3>
   <button id="runStrategyValidation" type="button">Validar 12 agentes (somente leitura)</button>
   <p id="strategyValidationStatus" role="status">Nenhuma validacao executada nesta sessao.</p>
+  <h3>MVP 1.2.9 - Comparativo historico de reentrada (modo SHADOW)</h3>
+  <button id="runShadowComparison" type="button">Comparar estrategia atual e reentrada com pausa de 5 candles</button>
+  <p id="shadowComparisonStatus" role="status">Comparacao ainda nao executada.</p>
+  <p><small>Duas janelas cronologicas independentes, baseline com stop 2x ATR versus candidato com o mesmo stop e 5 candles de espera para reentrada. Capital ficticio de 100 USDT por janela, custos fixos estimados, sem execucoes na Binance. Sem otimizacao fora da amostra nem promocao automatica da estrategia.</small></p>
+  <div class="scroll"><table><thead><tr><th>Agente</th><th>Condicao</th><th>Janela antiga (base / pausa)</th><th>Janela recente (base / pausa)</th><th>Stops ATR recente (base / pausa)</th><th>Entradas evitadas recente</th></tr></thead><tbody id="shadowComparisonRows"><tr><td colspan="6">Sem comparacao.</td></tr></tbody></table></div>
   <h3>Revisao de risco PAPER (somente leitura)</h3>
   <p id="strategyRiskReviewStatus" role="status">Execute a validacao para carregar o diagnostico financeiro.</p>
   <p><small>Resultados realizados das vendas ja incluem as taxas de entrada e saida. Nao subtrair as taxas totais novamente. Posicoes abertas nao sao lucro realizado. Este relatorio nao desbloqueia a carteira nem modifica os limites financeiros.</small></p>

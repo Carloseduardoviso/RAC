@@ -143,6 +143,46 @@ public sealed class RacStrategyService(IDbContextFactory<RacDbContext> factory)
         };
     }
 
+    /// <summary>
+    /// Two disjoint chronological windows, with baseline and observational
+    /// five-candle cooldown; no runtime PAPER configuration is touched.
+    /// </summary>
+    public async Task<object> ShadowComparisonAsync(CancellationToken ct)
+    {
+        var observed = DateTimeOffset.UtcNow;
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var comparisons = new List<PaperStrategyShadowComparison.Comparison>();
+        foreach (var symbol in RacMarketSymbols.Supported)
+        {
+            ct.ThrowIfCancellationRequested();
+            var candles = await db.MarketCandles.AsNoTracking()
+                .Where(x => x.Symbol == symbol && x.Interval == "1m" && x.CloseUtc <= observed)
+                .OrderByDescending(x => x.OpenUtc).Take(1000)
+                .Select(x => new MarketCandlePoint(x.Symbol, x.OpenUtc, x.CloseUtc,
+                    x.Open, x.High, x.Low, x.Close, x.Volume, x.QuoteVolume, x.Trades))
+                .ToListAsync(ct);
+            candles.Reverse();
+            comparisons.Add(PaperStrategyShadowComparison.Run(symbol, candles, observed));
+        }
+        return new {
+            mode = "SHADOW_COMPARISON_ONLY", source = RacMarketSymbols.Source,
+            observedUtc = observed, count = comparisons.Count,
+            orderPlacementEnabled = false, paperModified = false,
+            promotionAllowed = false,
+            candidate = "COOLDOWN_5_CANDLES",
+            scenario = "2xATR stop and 5 closed-candle reentry cooldown",
+            baseline = "2xATR stop and no cooldown",
+            assumptions = new {
+                capitalUsdtPerSymbolPerWindow = 100m,
+                feePctPerSide = 0.1m, slippagePctPerSide = 0.05m,
+                halfSpreadPctPerSide = 0.01m,
+                split = "TWO_DISJOINT_CHRONOLOGICAL_HALVES",
+                caution = "No fitted parameters, no holdout optimization, no spread order-book reconstruction, no BRL PAPER risk sizing. Historical evidence does not prove future profitability."
+            },
+            agents = comparisons
+        };
+    }
+
     public async Task<object> BacktestAsync(string symbol, CancellationToken ct)
     {
         if (!RacMarketSymbols.IsSupported(symbol))

@@ -78,6 +78,19 @@ public sealed class PaperSqlRecoveryIntegrationTests
                 Assert.Equal(1, btcValidation.GetProperty("paper").GetProperty("buys").GetInt32());
                 Assert.False(btcValidation.GetProperty("comparablePnl").GetBoolean());
             }
+            using (var shadow = System.Text.Json.JsonDocument.Parse(
+                System.Text.Json.JsonSerializer.Serialize(
+                    await validationService.ShadowComparisonAsync(CancellationToken.None))))
+            {
+                var root = shadow.RootElement;
+                Assert.Equal("SHADOW_COMPARISON_ONLY", root.GetProperty("mode").GetString());
+                Assert.False(root.GetProperty("orderPlacementEnabled").GetBoolean());
+                Assert.False(root.GetProperty("paperModified").GetBoolean());
+                Assert.False(root.GetProperty("promotionAllowed").GetBoolean());
+                Assert.Equal(12, root.GetProperty("agents").GetArrayLength());
+                Assert.All(root.GetProperty("agents").EnumerateArray(), x =>
+                    Assert.Equal("INSUFFICIENT_DATA", x.GetProperty("Status").GetString()));
+            }
             var reportJson = System.Text.Json.JsonSerializer.Serialize(
                 await watcher.ReportAsync(CancellationToken.None));
             using (var report = System.Text.Json.JsonDocument.Parse(reportJson))
