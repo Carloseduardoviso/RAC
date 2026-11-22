@@ -1,3 +1,5 @@
+> **Estado atual:** MVP 0.8 de carteira Binance Spot somente leitura. A branch `feature/rac-mvp-0-9-readonly-ledger` contém uma **prévia não homologada** do MVP 0.9: histórico de negociações e movimentações sem ordens reais. Consulte [MVP-0.8.md](MVP-0.8.md) e [MVP-0.9.md](MVP-0.9.md). Os R$ 100 mostrados no mapa de agentes são **simulados**. Antes de implantar a prévia, compile, rode os testes e aplique a migration em seu banco.
+
 # RAC — Rebeca, Ana e Carlos | MVP 0.3 — Plano patrimonial
 
 Projeto ASP.NET Core (.NET 10) com painel responsivo, **simulação local sintética** e leitura **pública** de endpoints Binance Spot Testnet. **Não envia nenhuma ordem para Binance, nem Testnet nem produção.** Não há chaves de API, conta conectada, depósito ou dinheiro movimentado.
