@@ -153,6 +153,25 @@ public sealed class RacPaperMonitoringService(
                 PaperBuys = g.Count(x => x.Outcome == "PAPER_BUY"),
                 LastDecisionUtc = g.Max(x => x.RecordedUtc)
             }).ToDictionaryAsync(x => x.Symbol, ct);
+        // SQL-side comparison: two rolling seven-day UTC windows, excluding future fills.
+        // Grouping remains bounded by symbol even if PAPER trades are unlimited.
+        var (previousStart, currentStart, end) = PaperHistoricalComparison.Windows(now);
+        var comparison = await db.PaperFills.AsNoTracking()
+            .Where(x => x.ExecutedUtc >= previousStart && x.ExecutedUtc < end)
+            .GroupBy(x => x.Symbol)
+            .Select(g => new {
+                Symbol = g.Key,
+                PreviousBuys = g.Count(x => x.ExecutedUtc < currentStart && x.Side == "BUY"),
+                PreviousSells = g.Count(x => x.ExecutedUtc < currentStart && x.Side == "SELL"),
+                PreviousWinningSells = g.Count(x => x.ExecutedUtc < currentStart && x.Side == "SELL" && x.RealizedPnlBrl > 0m),
+                PreviousPnl = g.Sum(x => x.ExecutedUtc < currentStart ? (x.RealizedPnlBrl ?? 0m) : 0m),
+                PreviousFees = g.Sum(x => x.ExecutedUtc < currentStart ? x.FeeBrl : 0m),
+                CurrentBuys = g.Count(x => x.ExecutedUtc >= currentStart && x.Side == "BUY"),
+                CurrentSells = g.Count(x => x.ExecutedUtc >= currentStart && x.Side == "SELL"),
+                CurrentWinningSells = g.Count(x => x.ExecutedUtc >= currentStart && x.Side == "SELL" && x.RealizedPnlBrl > 0m),
+                CurrentPnl = g.Sum(x => x.ExecutedUtc >= currentStart ? (x.RealizedPnlBrl ?? 0m) : 0m),
+                CurrentFees = g.Sum(x => x.ExecutedUtc >= currentStart ? x.FeeBrl : 0m)
+            }).ToDictionaryAsync(x => x.Symbol, ct);
         var realized = fillStats?.Realized ?? 0m;
         var fees = fillStats?.Fees ?? 0m;
         var latest = samples.FirstOrDefault();
@@ -192,6 +211,25 @@ public sealed class RacPaperMonitoringService(
                 paperCycleUtc = account?.LastCycleUtc,
                 latestMonitorUtc = latest?.RecordedUtc
             },
+            comparisonWindow = new { previousStartUtc = previousStart, currentStartUtc = currentStart, endUtc = end, daysPerPeriod = 7 },
+            historicalComparison = RacMarketSymbols.Supported.Select(symbol => {
+                comparison.TryGetValue(symbol, out var x);
+                return new {
+                    symbol,
+                    previousBuys = x?.PreviousBuys ?? 0,
+                    previousSells = x?.PreviousSells ?? 0,
+                    previousWinRatePct = PaperPerformanceMath.WinRatePercent(x?.PreviousWinningSells ?? 0, x?.PreviousSells ?? 0),
+                    previousRealizedPnlBrl = x?.PreviousPnl ?? 0m,
+                    previousFeesBrl = x?.PreviousFees ?? 0m,
+                    currentBuys = x?.CurrentBuys ?? 0,
+                    currentSells = x?.CurrentSells ?? 0,
+                    currentWinRatePct = PaperPerformanceMath.WinRatePercent(x?.CurrentWinningSells ?? 0, x?.CurrentSells ?? 0),
+                    currentRealizedPnlBrl = x?.CurrentPnl ?? 0m,
+                    currentFeesBrl = x?.CurrentFees ?? 0m,
+                    realizedPnlChangeBrl = (x?.CurrentPnl ?? 0m) - (x?.PreviousPnl ?? 0m),
+                    realizedPnlChangePct = PaperHistoricalComparison.PercentChange(x?.PreviousPnl ?? 0m, x?.CurrentPnl ?? 0m)
+                };
+            }),
             agentStates = RacMarketSymbols.Supported.Select(symbol => {
                 var x = agents.FirstOrDefault(a => a.Symbol == symbol);
                 var diagnostic = PaperAgentDiagnostics.Evaluate(x, now);

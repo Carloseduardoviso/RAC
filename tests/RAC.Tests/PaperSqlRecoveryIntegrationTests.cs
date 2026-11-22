@@ -53,6 +53,16 @@ public sealed class PaperSqlRecoveryIntegrationTests
             {
                 var cycle = report.RootElement.GetProperty("cycleHealth");
                 Assert.Equal("PAUSED", cycle.GetProperty("status").GetString());
+                var windows = report.RootElement.GetProperty("comparisonWindow");
+                Assert.Equal(7, windows.GetProperty("daysPerPeriod").GetInt32());
+                var historical = report.RootElement.GetProperty("historicalComparison");
+                Assert.Equal(12, historical.GetArrayLength());
+                var btcHistorical = historical.EnumerateArray().Single(x =>
+                    x.GetProperty("symbol").GetString() == "BTCUSDT");
+                Assert.Equal(1, btcHistorical.GetProperty("currentBuys").GetInt32());
+                Assert.Equal(0, btcHistorical.GetProperty("previousBuys").GetInt32());
+                Assert.Equal(System.Text.Json.JsonValueKind.Null,
+                    btcHistorical.GetProperty("realizedPnlChangePct").ValueKind);
                 var agentStates = report.RootElement.GetProperty("agentStates");
                 Assert.Equal(12, agentStates.GetArrayLength());
                 var btcHealth = agentStates.EnumerateArray().Single(agent =>

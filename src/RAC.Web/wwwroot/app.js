@@ -507,6 +507,8 @@ function clearMonitoringDisplay() {
   $('paperEquityTrend').textContent = 'Aguardando amostras.';
   $('paperMonitorHealth').textContent = 'Aguardando dados de monitoramento.';
   $('paperAgentPerformance').innerHTML = '<tr><td colspan="13">Aguardando relatório.</td></tr>';
+  $('paperHistoricalComparison').innerHTML = '<tr><td colspan="7">Aguardando dados historicos.</td></tr>';
+  $('paperComparisonPeriod').textContent = 'Aguardando janelas comparativas.';
   $('paperMonitorAlerts').innerHTML = '<tr><td colspan="5">Nenhum alerta.</td></tr>';
   $('paperMonitorDecisions').innerHTML = '<tr><td colspan="5">Aguardando decisões.</td></tr>';
   $('paperMonitorHistory').innerHTML = '<tr><td colspan="5">Aguardando amostras.</td></tr>';
@@ -555,6 +557,20 @@ async function refreshMonitoring() {
         '</td><td>'+brl(a.feesBrl)+'</td><td>'+brl(a.openPositionBrl)+
         '</td><td>'+pct(a.exposurePct)+'</td></tr>').join('')
       : '<tr><td colspan="13">Relatório de agentes indisponível.</td></tr>';
+    const cw = m.comparisonWindow;
+    $('paperComparisonPeriod').textContent = cw
+      ? 'Anterior: '+formatDate(cw.previousStartUtc)+' ate '+formatDate(cw.currentStartUtc)+
+        ' | Atual: '+formatDate(cw.currentStartUtc)+' ate '+formatDate(cw.endUtc)+' (UTC, periodos moveis de 7 dias)'
+      : 'Janelas comparativas indisponiveis.';
+    $('paperHistoricalComparison').innerHTML = Array.isArray(m.historicalComparison) && m.historicalComparison.length === 12
+      ? m.historicalComparison.map(x => '<tr><td>'+safe(x.symbol)+'</td><td>'+Number(x.currentBuys)+' / '+Number(x.previousBuys)+
+        '</td><td>'+Number(x.currentSells)+' / '+Number(x.previousSells)+
+        '</td><td>'+(Number(x.currentSells) ? pct(x.currentWinRatePct) : '—')+' / '+
+        (Number(x.previousSells) ? pct(x.previousWinRatePct) : '—')+
+        '</td><td>'+brl(x.currentRealizedPnlBrl)+' / '+brl(x.previousRealizedPnlBrl)+
+        '</td><td>'+brl(x.realizedPnlChangeBrl)+
+        '</td><td>'+brl(x.currentFeesBrl)+' / '+brl(x.previousFeesBrl)+'</td></tr>').join('')
+      : '<tr><td colspan="7">Comparacao historica indisponivel.</td></tr>';
     $('paperMonitorAlerts').innerHTML = m.alerts.length ? m.alerts.map(a =>
       '<tr><td>'+safe(formatDate(a.openedUtc))+'</td><td>'+safe(a.code)+
       '</td><td>'+safe(a.severity)+'</td><td>'+(a.active ? 'ATIVO' : 'RESOLVIDO')+
