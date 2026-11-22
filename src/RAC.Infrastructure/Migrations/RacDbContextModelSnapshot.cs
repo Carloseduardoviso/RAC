@@ -23,6 +23,46 @@ namespace RAC.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+
+            modelBuilder.Entity("RAC.Domain.SpotActivity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Asset").IsRequired()
+                        .HasMaxLength(24).HasColumnType("nvarchar(24)");
+                    b.Property<decimal>("Fee").HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+                    b.Property<string>("FeeAsset").IsRequired()
+                        .HasMaxLength(24).HasColumnType("nvarchar(24)");
+                    b.Property<DateTimeOffset>("ImportedUtc").HasColumnType("datetimeoffset");
+                    b.Property<string>("Kind").IsRequired()
+                        .HasMaxLength(12).HasColumnType("nvarchar(12)");
+                    b.Property<DateTimeOffset>("OccurredUtc").HasColumnType("datetimeoffset");
+                    b.Property<Guid>("OwnerUserId").HasColumnType("uniqueidentifier");
+                    b.Property<decimal>("Price").HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+                    b.Property<decimal>("Quantity").HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+                    b.Property<decimal>("QuoteQuantity").HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+                    b.Property<string>("ReferenceId").IsRequired()
+                        .HasMaxLength(128).HasColumnType("nvarchar(128)");
+                    b.Property<string>("Side").IsRequired()
+                        .HasMaxLength(8).HasColumnType("nvarchar(8)");
+                    b.Property<string>("Status").IsRequired()
+                        .HasMaxLength(40).HasColumnType("nvarchar(40)");
+                    b.Property<string>("Symbol").IsRequired()
+                        .HasMaxLength(24).HasColumnType("nvarchar(24)");
+                    b.HasKey("Id");
+                    b.HasIndex("OwnerUserId", "Kind", "Symbol", "ReferenceId").IsUnique();
+                    b.HasIndex("OwnerUserId", "OccurredUtc");
+                    b.ToTable("SpotActivities", "rac");
+                });
+
             modelBuilder.Entity("RAC.Domain.Agent", b =>
                 {
                     b.Property<Guid>("Id")
