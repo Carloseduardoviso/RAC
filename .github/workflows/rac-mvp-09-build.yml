@@ -1,0 +1,30 @@
+name: RAC MVP 0.9 - Build and Tests
+on:
+  push:
+    branches:
+      - feature/rac-mvp-0-9-readonly-ledger
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "RAC.slnx"
+      - ".github/workflows/rac-mvp-09-build.yml"
+permissions:
+  contents: read
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Restore
+        run: dotnet restore RAC.slnx
+      - name: Build
+        run: dotnet build RAC.slnx -c Release --no-restore --nologo
+      - name: Test
+        run: dotnet test RAC.slnx -c Release --no-build --nologo
