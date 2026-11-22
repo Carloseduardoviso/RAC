@@ -29,7 +29,7 @@ public sealed class RacStrategyService(IDbContextFactory<RacDbContext> factory)
         var now = DateTimeOffset.UtcNow;
         var signals = RacMarketSymbols.Supported.Select(symbol =>
             RacStrategyEvaluator.Evaluate(symbol,
-                bySymbol.GetValueOrDefault(symbol) ?? [], now)).ToArray();
+                RacStrategyEvaluator.LatestContiguous(bySymbol.GetValueOrDefault(symbol) ?? []), now)).ToArray();
         return new
         {
             source = RacMarketSymbols.Source, mode = "OBSERVATIONAL_ONLY",

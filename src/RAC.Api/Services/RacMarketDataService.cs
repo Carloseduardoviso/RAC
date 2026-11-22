@@ -86,8 +86,16 @@ public sealed class RacMarketDataService(
                         .Where(x => x.Symbol == symbol && x.Interval == RacMarketSymbols.CandleInterval)
                         .OrderByDescending(x => x.OpenUtc).Take(120)
                         .Select(x => x.OpenUtc).ToListAsync(ct);
+                    // Backfill the latest 90 closed minutes after downtime rather
+                    // than keeping agents blocked behind a historical gap.
+                    // The normal path still fetches only 4 candles per cycle.
+                    var latest = recent.Take(35).ToArray();
+                    var contiguous = latest.Length == 35;
+                    for (var i = 1; i < latest.Length; i++)
+                        if (latest[i - 1] - latest[i] != TimeSpan.FromMinutes(1))
+                            contiguous = false;
                     var candles = await binance.GetClosedOneMinuteCandlesAsync(symbol,
-                        recent.Count == 0 ? 90 : 4, ct);
+                        contiguous ? 4 : 90, ct);
                     var known = recent.ToHashSet();
                     foreach (var candle in candles)
                     {

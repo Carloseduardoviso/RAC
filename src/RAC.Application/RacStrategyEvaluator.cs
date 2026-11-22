@@ -11,6 +11,24 @@ public static class RacStrategyEvaluator
     public const int MinimumCandles = 35;
     public const string Version = "SMA9-21_RSI14_ATR14_V1";
 
+    /// <summary>
+    /// An outage can leave older gaps in the retained series. Never bridge
+    /// a gap: use only the newest contiguous minute-by-minute suffix.
+    /// If it is too short, Evaluate must continue to block the signal.
+    /// The caller supplies one symbol, ordered from oldest to newest.
+    /// </summary>
+    public static MarketCandlePoint[] LatestContiguous(
+        IReadOnlyList<MarketCandlePoint> ordered)
+    {
+        if (ordered.Count == 0) return [];
+        var start = ordered.Count - 1;
+        while (start > 0 &&
+            ordered[start].OpenUtc - ordered[start - 1].OpenUtc == TimeSpan.FromMinutes(1) &&
+            ordered[start].Symbol == ordered[start - 1].Symbol)
+            start--;
+        return ordered.Skip(start).ToArray();
+    }
+
     public static StrategySignal Evaluate(string symbol, IReadOnlyList<MarketCandlePoint> candles,
         DateTimeOffset nowUtc)
     {

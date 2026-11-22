@@ -192,7 +192,7 @@ public sealed class RacPaperTradingService(
                 if (closeUtc is null)
                     throw new InvalidOperationException("Sem candles para posição aberta.");
                 var signal = RacStrategyEvaluator.Evaluate(pos.Symbol,
-                    groups[pos.Symbol], now);
+                    RacStrategyEvaluator.LatestContiguous(groups[pos.Symbol]), now);
                 if (signal.Status != "READY")
                     throw new InvalidOperationException("Sinal de posição aberta inválido ou obsoleto.");
                 var exitReason = pos.LastPriceBrl <= pos.StopPriceBrl
@@ -223,7 +223,8 @@ public sealed class RacPaperTradingService(
             foreach (var symbol in RacMarketSymbols.Supported)
             {
                 var candles = groups.GetValueOrDefault(symbol) ?? [];
-                var signal = RacStrategyEvaluator.Evaluate(symbol, candles, now);
+                var signal = RacStrategyEvaluator.Evaluate(symbol,
+                    RacStrategyEvaluator.LatestContiguous(candles), now);
                 if (!cursors.TryGetValue(symbol, out var cursor))
                 {
                     cursor = new PaperAgentCursor

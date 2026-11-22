@@ -90,6 +90,30 @@ public sealed class RacStrategyTests
     }
 
     [Fact]
+    public void Older_collection_gap_does_not_poison_newest_contiguous_segment()
+    {
+        var all = Series(100);
+        var olderGap = all.Take(40).Concat(all.Skip(41)).ToArray();
+        var tail = RacStrategyEvaluator.LatestContiguous(olderGap);
+        Assert.Equal(59, tail.Length);
+        var signal = RacStrategyEvaluator.Evaluate("BTCUSDT", tail, Now);
+        Assert.Equal("READY", signal.Status);
+        Assert.False(signal.OrderPlacementEnabled);
+    }
+
+    [Fact]
+    public void Recent_gap_remains_blocked_until_minimum_history_is_collected()
+    {
+        var all = Series(100);
+        var recentGap = all.Take(89).Concat(all.Skip(90)).ToArray();
+        var tail = RacStrategyEvaluator.LatestContiguous(recentGap);
+        Assert.Equal(10, tail.Length);
+        var signal = RacStrategyEvaluator.Evaluate("BTCUSDT", tail, Now);
+        Assert.Equal("BLOCKED", signal.Status);
+        Assert.Equal("SEM_SINAL", signal.Action);
+    }
+
+    [Fact]
     public void Flat_prices_produce_rsi_50_without_dividing_by_zero()
     {
         var series = Series(50, step: 0m);
