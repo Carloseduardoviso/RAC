@@ -465,14 +465,48 @@ $('testnetExecutionStop').onclick = () => testnetCommand('emergency');
 $('testnetExecutionRefresh').onclick = refreshTestnetExecution;
 setInterval(() => {if(authenticated && canControl) refreshTestnetExecution();},30000);
 
+function renderPaperEquityTrend(history) {
+  const target = $('paperEquityTrend');
+  const values = (Array.isArray(history) ? history : []).map(x => Number(x.equityBrl))
+    .filter(x => Number.isFinite(x) && x >= 0);
+  if (!values.length) { target.textContent = 'Sem amostras de patrimonio.'; return; }
+  const min = Math.min(...values), max = Math.max(...values);
+  const span = Math.max(max - min, 0.01), width = 720, height = 128, pad = 12;
+  const points = values.map((v, i) => {
+    const x = pad + i * (width - 2 * pad) / Math.max(values.length - 1, 1);
+    const y = height - pad - (v - min) / span * (height - 2 * pad);
+    return x.toFixed(2) + ',' + y.toFixed(2);
+  }).join(' ');
+  target.textContent = '';
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 720 128');
+  svg.setAttribute('width', '100%');
+  svg.setAttribute('height', '128');
+  svg.setAttribute('aria-label', 'Patrimonio virtual: minimo '+brl(min)+', maximo '+brl(max));
+  const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+  line.setAttribute('points', points);
+  line.setAttribute('fill', 'none');
+  line.setAttribute('stroke', 'currentColor');
+  line.setAttribute('stroke-width', '2.5');
+  svg.appendChild(line);
+  target.appendChild(svg);
+  const caption = document.createElement('p');
+  caption.textContent = values.length+' amostras • min '+brl(min)+' • max '+brl(max)+
+    ' • atual '+brl(values[values.length - 1]);
+  target.appendChild(caption);
+}
+
 function clearMonitoringDisplay() {
   $('paperMonitorStatus').textContent = 'Sem dados';
   $('paperMonitorPnl').textContent = '—';
   $('paperMonitorRealized').textContent = '—';
   $('paperMonitorFees').textContent = '—';
   $('paperMonitorDrawdown').textContent = '—';
+  $('paperMonitorExposure').textContent = '—';
+  $('paperMonitorWinRate').textContent = '—';
+  $('paperEquityTrend').textContent = 'Aguardando amostras.';
   $('paperMonitorHealth').textContent = 'Aguardando dados de monitoramento.';
-  $('paperAgentPerformance').innerHTML = '<tr><td colspan="11">Aguardando relatório.</td></tr>';
+  $('paperAgentPerformance').innerHTML = '<tr><td colspan="13">Aguardando relatório.</td></tr>';
   $('paperMonitorAlerts').innerHTML = '<tr><td colspan="5">Nenhum alerta.</td></tr>';
   $('paperMonitorDecisions').innerHTML = '<tr><td colspan="5">Aguardando decisões.</td></tr>';
   $('paperMonitorHistory').innerHTML = '<tr><td colspan="5">Aguardando amostras.</td></tr>';
@@ -494,6 +528,10 @@ async function refreshMonitoring() {
     $('paperMonitorRealized').textContent = brl(p.realizedPnlBrl);
     $('paperMonitorFees').textContent = brl(p.feesBrl);
     $('paperMonitorDrawdown').textContent = Number(p.drawdownPct).toFixed(3) + '%';
+    $('paperMonitorExposure').textContent = brl(p.exposureBrl) + ' / ' + pct(p.exposurePct);
+    $('paperMonitorWinRate').textContent = Number(p.closedPositions) > 0
+      ? pct(p.winRatePct) + ' (' + Number(p.closedPositions) + ' vendas)'
+      : 'Sem vendas fechadas';
     const healthyAgents = m.agentStates.filter(a => a.healthy === true);
     const unhealthySymbols = m.agentStates.filter(a => !a.healthy).map(a => a.symbol);
     $('paperMonitorHealth').textContent =
@@ -512,9 +550,11 @@ async function refreshMonitoring() {
         ' / '+(Number.isFinite(a.candleAgeSeconds) ? Math.round(a.candleAgeSeconds)+'s' : 'sem candle')+
         '</td><td>'+(a.lastDecisionUtc ? safe(formatDate(a.lastDecisionUtc)) : 'sem decisao')+
         '</td><td>'+Number(a.decisions)+'</td><td>'+Number(a.buys)+'</td><td>'+Number(a.sells)+
-        '</td><td>'+Number(a.wins)+' / '+Number(a.losses)+'</td><td>'+brl(a.realizedPnlBrl)+
-        '</td><td>'+brl(a.feesBrl)+'</td><td>'+brl(a.openPositionBrl)+'</td></tr>').join('')
-      : '<tr><td colspan="11">Relatório de agentes indisponível.</td></tr>';
+        '</td><td>'+Number(a.wins)+' / '+Number(a.losses)+' / '+Number(a.breakevenSells)+
+        '</td><td>'+(Number(a.sells) ? pct(a.winRatePct) : '—')+'</td><td>'+brl(a.realizedPnlBrl)+
+        '</td><td>'+brl(a.feesBrl)+'</td><td>'+brl(a.openPositionBrl)+
+        '</td><td>'+pct(a.exposurePct)+'</td></tr>').join('')
+      : '<tr><td colspan="13">Relatório de agentes indisponível.</td></tr>';
     $('paperMonitorAlerts').innerHTML = m.alerts.length ? m.alerts.map(a =>
       '<tr><td>'+safe(formatDate(a.openedUtc))+'</td><td>'+safe(a.code)+
       '</td><td>'+safe(a.severity)+'</td><td>'+(a.active ? 'ATIVO' : 'RESOLVIDO')+
@@ -525,6 +565,7 @@ async function refreshMonitoring() {
       '</td><td>'+safe(x.signal)+'</td><td>'+safe(x.outcome)+
       '</td><td>'+safe(x.actor)+'</td></tr>').join('')
       : '<tr><td colspan="5">Nenhuma decisão de candle registrada.</td></tr>';
+    renderPaperEquityTrend(m.history);
     $('paperMonitorHistory').innerHTML = m.history.length ? m.history.slice(-30).reverse().map(x =>
       '<tr><td>'+safe(formatDate(x.recordedUtc))+'</td><td>'+brl(x.equityBrl)+
       '</td><td>'+brl(x.exposureBrl)+'</td><td>'+x.readyAgents+

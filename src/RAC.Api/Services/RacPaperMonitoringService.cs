@@ -140,8 +140,9 @@ public sealed class RacPaperMonitoringService(
             .Select(g => new {
                 Symbol = g.Key, Buys = g.Count(x => x.Side == "BUY"),
                 Sells = g.Count(x => x.Side == "SELL"),
-                Wins = g.Count(x => x.Side == "SELL" && x.RealizedPnlBrl >= 0m),
+                Wins = g.Count(x => x.Side == "SELL" && x.RealizedPnlBrl > 0m),
                 Losses = g.Count(x => x.Side == "SELL" && x.RealizedPnlBrl < 0m),
+                BreakevenSells = g.Count(x => x.Side == "SELL" && x.RealizedPnlBrl == 0m),
                 RealizedPnlBrl = g.Sum(x => x.RealizedPnlBrl ?? 0m),
                 FeesBrl = g.Sum(x => x.FeeBrl)
             }).ToDictionaryAsync(x => x.Symbol, ct);
@@ -156,6 +157,8 @@ public sealed class RacPaperMonitoringService(
         var fees = fillStats?.Fees ?? 0m;
         var latest = samples.FirstOrDefault();
         var cycleHealth = PaperCycleDiagnostics.Evaluate(account, now);
+        var exposureBrl = positions.Sum(x => x.Quantity * x.LastPriceBrl);
+        var equityBrl = account?.LastEquityBrl ?? 0m;
         return new
         {
             mode = "PAPER_ONLY", source = "BINANCE_SPOT_PUBLIC",
@@ -173,9 +176,13 @@ public sealed class RacPaperMonitoringService(
                 equityBrl = account?.LastEquityBrl ?? 0m,
                 cashBrl = account?.CashBrl ?? 0m,
                 contributionsBrl = account?.TotalContributionsBrl ?? 0m,
-                pnlExcludingContributionsBrl =
-                    (account?.LastEquityBrl ?? 0m) - (account?.TotalContributionsBrl ?? 0m),
+                pnlExcludingContributionsBrl = PaperPerformanceMath.NetResultBrl(
+                    equityBrl, account?.TotalContributionsBrl ?? 0m),
                 realizedPnlBrl = realized, feesBrl = fees,
+                exposureBrl,
+                exposurePct = PaperPerformanceMath.ExposurePercent(exposureBrl, equityBrl),
+                winRatePct = PaperPerformanceMath.WinRatePercent(
+                    fillsPerAgent.Values.Sum(x => x.Wins), fillStats?.Closed ?? 0),
                 drawdownPct = account is null ? 0m :
                     PaperMonitoringPolicy.DrawdownPercent(
                         account.LastEquityBrl, account.PeakEquityBrl),
@@ -213,12 +220,17 @@ public sealed class RacPaperMonitoringService(
                     diagnosticReason = diagnostic.Reason,
                     buys = fills?.Buys ?? 0, sells = fills?.Sells ?? 0,
                     wins = fills?.Wins ?? 0, losses = fills?.Losses ?? 0,
+                    breakevenSells = fills?.BreakevenSells ?? 0,
+                    winRatePct = PaperPerformanceMath.WinRatePercent(
+                        fills?.Wins ?? 0, fills?.Sells ?? 0),
                     realizedPnlBrl = fills?.RealizedPnlBrl ?? 0m,
                     feesBrl = fills?.FeesBrl ?? 0m,
                     decisions = decisions?.Decisions ?? 0,
                     paperBuyDecisions = decisions?.PaperBuys ?? 0,
                     lastDecisionUtc = decisions?.LastDecisionUtc,
-                    openPositionBrl = pos is null ? 0m : pos.Quantity * pos.LastPriceBrl
+                    openPositionBrl = pos is null ? 0m : pos.Quantity * pos.LastPriceBrl,
+                    exposurePct = PaperPerformanceMath.ExposurePercent(
+                        pos is null ? 0m : pos.Quantity * pos.LastPriceBrl, equityBrl)
                 };
             }),
             alerts = alerts.Select(x => new {
