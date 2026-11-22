@@ -23,7 +23,7 @@ app.UseStaticFiles();
 var getRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
     "/api/health", "/api/state", "/api/history", "/api/auth/me",
-    "/api/market/overview", "/api/strategy/overview", "/api/binance/testnet/ping",
+    "/api/market/overview", "/api/strategy/overview", "/api/paper/status", "/api/binance/testnet/ping",
     "/api/binance/spot/status", "/api/binance/spot/balances",
     "/api/portfolio/history", "/api/portfolio/activity/history"
 };
@@ -32,7 +32,7 @@ var postRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     "/api/auth/login", "/api/auth/logout", "/api/risk/review",
     "/api/control/start", "/api/control/pause", "/api/control/step", "/api/control/reset",
     "/api/portfolio/snapshot", "/api/portfolio/plan", "/api/portfolio/cashflows",
-    "/api/portfolio/activity/import"
+    "/api/portfolio/activity/import", "/api/paper/start", "/api/paper/pause"
 };
 
 app.MapMethods("/api/{**path}", ["GET", "POST"], async (HttpContext context, IHttpClientFactory factory) =>

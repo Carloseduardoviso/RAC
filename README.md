@@ -1,3 +1,5 @@
+> **MVP 1.1:** na `main`, operações **PAPER ONLY** automáticas após comando de início do operador, usando candles/quotes reais públicos Binance, R$ 100 de capital fictício, R$ 200 de aporte virtual a cada 30 dias e travas de risco. Veja [MVP-1.1.md](MVP-1.1.md). **Nunca negocia dinheiro real.**
+
 > **MVP 1.0:** a `main` inclui agora análise observacional dos 12 pares Spot com SMA 9/21, RSI 14, ATR 14 e backtest ilustrativo usando candles reais fechados. O simulador legado ainda usa preços sintéticos; **não existem ordens reais**. Consulte [MVP-1.0.md](MVP-1.0.md).
 
 > **Estado atual:** MVP 0.8 de carteira Binance Spot somente leitura. O código da `main` contém o MVP 0.9 em **modo somente leitura**: histórico de negociações e movimentações sem ordens reais. Consulte [MVP-0.8.md](MVP-0.8.md) e [MVP-0.9.md](MVP-0.9.md). Os R$ 100 mostrados no mapa de agentes são **simulados**. Antes de executar a nova versão, compile, rode os testes e aplique a migration em seu banco.

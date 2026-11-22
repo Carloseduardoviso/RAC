@@ -28,6 +28,8 @@ builder.Services.AddHttpClient<BinancePublicMarketClient>(client =>
 });
 builder.Services.AddSingleton<RacMarketDataService>();
 builder.Services.AddSingleton<RacStrategyService>();
+builder.Services.AddSingleton<RacPaperTradingService>();
+builder.Services.AddHostedService<RacPaperTradingWorker>();
 builder.Services.AddHostedService<RacMarketDataWorker>();
 builder.Services.AddHttpClient<BinancePortfolioPricesClient>(client =>
 {
@@ -155,6 +157,19 @@ app.MapGet("/api/strategy/backtest/{symbol}", async (
         return Results.BadRequest(new { error = "Par não monitorado pelo RAC." });
     return Results.Ok(await strategies.BacktestAsync(symbol, ct));
 }).RequireAuthorization();
+
+app.MapGet("/api/paper/status", async (RacPaperTradingService paper, CancellationToken ct) =>
+    Results.Ok(await paper.SnapshotAsync(ct))).RequireAuthorization();
+
+app.MapPost("/api/paper/start", async (RacPaperTradingService paper,
+    ClaimsPrincipal user, CancellationToken ct) =>
+    await HandlePortfolioAsync(() => paper.SetRunningAsync(true,
+        user.Identity?.Name ?? "operator", ct))).RequireAuthorization("RacOperator");
+
+app.MapPost("/api/paper/pause", async (RacPaperTradingService paper,
+    ClaimsPrincipal user, CancellationToken ct) =>
+    await HandlePortfolioAsync(() => paper.SetRunningAsync(false,
+        user.Identity?.Name ?? "operator", ct))).RequireAuthorization("RacOperator");
 
 app.MapGet("/api/binance/spot/status", (BinanceSpotCredentialStore store,
     HttpContext context) =>

@@ -7,7 +7,7 @@
 </head>
 <body>
 <div class="shell">
-<header><div class="brand"><div class="logo">R<span>●</span></div><div><strong>RAC</strong><small>Rebeca · Ana · Carlos | MVP 1.0</small></div></div><div class="mode">● SIMULAÇÃO • ORDENS REAIS DESATIVADAS</div></header>
+<header><div class="brand"><div class="logo">R<span>●</span></div><div><strong>RAC</strong><small>Rebeca · Ana · Carlos | MVP 1.1</small></div></div><div class="mode">● SIMULAÇÃO • ORDENS REAIS DESATIVADAS</div></header>
 <section id="authPanel" class="panel login-box">
   <h2>Acesso ao RAC</h2>
   <p>Entre com uma conta autorizada para visualizar e controlar a simulação.</p>
@@ -109,6 +109,38 @@
     <tbody id="portfolioCashflows"><tr><td colspan="5">Nenhuma anotação.</td></tr></tbody>
   </table></div>
   <p><small>Observação: somente Binance Spot. Não inclui Funding, Earn, margem ou Futuros. Os registros mostram estimativas, não comprovam depósitos, lucro, rendimento ou imposto devido.</small></p>
+</section>
+<section class="panel" id="paperPanel" hidden>
+  <div class="section-head">
+    <div>
+      <h2>MVP 1.1 — Carteira automática fictícia com dados reais</h2>
+      <p>12 agentes analisam candles Binance reais e registram operações virtuais em BRL. Nunca envia ordens à Binance.</p>
+    </div>
+    <span class="chip" id="paperStatus">Pausado</span>
+  </div>
+  <div class="metrics" style="margin:16px 0">
+    <div class="metric"><span>Patrimônio virtual (BRL)</span><strong id="paperEquity">—</strong></div>
+    <div class="metric"><span>Caixa virtual (BRL)</span><strong id="paperCash">—</strong></div>
+    <div class="metric"><span>Aportes fictícios acumulados</span><strong id="paperContributions">—</strong></div>
+    <div class="metric"><span>Entradas virtuais hoje</span><strong id="paperEntries">—</strong></div>
+  </div>
+  <p id="paperRiskMessage" role="status">Parâmetros fixos: R$ 100 iniciais, R$ 200 a cada 30 dias, risco de 0,5% por operação, perda diária de 1%, drawdown de 10% e reinvestimento de 100%.</p>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin:12px 0">
+    <button type="button" id="paperStart" class="primary">Iniciar simulação automática</button>
+    <button type="button" id="paperPause">Pausar operações virtuais</button>
+    <button type="button" id="paperRefresh">Atualizar carteira virtual</button>
+  </div>
+  <p><small>Após reinício do RAC, a carteira inicia pausada. Bloqueios de risco exigem revisão manual; não há desbloqueio automático. Esta carteira é separada da simulação sintética anterior e da carteira real Binance Spot.</small></p>
+  <h3>Posições virtuais baseadas nos sinais reais</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Par</th><th>Quantidade fictícia</th><th>Preço de entrada BRL</th><th>Preço observado BRL</th><th>Stop fictício BRL</th></tr></thead>
+    <tbody id="paperPositions"><tr><td colspan="5">Nenhuma posição.</td></tr></tbody>
+  </table></div>
+  <h3>Operações virtuais registradas</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Data</th><th>Par</th><th>Lado</th><th>Quantidade</th><th>Preço BRL</th><th>Taxa BRL</th><th>Resultado BRL</th></tr></thead>
+    <tbody id="paperFills"><tr><td colspan="7">Nenhuma operação.</td></tr></tbody>
+  </table></div>
 </section>
 <section class="panel" id="realStrategiesPanel" hidden>
   <div class="section-head">

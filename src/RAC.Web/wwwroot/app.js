@@ -143,7 +143,8 @@ function showSession(session) {
   $('portfolioPanel').hidden = !authenticated || !canViewWallet;
   $('activityPanel').hidden = !authenticated || !canViewWallet;
   $('realStrategiesPanel').hidden = !authenticated;
-  if (!authenticated) clearRealStrategiesDisplay();
+  $('paperPanel').hidden = !authenticated;
+  if (!authenticated) { clearRealStrategiesDisplay(); clearPaperDisplay(); }
   if (!authenticated || !canViewWallet) {
     clearWalletDisplay();
     clearPortfolioDisplay();
@@ -167,6 +168,7 @@ async function loadSession() {
     await refreshMarketData();
     await refreshMarketCandles();
     await refreshRealStrategies();
+    await refreshPaper();
     await checkWalletStatus();
     if (canViewWallet) { await refreshPortfolioHistory(); await refreshActivityHistory(); }
   } catch {
@@ -399,6 +401,65 @@ $('portfolioCashFlowForm').onsubmit = async event => {
   }
 };
 
+
+
+const brl = usd;
+function clearPaperDisplay() {
+  $('paperStatus').textContent = 'Pausado';
+  $('paperEquity').textContent = '—';
+  $('paperCash').textContent = '—';
+  $('paperContributions').textContent = '—';
+  $('paperEntries').textContent = '—';
+  $('paperRiskMessage').textContent = 'Carteira virtual não carregada.';
+  $('paperPositions').innerHTML = '<tr><td colspan="5">Nenhuma posição.</td></tr>';
+  $('paperFills').innerHTML = '<tr><td colspan="7">Nenhuma operação.</td></tr>';
+}
+async function refreshPaper() {
+  if (!authenticated) return;
+  try {
+    const s = await api('paper/status');
+    if (s.mode !== 'PAPER_ONLY' || s.realOrdersEnabled || s.testnetOrdersEnabled)
+      throw new Error('Motor de papel indisponível ou não autorizado.');
+    $('paperStatus').textContent = s.riskLocked ? 'BLOQUEADO — Carlos' :
+      s.running ? 'AUTOMÁTICO (PAPEL)' : 'PAUSADO';
+    $('paperEquity').textContent = brl(s.lastEquityBrl);
+    $('paperCash').textContent = brl(s.cashBrl);
+    $('paperContributions').textContent = brl(s.totalContributionsBrl);
+    $('paperEntries').textContent = String(s.entriesToday);
+    $('paperRiskMessage').textContent = s.riskLocked
+      ? s.riskReason : 'R$ 100 iniciais; aportes virtuais de R$ 200/30 dias; 0,5% risco/operação; 1% perda diária; 10% drawdown; 100% reinvestimento simulado. ' +
+      (s.lastCycleUtc ? 'Último ciclo: '+formatDate(s.lastCycleUtc) : 'Nenhum ciclo executado.');
+    $('paperStart').disabled = s.running || s.riskLocked || !canControl;
+    $('paperPause').disabled = !s.running || !canControl;
+    $('paperPositions').innerHTML = s.positions.length ? s.positions.map(p =>
+      '<tr><td>'+safe(p.symbol)+'</td><td>'+walletNumber(p.quantity)+'</td><td>'+
+      brl(p.entryPriceBrl)+'</td><td>'+brl(p.lastPriceBrl)+'</td><td>'+
+      brl(p.stopPriceBrl)+'</td></tr>').join('') :
+      '<tr><td colspan="5">Sem posições virtuais.</td></tr>';
+    $('paperFills').innerHTML = s.fills.length ? s.fills.map(f =>
+      '<tr><td>'+safe(formatDate(f.executedUtc))+'</td><td>'+safe(f.symbol)+
+      '</td><td>'+safe(f.side)+'</td><td>'+walletNumber(f.quantity)+
+      '</td><td>'+brl(f.priceBrl)+'</td><td>'+brl(f.feeBrl)+
+      '</td><td>'+(f.realizedPnlBrl === null ? '—' : brl(f.realizedPnlBrl))+
+      '</td></tr>').join('') : '<tr><td colspan="7">Sem operações.</td></tr>';
+  } catch (error) {
+    $('paperStatus').textContent = 'Indisponível';
+    $('paperRiskMessage').textContent = error.message;
+  }
+}
+async function paperCommand(path) {
+  try {
+    await api(path, {method:'POST', headers:{'Content-Type':'application/json'},
+      body:'{}'});
+    await refreshPaper();
+  } catch(error) {
+    $('paperRiskMessage').textContent = 'Falha no controle: '+error.message;
+  }
+}
+$('paperStart').onclick = () => paperCommand('paper/start');
+$('paperPause').onclick = () => paperCommand('paper/pause');
+$('paperRefresh').onclick = refreshPaper;
+setInterval(() => { if(authenticated) refreshPaper(); }, 15000);
 
 function clearRealStrategiesDisplay() {
   $('realStrategiesStatus').textContent = 'Sem consulta';

@@ -24,9 +24,56 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public DbSet<SpotInvestmentPlan> SpotInvestmentPlans => Set<SpotInvestmentPlan>();
     public DbSet<SpotActivity> SpotActivities => Set<SpotActivity>();
 
+    public DbSet<PaperAccount> PaperAccounts => Set<PaperAccount>();
+    public DbSet<PaperPosition> PaperPositions => Set<PaperPosition>();
+    public DbSet<PaperFill> PaperFills => Set<PaperFill>();
+    public DbSet<PaperAgentCursor> PaperAgentCursors => Set<PaperAgentCursor>();
+
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<PaperAccount>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedNever();
+            e.Property(x => x.RowVersion).IsRowVersion();
+            e.Property(x => x.RiskReason).HasMaxLength(500).IsRequired();
+            foreach (var property in new[] { nameof(PaperAccount.CashBrl),
+                nameof(PaperAccount.TotalContributionsBrl), nameof(PaperAccount.PeakEquityBrl),
+                nameof(PaperAccount.DailyStartEquityBrl), nameof(PaperAccount.LastEquityBrl) })
+                e.Property<decimal>(property).HasPrecision(28, 12);
+        });
+        model.Entity<PaperPosition>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Symbol).HasMaxLength(24).IsRequired();
+            e.HasIndex(x => x.Symbol).IsUnique();
+            foreach (var property in new[] { nameof(PaperPosition.Quantity),
+                nameof(PaperPosition.EntryPriceBrl), nameof(PaperPosition.StopPriceBrl),
+                nameof(PaperPosition.EntryFeeBrl), nameof(PaperPosition.LastPriceBrl) })
+                e.Property<decimal>(property).HasPrecision(28, 12);
+        });
+        model.Entity<PaperFill>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Symbol).HasMaxLength(24).IsRequired();
+            e.Property(x => x.Side).HasMaxLength(8).IsRequired();
+            e.Property(x => x.Reason).HasMaxLength(40).IsRequired();
+            e.HasIndex(x => x.ExecutedUtc);
+            e.HasIndex(x => new { x.Symbol, x.Side, x.SignalClosedUtc }).IsUnique();
+            foreach (var property in new[] { nameof(PaperFill.Quantity),
+                nameof(PaperFill.PriceBrl), nameof(PaperFill.FeeBrl) })
+                e.Property<decimal>(property).HasPrecision(28, 12);
+            e.Property(x => x.RealizedPnlBrl).HasPrecision(28, 12);
+        });
+        model.Entity<PaperAgentCursor>(e =>
+        {
+            e.HasKey(x => x.Symbol);
+            e.Property(x => x.Symbol).HasMaxLength(24).IsRequired();
+            e.Property(x => x.LastSignal).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Status).HasMaxLength(24).IsRequired();
+            e.Property(x => x.Note).HasMaxLength(250).IsRequired();
+        });
         model.Entity<SpotActivity>(e =>
         {
             e.HasKey(x => x.Id);

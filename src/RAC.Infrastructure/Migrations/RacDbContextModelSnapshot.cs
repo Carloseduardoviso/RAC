@@ -23,46 +23,6 @@ namespace RAC.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-
-            modelBuilder.Entity("RAC.Domain.SpotActivity", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("Asset").IsRequired()
-                        .HasMaxLength(24).HasColumnType("nvarchar(24)");
-                    b.Property<decimal>("Fee").HasPrecision(28, 12)
-                        .HasColumnType("decimal(28,12)");
-                    b.Property<string>("FeeAsset").IsRequired()
-                        .HasMaxLength(24).HasColumnType("nvarchar(24)");
-                    b.Property<DateTimeOffset>("ImportedUtc").HasColumnType("datetimeoffset");
-                    b.Property<string>("Kind").IsRequired()
-                        .HasMaxLength(12).HasColumnType("nvarchar(12)");
-                    b.Property<DateTimeOffset>("OccurredUtc").HasColumnType("datetimeoffset");
-                    b.Property<Guid>("OwnerUserId").HasColumnType("uniqueidentifier");
-                    b.Property<decimal>("Price").HasPrecision(28, 12)
-                        .HasColumnType("decimal(28,12)");
-                    b.Property<decimal>("Quantity").HasPrecision(28, 12)
-                        .HasColumnType("decimal(28,12)");
-                    b.Property<decimal>("QuoteQuantity").HasPrecision(28, 12)
-                        .HasColumnType("decimal(28,12)");
-                    b.Property<string>("ReferenceId").IsRequired()
-                        .HasMaxLength(128).HasColumnType("nvarchar(128)");
-                    b.Property<string>("Side").IsRequired()
-                        .HasMaxLength(8).HasColumnType("nvarchar(8)");
-                    b.Property<string>("Status").IsRequired()
-                        .HasMaxLength(40).HasColumnType("nvarchar(40)");
-                    b.Property<string>("Symbol").IsRequired()
-                        .HasMaxLength(24).HasColumnType("nvarchar(24)");
-                    b.HasKey("Id");
-                    b.HasIndex("OwnerUserId", "Kind", "Symbol", "ReferenceId").IsUnique();
-                    b.HasIndex("OwnerUserId", "OccurredUtc");
-                    b.ToTable("SpotActivities", "rac");
-                });
-
             modelBuilder.Entity("RAC.Domain.Agent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -263,6 +223,199 @@ namespace RAC.Infrastructure.Migrations
                     b.ToTable("MarketQuotes", "rac");
                 });
 
+            modelBuilder.Entity("RAC.Domain.PaperAccount", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("CashBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<DateOnly>("CurrentDayUtc")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("DailyStartEquityBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<int>("EntriesToday")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset?>("LastCycleUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("LastEquityBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<DateTimeOffset>("NextContributionUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("PeakEquityBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<bool>("RiskLocked")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("RiskReason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<bool>("Running")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("TotalContributionsBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<DateTimeOffset>("UpdatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PaperAccounts", "rac");
+                });
+
+            modelBuilder.Entity("RAC.Domain.PaperAgentCursor", b =>
+                {
+                    b.Property<string>("Symbol")
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.Property<DateTimeOffset>("LastCandleUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("LastSignal")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.HasKey("Symbol");
+
+                    b.ToTable("PaperAgentCursors", "rac");
+                });
+
+            modelBuilder.Entity("RAC.Domain.PaperFill", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTimeOffset>("ExecutedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("FeeBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<decimal>("PriceBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<decimal?>("RealizedPnlBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("Side")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)");
+
+                    b.Property<DateTimeOffset>("SignalClosedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExecutedUtc");
+
+                    b.HasIndex("Symbol", "Side", "SignalClosedUtc")
+                        .IsUnique();
+
+                    b.ToTable("PaperFills", "rac");
+                });
+
+            modelBuilder.Entity("RAC.Domain.PaperPosition", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("EntryFeeBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<decimal>("EntryPriceBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<decimal>("LastPriceBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<DateTimeOffset>("OpenedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<DateTimeOffset>("SignalClosedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("StopPriceBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Symbol")
+                        .IsUnique();
+
+                    b.ToTable("PaperPositions", "rac");
+                });
+
             modelBuilder.Entity("RAC.Domain.Position", b =>
                 {
                     b.Property<Guid>("Id")
@@ -407,6 +560,84 @@ namespace RAC.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("SimulationCheckpoints", "rac");
+                });
+
+            modelBuilder.Entity("RAC.Domain.SpotActivity", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Asset")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.Property<decimal>("Fee")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<string>("FeeAsset")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.Property<DateTimeOffset>("ImportedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("nvarchar(12)");
+
+                    b.Property<DateTimeOffset>("OccurredUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<decimal>("QuoteQuantity")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<string>("ReferenceId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("Side")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerUserId", "OccurredUtc");
+
+                    b.HasIndex("OwnerUserId", "Kind", "Symbol", "ReferenceId")
+                        .IsUnique();
+
+                    b.ToTable("SpotActivities", "rac");
                 });
 
             modelBuilder.Entity("RAC.Domain.SpotCashFlowNote", b =>
