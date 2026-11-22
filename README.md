@@ -1,3 +1,5 @@
+> **MVP 1.2.1 — Homologação simulada:** testes isolados de BUY/SELL, cancelamento, reconciliação, falhas e SQL descartável; envio Testnet bloqueado por código, sem reiniciar o PAPER. Veja [MVP-1.2.1.md](MVP-1.2.1.md).
+
 > **MVP 1.2 — Binance Spot Testnet:** executor exclusivamente de teste, com credenciais Windows DPAPI separadas, ordens idempotentes no SQL, filtros, reconciliação, trava de emergência e painel. Por padrão INATIVO; não envia ordens reais. Veja [MVP-1.2.md](MVP-1.2.md).
 
 > **MVP 1.1.1:** monitoramento independente dos 12 agentes fictícios, alertas persistidos, relatórios virtuais e auditoria por candle, sem ordens reais. Consulte [MVP-1.1.1.md](MVP-1.1.1.md).

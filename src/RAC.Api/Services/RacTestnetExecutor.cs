@@ -49,6 +49,8 @@ public sealed class RacTestnetExecutor(
                 mode="BINANCE_SPOT_TESTNET_ONLY", realOrdersEnabled=false,
                 endpoint="https://testnet.binance.vision",
                 credentialsConfigured=client.CredentialsConfigured,
+                submissionAuthorized=TestnetExecutionPolicy.SubmissionExplicitlyAllowed,
+                homologationMode="MVP_1_2_1_MOCK_ONLY",
                 enabled=s.Enabled,emergencyStopped=s.EmergencyStopped,
                 circuitLocked=s.CircuitLocked,s.LockReason,s.LastCycleUtc,
                 paperRunning=paper?.Running??false,
@@ -59,6 +61,15 @@ public sealed class RacTestnetExecutor(
                     drawdownPct=PaperRisk.MaxDrawdownPct,
                     reinvestmentPct=PaperRisk.ReinvestmentPercent,
                     maxPositions=PaperRisk.MaxOpenPositions
+                },
+                summary=new {
+                    total=await db.TestnetOrders.CountAsync(ct),
+                    filled=await db.TestnetOrders.CountAsync(x=>x.Status=="FILLED",ct),
+                    pending=await db.TestnetOrders.CountAsync(x=>x.Status=="SUBMITTING" ||
+                        x.Status=="UNKNOWN" || x.Status=="NEW" || x.Status=="PARTIALLY_FILLED",ct),
+                    blocked=await db.TestnetOrders.CountAsync(x=>x.Status=="FILTER_BLOCKED",ct),
+                    cancelled=await db.TestnetOrders.CountAsync(x=>x.Status=="CANCELED",ct),
+                    lastOrderUtc=await db.TestnetOrders.MaxAsync(x=>(DateTimeOffset?)x.UpdatedUtc,ct)
                 },
                 orders=orders.Select(x=>new {
                     x.PaperFillId,x.Symbol,x.Side,x.ClientOrderId,x.Status,
@@ -80,6 +91,8 @@ public sealed class RacTestnetExecutor(
             var s=await db.TestnetExecutionStates.SingleAsync(x=>x.Id==1,ct);
             if(enable)
             {
+                if(!TestnetExecutionPolicy.SubmissionExplicitlyAllowed)
+                    throw new InvalidOperationException("MVP 1.2.1 somente simulado; envio Testnet exige autorização futura e configuração explícita.");
                 if(!client.CredentialsConfigured)
                     throw new InvalidOperationException("Credenciais exclusivas da Testnet não configuradas.");
                 if(s.EmergencyStopped||s.CircuitLocked)
@@ -88,7 +101,8 @@ public sealed class RacTestnetExecutor(
                 if(!paper.Running || paper.RiskLocked || PaperRisk.LockReason(
                     paper.LastEquityBrl,paper.DailyStartEquityBrl,paper.PeakEquityBrl)!=null)
                     throw new InvalidOperationException("Carteira PAPER não está saudável e ativa.");
-                if(await db.TestnetOrders.AnyAsync(x=>x.Status=="SUBMITTING"||x.Status=="UNKNOWN",ct))
+                if(await db.TestnetOrders.AnyAsync(x=>x.Status=="SUBMITTING"||
+                    x.Status=="UNKNOWN"||x.Status=="NEW"||x.Status=="PARTIALLY_FILLED",ct))
                     throw new InvalidOperationException("Há ordem de teste com resultado incerto.");
             }
             s.Enabled=enable;s.UpdatedUtc=DateTimeOffset.UtcNow;
@@ -127,10 +141,16 @@ public sealed class RacTestnetExecutor(
             var failed=0;
             foreach(var record in pending)
             {
+                if(!TestnetExecutionPolicy.SubmissionExplicitlyAllowed)
+                {
+                    record.Note="Cancelamento Testnet desativado no MVP 1.2.1; revisão manual.";
+                    failed++;
+                    continue;
+                }
                 try
                 {
                     var result=await client.CancelAsync(record.Symbol,record.ClientOrderId,ct);
-                    UpdateRecord(record,result);
+                    TestnetExecutionPolicy.Reconcile(record,result,DateTimeOffset.UtcNow);
                 }
                 catch(Exception ex) when(ex is HttpRequestException or TaskCanceledException
                     or InvalidOperationException or System.Text.Json.JsonException)
@@ -155,6 +175,14 @@ public sealed class RacTestnetExecutor(
             await using var db=await factory.CreateDbContextAsync(ct);
             var state=await db.TestnetExecutionStates.SingleAsync(x=>x.Id==1,ct);
             if(!state.Enabled || state.CircuitLocked || state.EmergencyStopped)return;
+            if(!TestnetExecutionPolicy.SubmissionExplicitlyAllowed)
+            {
+                // Fail closed without touching the PAPER account.
+                state.Enabled=false;
+                state.UpdatedUtc=DateTimeOffset.UtcNow;
+                await db.SaveChangesAsync(ct);
+                return;
+            }
             var paper=await db.PaperAccounts.AsNoTracking().SingleAsync(x=>x.Id==1,ct);
             if(!paper.Running||paper.RiskLocked||
                 PaperRisk.LockReason(paper.LastEquityBrl,paper.DailyStartEquityBrl,paper.PeakEquityBrl)!=null)
@@ -183,7 +211,7 @@ public sealed class RacTestnetExecutor(
                     await LockAsync(db,state,"Ordem Testnet incerta: "+record.ClientOrderId,ct);
                     return;
                 }
-                UpdateRecord(record,found);
+                TestnetExecutionPolicy.Reconcile(record,found,DateTimeOffset.UtcNow);
             }
             await db.SaveChangesAsync(ct);
             if(await db.TestnetOrders.AnyAsync(x=>x.Status=="UNKNOWN"||x.Status=="SUBMITTING"
@@ -203,7 +231,7 @@ public sealed class RacTestnetExecutor(
             {
                 if(processed.Contains(fill.Id))continue;
                 if(!RacMarketSymbols.IsSupported(fill.Symbol))continue;
-                var id="RAC12"+fill.Id.ToString("D14");
+                var id=TestnetExecutionPolicy.ClientOrderId(fill.Id);
                 var rec=new TestnetOrderRecord {
                     PaperFillId=fill.Id,Symbol=fill.Symbol,Side=fill.Side,
                     ClientOrderId=id,Quantity=fill.Quantity,
@@ -230,9 +258,8 @@ public sealed class RacTestnetExecutor(
                         var confirmed=await db.TestnetOrders.AsNoTracking()
                             .Where(x=>x.Symbol==fill.Symbol && x.Status=="FILLED")
                             .ToArrayAsync(ct);
-                        var net=confirmed.Where(x=>x.Side=="BUY").Sum(x=>x.ExecutedQuantity) -
-                            confirmed.Where(x=>x.Side=="SELL").Sum(x=>x.ExecutedQuantity);
-                        if(net<rec.Quantity)
+                        if(!TestnetExecutionPolicy.HasConfirmedSellQuantity(
+                            confirmed,fill.Symbol,rec.Quantity))
                             throw new InvalidOperationException("Venda sem posição TESTNET confirmada; execução bloqueada.");
                     }
                     // Testnet funds are not the user's real Binance holdings.
@@ -257,7 +284,7 @@ public sealed class RacTestnetExecutor(
                 {
                     // Explicit POST only against hard-pinned testnet origin.
                     var result=await client.MarketAsync(fill.Symbol,fill.Side,rec.Quantity,id,ct);
-                    UpdateRecord(rec,result);
+                    TestnetExecutionPolicy.Reconcile(rec,result,DateTimeOffset.UtcNow);
                     await db.SaveChangesAsync(ct);
                 }
                 catch(Exception ex) when(ex is HttpRequestException or TaskCanceledException

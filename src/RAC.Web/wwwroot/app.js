@@ -417,13 +417,22 @@ async function refreshTestnetExecution() {
       throw new Error('Endpoint da Testnet inesperado.');
     $('testnetExecutionStatus').textContent = s.emergencyStopped ? 'EMERGÊNCIA' :
       s.circuitLocked ? 'BLOQUEADO' : s.enabled ? 'TESTNET ATIVO' : 'TESTNET PAUSADO';
+    $('testnetExecutionHomologation').textContent = s.submissionAuthorized ?
+      'Envio Testnet explicitamente autorizado por configuração. Verifique a revisão operacional antes de operar.' :
+      'MVP 1.2.1: somente testes simulados. Envio Testnet bloqueado até autorização separada.';
+    const counts = s.summary || {};
+    $('testnetCountAll').textContent = counts.total ?? 0;
+    $('testnetCountFilled').textContent = counts.filled ?? 0;
+    $('testnetCountPending').textContent = counts.pending ?? 0;
+    $('testnetCountBlocked').textContent = counts.blocked ?? 0;
+    $('testnetCountCancelled').textContent = counts.cancelled ?? 0;
     $('testnetExecutionMessage').textContent =
       'Credenciais TESTNET: '+(s.credentialsConfigured ? 'configuradas' : 'ausentes')+
       ' • PAPER: '+(s.paperRunning ? 'ativo' : 'pausado')+
       ' • última verificação: '+(s.lastCycleUtc ? formatDate(s.lastCycleUtc) : 'nenhuma')+
       (s.lockReason ? ' • '+s.lockReason : '')+
       '. Nenhuma ordem real habilitada.';
-    $('testnetExecutionStart').disabled = !s.credentialsConfigured ||
+    $('testnetExecutionStart').disabled = !s.submissionAuthorized || !s.credentialsConfigured ||
       !s.paperRunning || s.paperRiskLocked || s.enabled ||
       s.circuitLocked || s.emergencyStopped;
     $('testnetExecutionPause').disabled = !s.enabled;

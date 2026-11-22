@@ -151,6 +151,14 @@
     <span class="chip" id="testnetExecutionStatus">PAUSADO</span>
   </div>
   <p id="testnetExecutionMessage" role="status">Verificando configuração e travas...</p>
+  <p id="testnetExecutionHomologation" role="status"><strong>MVP 1.2.1: homologação simulada.</strong> Envio de ordens Testnet desativado até autorização separada.</p>
+  <div class="metrics" style="margin:12px 0">
+    <div class="metric"><span>Ordens Testnet no SQL</span><strong id="testnetCountAll">0</strong></div>
+    <div class="metric"><span>Executadas</span><strong id="testnetCountFilled">0</strong></div>
+    <div class="metric"><span>Pendentes / incertas</span><strong id="testnetCountPending">0</strong></div>
+    <div class="metric"><span>Bloqueadas por filtros</span><strong id="testnetCountBlocked">0</strong></div>
+    <div class="metric"><span>Canceladas</span><strong id="testnetCountCancelled">0</strong></div>
+  </div>
   <p><strong>Configuração:</strong> configure a chave Testnet no terminal Windows, nunca neste painel. Ativar exige carteira PAPER saudável e chave de teste; a API sempre inicia pausada.</p>
   <div style="display:flex;gap:12px;flex-wrap:wrap;margin:12px 0">
     <button type="button" id="testnetExecutionStart">Ativar apenas ordens Testnet</button>
