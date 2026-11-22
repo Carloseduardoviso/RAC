@@ -27,6 +27,7 @@ builder.Services.AddHttpClient<BinancePublicMarketClient>(client =>
     client.DefaultRequestHeaders.UserAgent.ParseAdd("RAC-MarketObserver/0.7");
 });
 builder.Services.AddSingleton<RacMarketDataService>();
+builder.Services.AddSingleton<RacStrategyService>();
 builder.Services.AddHostedService<RacMarketDataWorker>();
 builder.Services.AddHttpClient<BinancePortfolioPricesClient>(client =>
 {
@@ -140,6 +141,19 @@ app.MapGet("/api/market/candles/{symbol}", async (
     candles.Reverse();
     return Results.Ok(new { symbol, interval = "1m", source = RacMarketSymbols.Source,
         onlyClosed = true, candles });
+}).RequireAuthorization();
+
+app.MapGet("/api/strategy/overview", async (
+    RacStrategyService strategies, CancellationToken ct) =>
+    Results.Ok(await strategies.OverviewAsync(ct)))
+    .RequireAuthorization();
+
+app.MapGet("/api/strategy/backtest/{symbol}", async (
+    string symbol, RacStrategyService strategies, CancellationToken ct) =>
+{
+    if (!RacMarketSymbols.IsSupported(symbol))
+        return Results.BadRequest(new { error = "Par não monitorado pelo RAC." });
+    return Results.Ok(await strategies.BacktestAsync(symbol, ct));
 }).RequireAuthorization();
 
 app.MapGet("/api/binance/spot/status", (BinanceSpotCredentialStore store,

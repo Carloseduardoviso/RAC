@@ -23,7 +23,7 @@ app.UseStaticFiles();
 var getRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
     "/api/health", "/api/state", "/api/history", "/api/auth/me",
-    "/api/market/overview", "/api/binance/testnet/ping",
+    "/api/market/overview", "/api/strategy/overview", "/api/binance/testnet/ping",
     "/api/binance/spot/status", "/api/binance/spot/balances",
     "/api/portfolio/history", "/api/portfolio/activity/history"
 };
@@ -44,8 +44,11 @@ app.MapMethods("/api/{**path}", ["GET", "POST"], async (HttpContext context, IHt
     var marketCandlePath = path.StartsWith("/api/market/candles/", StringComparison.OrdinalIgnoreCase) &&
         path["/api/market/candles/".Length..] is var marketSymbol &&
         marketSymbol.Length is > 0 and <= 12 && marketSymbol.All(char.IsAsciiLetterOrDigit);
+    var strategyBacktestPath = path.StartsWith("/api/strategy/backtest/", StringComparison.OrdinalIgnoreCase) &&
+        path["/api/strategy/backtest/".Length..] is var strategySymbol &&
+        strategySymbol.Length is > 0 and <= 12 && strategySymbol.All(char.IsAsciiLetterOrDigit);
     var permitted = HttpMethods.IsGet(context.Request.Method)
-        ? getRoutes.Contains(path) || validSymbolPath || marketCandlePath
+        ? getRoutes.Contains(path) || validSymbolPath || marketCandlePath || strategyBacktestPath
         : HttpMethods.IsPost(context.Request.Method) && postRoutes.Contains(path);
     if (!permitted) return Results.NotFound();
 

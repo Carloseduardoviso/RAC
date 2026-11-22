@@ -142,6 +142,8 @@ function showSession(session) {
   $('walletPanel').hidden = !authenticated || !canViewWallet;
   $('portfolioPanel').hidden = !authenticated || !canViewWallet;
   $('activityPanel').hidden = !authenticated || !canViewWallet;
+  $('realStrategiesPanel').hidden = !authenticated;
+  if (!authenticated) clearRealStrategiesDisplay();
   if (!authenticated || !canViewWallet) {
     clearWalletDisplay();
     clearPortfolioDisplay();
@@ -164,6 +166,7 @@ async function loadSession() {
     await refreshHistory();
     await refreshMarketData();
     await refreshMarketCandles();
+    await refreshRealStrategies();
     await checkWalletStatus();
     if (canViewWallet) { await refreshPortfolioHistory(); await refreshActivityHistory(); }
   } catch {
@@ -395,6 +398,64 @@ $('portfolioCashFlowForm').onsubmit = async event => {
     $('portfolioCashflowMessage').textContent = error.message;
   }
 };
+
+
+function clearRealStrategiesDisplay() {
+  $('realStrategiesStatus').textContent = 'Sem consulta';
+  $('realStrategiesRows').innerHTML = '<tr><td colspan="7">Sem dados carregados.</td></tr>';
+  $('strategyBacktestResult').textContent = 'Sem backtest executado.';
+}
+
+async function refreshRealStrategies() {
+  if (!authenticated) return;
+  try {
+    const data = await api('strategy/overview');
+    if (data.source !== 'BINANCE_SPOT_PUBLIC' || data.orderPlacementEnabled ||
+        data.simulationLinked || data.agents.length !== 12)
+      throw new Error('Modo do motor de estratégias não autorizado.');
+    $('realStrategiesStatus').textContent = data.agents.filter(x => x.status === 'READY').length +
+      '/12 pares com histórico contínuo';
+    $('realStrategiesRows').innerHTML = data.agents.map(x =>
+      '<tr><td>'+safe(x.symbol)+'</td><td>'+(x.priceUsdt === null ? '—' : decimal(x.priceUsdt))+
+      '</td><td>'+(x.sma9 === null ? '—' : decimal(x.sma9))+
+      '</td><td>'+(x.sma21 === null ? '—' : decimal(x.sma21))+
+      '</td><td>'+(x.rsi14 === null ? '—' : Number(x.rsi14).toFixed(2))+
+      '</td><td>'+(x.atr14 === null ? '—' : decimal(x.atr14))+
+      '</td><td>'+safe(x.status === 'READY' ? x.action : 'BLOQUEADO: '+(x.note || 'dados ausentes'))+
+      '</td></tr>').join('');
+    $('realStrategiesNote').textContent = 'Estratégia '+data.strategyVersion+
+      '. Sinais derivados de candles Binance Spot fechados; sem ordens e sem influência no patrimônio sintético.';
+  } catch(error) {
+    $('realStrategiesStatus').textContent = 'Indisponível';
+    $('realStrategiesNote').textContent = error.message;
+  }
+}
+
+$('refreshRealStrategies').onclick = refreshRealStrategies;
+$('strategyBacktestForm').onsubmit = async event => {
+  event.preventDefault();
+  if (!authenticated) return;
+  $('runStrategyBacktest').disabled = true;
+  $('strategyBacktestResult').textContent = 'Calculando apenas com candles fechados...';
+  try {
+    const result = await api('strategy/backtest/'+encodeURIComponent($('strategyBacktestSymbol').value));
+    if (result.orderPlacementEnabled || result.source !== 'BINANCE_SPOT_PUBLIC')
+      throw new Error('Backtest incompatível com o modo somente leitura.');
+    $('strategyBacktestResult').textContent = result.status !== 'COMPLETE'
+      ? 'Backtest bloqueado: '+result.note
+      : result.symbol+' • '+result.candleCount+' candles • '+result.trades+
+        ' posições fechadas • inicial: '+result.initialUsdt+
+        ' USDT fictícios • final: '+result.finalUsdt+
+        ' USDT fictícios • variação histórica: '+result.returnPct+
+        '% • drawdown máximo: '+result.maxDrawdownPct+
+        '% • taxa assumida por lado: '+result.feePctPerSide+
+        '% • slippage por lado: '+result.slippagePctPerSide+
+        '%. Não é promessa de rentabilidade.';
+  } catch(error) {
+    $('strategyBacktestResult').textContent = 'Backtest indisponível: '+error.message;
+  } finally { $('runStrategyBacktest').disabled = false; }
+};
+setInterval(() => { if(authenticated) refreshRealStrategies(); }, 60000);
 
 function clearActivityDisplay() {
   $('activityStatus').textContent = 'Histórico não consultado';

@@ -7,7 +7,7 @@
 </head>
 <body>
 <div class="shell">
-<header><div class="brand"><div class="logo">R<span>●</span></div><div><strong>RAC</strong><small>Rebeca · Ana · Carlos | MVP 0.9 (prévia)</small></div></div><div class="mode">● SIMULAÇÃO • ORDENS REAIS DESATIVADAS</div></header>
+<header><div class="brand"><div class="logo">R<span>●</span></div><div><strong>RAC</strong><small>Rebeca · Ana · Carlos | MVP 1.0</small></div></div><div class="mode">● SIMULAÇÃO • ORDENS REAIS DESATIVADAS</div></header>
 <section id="authPanel" class="panel login-box">
   <h2>Acesso ao RAC</h2>
   <p>Entre com uma conta autorizada para visualizar e controlar a simulação.</p>
@@ -21,7 +21,7 @@
 <div id="sessionPanel" class="session-panel" hidden>
   <span id="sessionUser"></span><button id="logout" type="button">Sair</button>
 </div>
-<section class="intro"><div><div class="eyebrow">CENTRAL DE OPERAÇÕES</div><h1>Seu escritório de agentes</h1><p>12 traders simulam operações com preços <strong>sintéticos</strong>. As cotações reais da Binance aparecem separadamente, sem enviar ordens.</p></div><div class="actions"><button id="start" class="primary">▶ Iniciar</button><button id="pause">Ⅱ Pausar</button><button id="step">↳ Avançar 1 tick</button><button id="reset" class="danger">↻ Reiniciar</button></div></section>
+<section class="intro"><div><div class="eyebrow">CENTRAL DE OPERAÇÕES</div><h1>Seu escritório de agentes</h1><p>12 agentes observacionais analisam candles <strong>reais</strong> da Binance; o motor de ordens e patrimônio abaixo ainda usa <strong>simulação sintética</strong>. Nenhuma ordem real é enviada.</p></div><div class="actions"><button id="start" class="primary">▶ Iniciar</button><button id="pause">Ⅱ Pausar</button><button id="step">↳ Avançar 1 tick</button><button id="reset" class="danger">↻ Reiniciar</button></div></section>
 <div id="error" role="alert" hidden></div>
 <section class="metrics"><div class="metric"><span>Patrimônio simulado</span><strong id="equity">—</strong><small id="balance">Saldo: —</small></div><div class="metric"><span>Resultado do trading (sem aportes)</span><strong id="pnl">—</strong><small id="daily">Hoje: —</small></div><div class="metric"><span>Posições abertas</span><strong id="open">—</strong><small id="limit">Limite: —</small></div><div class="metric"><span>Status de risco</span><strong id="risk">—</strong><small id="drawdown">Queda acumulada: —</small></div></section>
 <section class="panel" id="walletPanel" hidden>
@@ -109,6 +109,34 @@
     <tbody id="portfolioCashflows"><tr><td colspan="5">Nenhuma anotação.</td></tr></tbody>
   </table></div>
   <p><small>Observação: somente Binance Spot. Não inclui Funding, Earn, margem ou Futuros. Os registros mostram estimativas, não comprovam depósitos, lucro, rendimento ou imposto devido.</small></p>
+</section>
+<section class="panel" id="realStrategiesPanel" hidden>
+  <div class="section-head">
+    <div>
+      <h2>MVP 1.0 — 12 traders observacionais com candles reais</h2>
+      <p>SMA 9/21, RSI 14 e ATR 14 calculados com candles Binance Spot fechados. Não cria ordens e não altera o simulador sintético.</p>
+    </div>
+    <span class="chip" id="realStrategiesStatus">Aguardando mercado</span>
+  </div>
+  <p id="realStrategiesNote">Sinais de análise, não instruções de negociação. Histórico incompleto ou desatualizado bloqueia sinais.</p>
+  <button id="refreshRealStrategies" type="button">Atualizar sinais reais</button>
+  <div class="scroll"><table>
+    <thead><tr><th>Par</th><th>Fechamento (USDT)</th><th>SMA 9</th><th>SMA 21</th><th>RSI 14</th><th>ATR 14</th><th>Estado / sinal</th></tr></thead>
+    <tbody id="realStrategiesRows"><tr><td colspan="7">Aguardando consulta.</td></tr></tbody>
+  </table></div>
+  <h3>Backtest histórico ilustrativo — um par por vez</h3>
+  <form id="strategyBacktestForm" style="display:flex;gap:12px;flex-wrap:wrap;align-items:end">
+    <label>Par Spot
+      <select id="strategyBacktestSymbol">
+        <option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option>
+        <option>XRPUSDT</option><option>ADAUSDT</option><option>DOGEUSDT</option><option>LINKUSDT</option>
+        <option>AVAXUSDT</option><option>LTCUSDT</option><option>DOTUSDT</option><option>TRXUSDT</option>
+      </select>
+    </label>
+    <button id="runStrategyBacktest" type="submit">Executar backtest (sem ordens)</button>
+  </form>
+  <p id="strategyBacktestResult" role="status">Sem backtest executado.</p>
+  <p><small>Backtest inicial com 100 USDT fictícios, taxa assumida de 0,1% e slippage assumido de 0,05% por lado. Resultados históricos não preveem rentabilidade. Para operar automaticamente será necessário validar mais períodos, testar na Testnet e autorizar separadamente o modo real.</small></p>
 </section>
 <section class="panel" id="activityPanel" hidden>
   <div class="section-head">
