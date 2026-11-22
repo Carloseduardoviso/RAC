@@ -16,11 +16,9 @@ public static class PaperMonitoringPolicy
         {
             // The most recent explicit START also counts as activity. Give
             // the worker a bounded grace period for its first scheduled cycle.
-            var recentActivity = account.LastCycleUtc is null ||
-                account.UpdatedUtc > account.LastCycleUtc
-                ? account.UpdatedUtc : account.LastCycleUtc.Value;
-            if (now - recentActivity > TimeSpan.FromMinutes(4))
-                incidents["PAPER_CYCLE_STALE"] = ("CRITICAL", "Motor de operações fictícias sem ciclo recente.");
+            var cycle = PaperCycleDiagnostics.Evaluate(account, now);
+            if (cycle.Status is "STALLED" or "CLOCK_SKEW")
+                incidents["PAPER_CYCLE_STALE"] = ("CRITICAL", cycle.Reason);
             if (lastPublicCandle is null || now - lastPublicCandle > TimeSpan.FromMinutes(4))
                 incidents["MARKET_STALE"] = ("CRITICAL", "Candles públicos desatualizados.");
             // Stable individual incident per supported agent; deliberate pauses are exempt.

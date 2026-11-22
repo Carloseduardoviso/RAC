@@ -497,7 +497,10 @@ async function refreshMonitoring() {
     const healthyAgents = m.agentStates.filter(a => a.healthy === true);
     const unhealthySymbols = m.agentStates.filter(a => !a.healthy).map(a => a.symbol);
     $('paperMonitorHealth').textContent =
-      'Agentes com candle recente: '+healthyAgents.length+
+      'Motor: '+(m.cycleHealth?.status ?? 'INDEFINIDO')+
+      ' • idade do último ciclo: '+(Number.isFinite(m.cycleHealth?.lastCycleAgeSeconds)
+        ? Math.round(m.cycleHealth.lastCycleAgeSeconds)+'s' : 'sem ciclo')+
+      ' • Agentes com candle recente: '+healthyAgents.length+
       '/12'+(unhealthySymbols.length ? ' • verificar: '+unhealthySymbols.join(', ') : '')+
       ' • último ciclo: '+(p.paperCycleUtc ? formatDate(p.paperCycleUtc) : 'nenhum')+
       ' • monitor: '+(p.latestMonitorUtc ? formatDate(p.latestMonitorUtc) : 'ainda não coletado')+

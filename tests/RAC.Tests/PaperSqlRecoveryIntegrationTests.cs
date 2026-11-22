@@ -51,6 +51,8 @@ public sealed class PaperSqlRecoveryIntegrationTests
                 await watcher.ReportAsync(CancellationToken.None));
             using (var report = System.Text.Json.JsonDocument.Parse(reportJson))
             {
+                var cycle = report.RootElement.GetProperty("cycleHealth");
+                Assert.Equal("PAUSED", cycle.GetProperty("status").GetString());
                 var agentStates = report.RootElement.GetProperty("agentStates");
                 Assert.Equal(12, agentStates.GetArrayLength());
                 var performance = report.RootElement.GetProperty("agentPerformance");

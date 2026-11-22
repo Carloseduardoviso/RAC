@@ -15,6 +15,7 @@ public sealed class RacPaperMonitoringService(
     ILogger<RacPaperMonitoringService> logger)
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly PaperAlertDebounce _alertDebounce = new();
 
     public async Task ObserveAsync(CancellationToken ct)
     {
@@ -37,6 +38,7 @@ public sealed class RacPaperMonitoringService(
                 .MaxAsync(x => (DateTimeOffset?)x.CloseUtc, ct);
             var positions = await db.PaperPositions.AsNoTracking().ToArrayAsync(ct);
             var incidents = PaperMonitoringPolicy.Evaluate(account, agents, latestCandle, now);
+            _alertDebounce.ForgetResolved(incidents.Keys);
 
             // Do not duplicate the same incident at every poll. Resolved incidents
             // remain immutable historical records; reopening creates a new row.
@@ -61,6 +63,7 @@ public sealed class RacPaperMonitoringService(
             foreach (var occurrence in incidents)
             {
                 if (open.Any(x => x.Code == occurrence.Key)) continue;
+                if (!_alertDebounce.ShouldOpen(occurrence.Key, now)) continue;
                 db.PaperMonitorAlerts.Add(new PaperMonitorAlert
                 {
                     Code = occurrence.Key, Severity = occurrence.Value.Severity,
@@ -152,6 +155,7 @@ public sealed class RacPaperMonitoringService(
         var realized = fillStats?.Realized ?? 0m;
         var fees = fillStats?.Fees ?? 0m;
         var latest = samples.FirstOrDefault();
+        var cycleHealth = PaperCycleDiagnostics.Evaluate(account, now);
         return new
         {
             mode = "PAPER_ONLY", source = "BINANCE_SPOT_PUBLIC",
@@ -159,6 +163,11 @@ public sealed class RacPaperMonitoringService(
             observedUtc = now, running = account?.Running ?? false,
             riskLocked = account?.RiskLocked ?? false,
             riskReason = account?.RiskReason,
+            cycleHealth = new {
+                status = cycleHealth.Status,
+                lastCycleAgeSeconds = cycleHealth.LastCycleAgeSeconds,
+                reason = cycleHealth.Reason
+            },
             performance = new
             {
                 equityBrl = account?.LastEquityBrl ?? 0m,
