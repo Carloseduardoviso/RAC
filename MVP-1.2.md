@@ -61,3 +61,18 @@ A migração `TestnetExecutionMvp12` cria exclusivamente as duas tabelas novas, 
 - Se a posição PAPER vender mas a posição Testnet não tiver compra anterior confirmada, a venda Testnet é bloqueada para evitar consumir outros ativos de teste.
 
 **Ordens reais e saques continuam impossibilitados pelo executor Testnet.**
+
+
+## Verificação autenticada exclusivamente de leitura
+
+Sem iniciar o executor, execute:
+
+```powershell
+dotnet run --project tools/RAC.TestnetSetup -- --verify
+```
+
+O comando consulta apenas GET /api/v3/time, GET /api/v3/account e GET /api/v3/exchangeInfo no domínio fixo `testnet.binance.vision`. Bloqueia explicitamente todos os métodos não-GET e todos os outros hosts. Não imprime credenciais nem respostas assinadas. Retorna código diferente de zero quando há falhas de autenticação ou par indisponível. Não envia, cancela nem modifica ordens.
+
+Verificação realizada em 22/11/2026: autenticação confirmada com credencial Testnet local, saldo fictício livre 10000 USDT e 1 BTC, 12/12 pares TRADING/MARKET, 0 ordens Testnet. Saldo/condições mudam com o tempo; execute novamente para estado atual.
+
+Os filtros Testnet exigem no mínimo 5 USDT na maioria dos pares e 1 USDT para DOGEUSDT na data da verificação. Com PAPER inicial R$100 e limite máximo de posição 20%, diversas ordens podem ficar abaixo dos mínimos e ser bloqueadas; **não flexibilizar os limites de risco** para forçar ordens.

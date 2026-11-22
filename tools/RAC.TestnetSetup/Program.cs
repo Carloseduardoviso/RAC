@@ -9,9 +9,14 @@ if (args.SequenceEqual(["--status"]))
         : "Credenciais Binance Spot TESTNET: não configuradas.");
     return;
 }
+if (args.SequenceEqual(["--verify"]))
+{
+    Environment.ExitCode = await RAC.TestnetSetup.ReadOnlyDiagnostic.RunAsync(store);
+    return;
+}
 if (!args.SequenceEqual(["--configure"]))
 {
-    Console.WriteLine("Uso: dotnet run --project tools/RAC.TestnetSetup -- --status | --configure");
+    Console.WriteLine("Uso: dotnet run --project tools/RAC.TestnetSetup -- --status | --verify | --configure");
     return;
 }
 if (Console.IsInputRedirected || !Environment.UserInteractive)
