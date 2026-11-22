@@ -248,7 +248,10 @@ public sealed class RacSimulator
 
     public void RestoreState(SimulationState state, bool resume = false)
     {
-        if (state.Version != 1 || state.SessionId == Guid.Empty || state.Policy != _policy ||
+        // Checkpoint migration: only the daily entry-count cap may differ.
+        // Every financial and execution risk setting must still match exactly.
+        if (state.Version != 1 || state.SessionId == Guid.Empty ||
+            state.Policy with { MaxEntriesPerDay = _policy.MaxEntriesPerDay } != _policy ||
             state.Traders is null || state.Traders.Length != Markets.Length ||
             state.Traders.Any(t => !Markets.Any(m => m.Symbol == t.Symbol) ||
                 t.Price <= 0m || t.Previous <= 0m || t.History is null || t.History.Length == 0) ||

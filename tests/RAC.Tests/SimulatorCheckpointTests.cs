@@ -45,6 +45,24 @@ public sealed class SimulatorCheckpointTests
     }
 
     [Fact]
+    public void Legacy_checkpoint_with_three_daily_entries_restores_without_resetting_history()
+    {
+        var current = new RacSimulator(new RiskPolicy(MaxEntriesPerDay: 0));
+        current.Tick();
+        var saved = current.ExportState();
+        var legacy = saved with { Policy = saved.Policy with { MaxEntriesPerDay = 3 } };
+        var restored = new RacSimulator(new RiskPolicy(MaxEntriesPerDay: 0));
+        restored.RestoreState(legacy);
+        Assert.Equal(saved.SessionId, restored.ExportState().SessionId);
+        Assert.Equal(saved.Tick, restored.ExportState().Tick);
+        Assert.Equal(0, restored.ExportState().Policy.MaxEntriesPerDay);
+        Assert.Equal(saved.Cash, restored.ExportState().Cash);
+        Assert.Throws<InvalidOperationException>(() => restored.RestoreState(legacy with {
+            Policy = legacy.Policy with { MaxDailyLossPct = 2m }
+        }));
+    }
+
+    [Fact]
     public void Checkpoint_rejects_modified_policy()
     {
         var simulator = new RacSimulator(new RiskPolicy());
