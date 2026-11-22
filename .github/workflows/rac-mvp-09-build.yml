@@ -2,7 +2,7 @@ name: RAC MVP 0.9 - Build and Tests
 on:
   push:
     branches:
-      - feature/rac-mvp-0-9-readonly-ledger
+      - main
   pull_request:
     branches:
       - main

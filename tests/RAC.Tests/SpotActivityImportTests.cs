@@ -24,7 +24,7 @@ public sealed class SpotActivityImportTests
             var result = await history.FetchAsync("BTCUSDT", true, CancellationToken.None);
             Assert.Equal("BINANCE_SPOT_READ_ONLY", result.Source);
             Assert.Equal(3, result.Entries.Count);
-            var trade = Assert.Single(result.Entries.Where(x => x.Kind == "TRADE"));
+            var trade = Assert.Single(result.Entries, x => x.Kind == "TRADE");
             Assert.Equal("BTCUSDT", trade.Symbol);
             Assert.Equal("BUY", trade.Side);
             Assert.Equal(0.001m, trade.Quantity);

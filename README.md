@@ -1,4 +1,4 @@
-> **Estado atual:** MVP 0.8 de carteira Binance Spot somente leitura. A branch `feature/rac-mvp-0-9-readonly-ledger` contém uma **prévia não homologada** do MVP 0.9: histórico de negociações e movimentações sem ordens reais. Consulte [MVP-0.8.md](MVP-0.8.md) e [MVP-0.9.md](MVP-0.9.md). Os R$ 100 mostrados no mapa de agentes são **simulados**. Antes de implantar a prévia, compile, rode os testes e aplique a migration em seu banco.
+> **Estado atual:** MVP 0.8 de carteira Binance Spot somente leitura. O código da `main` contém o MVP 0.9 em **modo somente leitura**: histórico de negociações e movimentações sem ordens reais. Consulte [MVP-0.8.md](MVP-0.8.md) e [MVP-0.9.md](MVP-0.9.md). Os R$ 100 mostrados no mapa de agentes são **simulados**. Antes de executar a nova versão, compile, rode os testes e aplique a migration em seu banco.
 
 # RAC — Rebeca, Ana e Carlos | MVP 0.3 — Plano patrimonial
 

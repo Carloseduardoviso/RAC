@@ -2,7 +2,7 @@
 
 ## O que foi implementado na branch
 
-Branch: `feature/rac-mvp-0-9-readonly-ledger`. A implantação nesta máquina depende de compilar/testar e aplicar a nova migration.
+Versão na branch `main`. A execução depende da migration aplicada no SQL Server local.
 
 - Cliente de histórico assinado **somente GET**; antes de importar, executa a verificação de permissões da chave HMAC usando o leitor de carteira do MVP 0.8
 - Negociações do par escolhido por meio de `GET /api/v3/myTrades`, até 100 últimas execuções de cada par por solicitação
@@ -34,7 +34,7 @@ não depósitos confirmados sem análise de status e de movimentações internas
 
 ## Como testar após obter a branch no computador
 
-1. Faça checkout da branch de forma segura, mantendo alterações locais protegidas.
+1. Use a branch `main` e mantenha alterações locais protegidas.
 2. Pare as instâncias atuais de `RAC.Api` e `RAC.Web`.
 3. Execute, na pasta raiz do RAC:
 
