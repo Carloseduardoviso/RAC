@@ -58,6 +58,19 @@ public sealed class RacStrategyService(IDbContextFactory<RacDbContext> factory)
                 RealizedBrl = g.Sum(x => x.RealizedPnlBrl ?? 0m),
                 FeesBrl = g.Sum(x => x.FeeBrl)
             }).ToDictionaryAsync(x => x.Symbol, ct);
+        var account = await db.PaperAccounts.AsNoTracking().FirstOrDefaultAsync(x => x.Id == 1, ct);
+        var openPositions = await db.PaperPositions.AsNoTracking()
+            .Select(x => new { x.Symbol, x.Quantity, x.EntryPriceBrl, x.LastPriceBrl,
+                x.StopPriceBrl, x.EntryFeeBrl }).ToListAsync(ct);
+        var exits = await db.PaperFills.AsNoTracking()
+            .Where(x => x.Side == "SELL")
+            .GroupBy(x => x.Reason)
+            .Select(g => new {
+                reason = g.Key, sells = g.Count(),
+                wins = g.Count(x => x.RealizedPnlBrl > 0m),
+                losses = g.Count(x => x.RealizedPnlBrl < 0m),
+                realizedPnlBrl = g.Sum(x => x.RealizedPnlBrl ?? 0m)
+            }).ToListAsync(ct);
         var results = new List<object>();
         foreach (var symbol in RacMarketSymbols.Supported)
         {
@@ -94,6 +107,29 @@ public sealed class RacStrategyService(IDbContextFactory<RacDbContext> factory)
             strategyVersion = RacStrategyEvaluator.Version,
             observedUtc = observed, orderPlacementEnabled = false,
             simulationModified = false, count = results.Count,
+            riskReview = new {
+                running = account?.Running ?? false,
+                riskLocked = account?.RiskLocked ?? false,
+                riskReason = account?.RiskReason,
+                equityBrl = account?.LastEquityBrl ?? 0m,
+                dayStartEquityBrl = account?.DailyStartEquityBrl ?? 0m,
+                dailyLossPct = account is null ? null : PaperRiskDiagnostics.DailyLossPercent(
+                    account.LastEquityBrl, account.DailyStartEquityBrl),
+                dailyLossLimitPct = PaperRisk.DailyLossLimitPct,
+                financialLimitsChanged = false,
+                totalClosedSells = exits.Sum(x => x.sells),
+                totalLosingSells = exits.Sum(x => x.losses),
+                closedSellLossRatePct = PaperRiskDiagnostics.LossRatePercent(
+                    exits.Sum(x => x.losses), exits.Sum(x => x.sells)),
+                exitReasons = exits.OrderBy(x => x.reason),
+                openPositions = openPositions.Select(x => new {
+                    x.Symbol, x.Quantity, x.StopPriceBrl,
+                    x.EntryPriceBrl, x.LastPriceBrl,
+                    unrealizedPnlBeforeExitFeesBrl = x.Quantity *
+                        (x.LastPriceBrl - x.EntryPriceBrl) - x.EntryFeeBrl
+                }),
+                interpretation = "Risk state is read-only. SELL realized PnL already accounts for entry and exit fees; fee totals must not be subtracted twice. Open positions remain unrealized. No automatic unlock."
+            },
             assumptions = new {
                 initialCapitalPerAgentUsdt = 100m,
                 feePctPerSide = 0.1m, slippagePctPerSide = 0.05m,

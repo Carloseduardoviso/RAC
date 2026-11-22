@@ -690,6 +690,9 @@ $('runStrategyValidation').onclick = async () => {
   $('runStrategyValidation').disabled = true;
   $('strategyValidationStatus').textContent = 'Validando os 12 agentes com candles publicos persistidos...';
   $('strategyValidationRows').innerHTML = '<tr><td colspan="11">Calculando...</td></tr>';
+  $('strategyRiskReviewStatus').textContent = 'Consultando bloqueio e causas de perdas...';
+  $('strategyRiskExitRows').innerHTML = '<tr><td colspan="5">Consultando...</td></tr>';
+  $('strategyRiskPositionRows').innerHTML = '<tr><td colspan="6">Consultando...</td></tr>';
   try {
     const r = await api('strategy/validation');
     if (r.mode !== 'READ_ONLY_VALIDATION' || r.source !== 'BINANCE_SPOT_PUBLIC' ||
@@ -701,6 +704,27 @@ $('runStrategyValidation').onclick = async () => {
       pct(r.assumptions.feePctPerSide)+', slippage '+pct(r.assumptions.slippagePctPerSide)+
       ' e meio spread '+pct(r.assumptions.halfSpreadPctPerSide)+
       ' por lado. Apenas in-sample, sem promessa de retorno.';
+    const risk = r.riskReview;
+    if (!risk || risk.financialLimitsChanged || !Array.isArray(risk.exitReasons) ||
+        !Array.isArray(risk.openPositions)) throw new Error('Diagnostico financeiro incompleto.');
+    $('strategyRiskReviewStatus').textContent =
+      'PAPER: '+(risk.running ? 'EM EXECUCAO' : 'PAUSADO')+
+      ' • Bloqueio de risco: '+(risk.riskLocked ? 'ATIVO' : 'INATIVO')+
+      ' • Perda diaria: '+(risk.dailyLossPct === null ? 'sem referencia valida' : pct(risk.dailyLossPct))+
+      ' / limite '+pct(risk.dailyLossLimitPct)+
+      ' • Vendas com prejuizo: '+Number(risk.totalLosingSells)+'/'+Number(risk.totalClosedSells)+
+      ' • Motivo: '+safe(risk.riskReason || 'nenhum')+' • Revisao somente leitura.';
+    $('strategyRiskExitRows').innerHTML = risk.exitReasons.length
+      ? risk.exitReasons.map(x => '<tr><td>'+safe(x.reason)+'</td><td>'+Number(x.sells)+
+        '</td><td>'+Number(x.wins)+'</td><td>'+Number(x.losses)+
+        '</td><td>'+brl(x.realizedPnlBrl)+'</td></tr>').join('')
+      : '<tr><td colspan="5">Nenhuma venda fechada.</td></tr>';
+    $('strategyRiskPositionRows').innerHTML = risk.openPositions.length
+      ? risk.openPositions.map(x => '<tr><td>'+safe(x.symbol)+'</td><td>'+decimal(x.quantity)+
+        '</td><td>'+brl(x.entryPriceBrl)+'</td><td>'+brl(x.lastPriceBrl)+
+        '</td><td>'+brl(x.stopPriceBrl)+'</td><td>'+brl(x.unrealizedPnlBeforeExitFeesBrl)+
+        '</td></tr>').join('')
+      : '<tr><td colspan="6">Nenhuma posicao aberta.</td></tr>';
     $('strategyValidationRows').innerHTML = r.agents.map(x =>
       '<tr><td>'+safe(x.symbol)+'</td><td>'+Number(x.backtest.candleCount)+
       '</td><td>'+Number(x.backtest.trades)+'</td><td>'+
@@ -714,6 +738,9 @@ $('runStrategyValidation').onclick = async () => {
   } catch(error) {
     $('strategyValidationStatus').textContent = 'Validacao indisponivel: '+error.message;
     $('strategyValidationRows').innerHTML = '<tr><td colspan="11">Dados indisponiveis.</td></tr>';
+    $('strategyRiskReviewStatus').textContent = 'Revisao indisponivel: '+error.message;
+    $('strategyRiskExitRows').innerHTML = '<tr><td colspan="5">Dados indisponiveis.</td></tr>';
+    $('strategyRiskPositionRows').innerHTML = '<tr><td colspan="6">Dados indisponiveis.</td></tr>';
   } finally { $('runStrategyValidation').disabled = false; }
 };
 

@@ -56,6 +56,15 @@ public sealed class PaperSqlRecoveryIntegrationTests
             {
                 var root = validation.RootElement;
                 Assert.Equal("READ_ONLY_VALIDATION", root.GetProperty("mode").GetString());
+                var risk = root.GetProperty("riskReview");
+                Assert.False(risk.GetProperty("financialLimitsChanged").GetBoolean());
+                Assert.False(risk.GetProperty("riskLocked").GetBoolean());
+                Assert.Equal(0m, risk.GetProperty("dailyLossPct").GetDecimal());
+                Assert.Equal(1m, risk.GetProperty("dailyLossLimitPct").GetDecimal());
+                Assert.Equal(0, risk.GetProperty("totalClosedSells").GetInt32());
+                Assert.Equal(System.Text.Json.JsonValueKind.Null, risk.GetProperty("closedSellLossRatePct").ValueKind);
+                Assert.Empty(risk.GetProperty("exitReasons").EnumerateArray());
+                Assert.Empty(risk.GetProperty("openPositions").EnumerateArray());
                 Assert.False(root.GetProperty("orderPlacementEnabled").GetBoolean());
                 Assert.False(root.GetProperty("simulationModified").GetBoolean());
                 Assert.Equal(0.01m, root.GetProperty("assumptions").GetProperty("halfSpreadPctPerSide").GetDecimal());
