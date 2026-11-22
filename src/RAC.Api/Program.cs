@@ -48,6 +48,18 @@ builder.Services.AddHttpClient<BinanceSpotAccountClient>(client =>
     UseCookies = false,
     AllowAutoRedirect = false
 });
+builder.Services.AddSingleton<RacSpotActivityService>();
+builder.Services.AddHttpClient<BinanceSpotActivityClient>(client =>
+{
+    client.BaseAddress = new Uri("https://api.binance.com/");
+    client.Timeout = TimeSpan.FromSeconds(20);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("RAC-Spot-Activity-ReadOnly/0.9");
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    UseCookies = false,
+    AllowAutoRedirect = false
+});
+builder.Logging.AddFilter("System.Net.Http.HttpClient.BinanceSpotActivityClient", LogLevel.None);
 // Signed URLs contain HMAC signatures: never log outgoing request URIs.
 builder.Logging.AddFilter("System.Net.Http.HttpClient.BinanceSpotAccountClient", LogLevel.None);
 builder.Services.AddHttpClient("binance", client =>
@@ -199,6 +211,23 @@ app.MapPost("/api/portfolio/cashflows", async (
 {
     context.Response.Headers.CacheControl = "no-store";
     return await HandlePortfolioAsync(() => portfolio.AddCashFlowAsync(
+        Guid.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier)!), request, ct));
+}).RequireAuthorization("RacWalletOwner");
+
+app.MapGet("/api/portfolio/activity/history", async (
+    ClaimsPrincipal user, RacSpotActivityService history, HttpContext context, CancellationToken ct) =>
+{
+    context.Response.Headers.CacheControl = "no-store";
+    return Results.Ok(await history.HistoryAsync(
+        Guid.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier)!), ct));
+}).RequireAuthorization("RacWalletOwner");
+
+app.MapPost("/api/portfolio/activity/import", async (
+    SpotActivityImportRequest request, ClaimsPrincipal user,
+    RacSpotActivityService history, HttpContext context, CancellationToken ct) =>
+{
+    context.Response.Headers.CacheControl = "no-store";
+    return await HandlePortfolioAsync(() => history.ImportAsync(
         Guid.Parse(user.FindFirstValue(ClaimTypes.NameIdentifier)!), request, ct));
 }).RequireAuthorization("RacWalletOwner");
 
