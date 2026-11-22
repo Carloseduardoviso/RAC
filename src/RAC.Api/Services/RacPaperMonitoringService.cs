@@ -187,23 +187,30 @@ public sealed class RacPaperMonitoringService(
             },
             agentStates = RacMarketSymbols.Supported.Select(symbol => {
                 var x = agents.FirstOrDefault(a => a.Symbol == symbol);
-                var fresh = x is not null && x.LastCandleUtc <= now &&
-                    now - x.LastCandleUtc <= TimeSpan.FromMinutes(4);
+                var diagnostic = PaperAgentDiagnostics.Evaluate(x, now);
                 return new {
                     Symbol = symbol, LastSignal = x?.LastSignal ?? "SEM_SINAL",
                     Status = x?.Status ?? "MISSING", LastCandleUtc = x?.LastCandleUtc,
-                    Note = x?.Note ?? "Sem cursor persistido", fresh,
-                    healthy = x?.Status == "READY" && fresh
+                    Note = x?.Note ?? "Sem cursor persistido",
+                    fresh = diagnostic.Healthy,
+                    healthy = diagnostic.Healthy,
+                    diagnosticStatus = diagnostic.Status,
+                    candleAgeSeconds = diagnostic.CandleAgeSeconds,
+                    diagnosticReason = diagnostic.Reason
                 };
             }),
             agentPerformance = RacMarketSymbols.Supported.Select(symbol => {
                 fillsPerAgent.TryGetValue(symbol, out var fills);
                 decisionsPerAgent.TryGetValue(symbol, out var decisions);
                 var cursor = agents.FirstOrDefault(a => a.Symbol == symbol);
+                var diagnostic = PaperAgentDiagnostics.Evaluate(cursor, now);
                 var pos = positions.FirstOrDefault(p => p.Symbol == symbol);
                 return new {
                     symbol, status = cursor?.Status ?? "MISSING",
                     lastSignal = cursor?.LastSignal ?? "SEM_SINAL",
+                    diagnosticStatus = diagnostic.Status,
+                    candleAgeSeconds = diagnostic.CandleAgeSeconds,
+                    diagnosticReason = diagnostic.Reason,
                     buys = fills?.Buys ?? 0, sells = fills?.Sells ?? 0,
                     wins = fills?.Wins ?? 0, losses = fills?.Losses ?? 0,
                     realizedPnlBrl = fills?.RealizedPnlBrl ?? 0m,

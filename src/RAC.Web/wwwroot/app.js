@@ -472,7 +472,7 @@ function clearMonitoringDisplay() {
   $('paperMonitorFees').textContent = '—';
   $('paperMonitorDrawdown').textContent = '—';
   $('paperMonitorHealth').textContent = 'Aguardando dados de monitoramento.';
-  $('paperAgentPerformance').innerHTML = '<tr><td colspan="9">Aguardando relatório.</td></tr>';
+  $('paperAgentPerformance').innerHTML = '<tr><td colspan="11">Aguardando relatório.</td></tr>';
   $('paperMonitorAlerts').innerHTML = '<tr><td colspan="5">Nenhum alerta.</td></tr>';
   $('paperMonitorDecisions').innerHTML = '<tr><td colspan="5">Aguardando decisões.</td></tr>';
   $('paperMonitorHistory').innerHTML = '<tr><td colspan="5">Aguardando amostras.</td></tr>';
@@ -508,10 +508,13 @@ async function refreshMonitoring() {
       ' • operações fechadas: '+p.closedPositions+'.';
     $('paperAgentPerformance').innerHTML = Array.isArray(m.agentPerformance) && m.agentPerformance.length === 12
       ? m.agentPerformance.map(a => '<tr><td>'+safe(a.symbol)+'</td><td>'+safe(a.status)+' / '+safe(a.lastSignal)+
+        '</td><td title="'+safe(a.diagnosticReason)+'">'+safe(a.diagnosticStatus)+
+        ' / '+(Number.isFinite(a.candleAgeSeconds) ? Math.round(a.candleAgeSeconds)+'s' : 'sem candle')+
+        '</td><td>'+(a.lastDecisionUtc ? safe(formatDate(a.lastDecisionUtc)) : 'sem decisao')+
         '</td><td>'+Number(a.decisions)+'</td><td>'+Number(a.buys)+'</td><td>'+Number(a.sells)+
         '</td><td>'+Number(a.wins)+' / '+Number(a.losses)+'</td><td>'+brl(a.realizedPnlBrl)+
         '</td><td>'+brl(a.feesBrl)+'</td><td>'+brl(a.openPositionBrl)+'</td></tr>').join('')
-      : '<tr><td colspan="9">Relatório de agentes indisponível.</td></tr>';
+      : '<tr><td colspan="11">Relatório de agentes indisponível.</td></tr>';
     $('paperMonitorAlerts').innerHTML = m.alerts.length ? m.alerts.map(a =>
       '<tr><td>'+safe(formatDate(a.openedUtc))+'</td><td>'+safe(a.code)+
       '</td><td>'+safe(a.severity)+'</td><td>'+(a.active ? 'ATIVO' : 'RESOLVIDO')+
