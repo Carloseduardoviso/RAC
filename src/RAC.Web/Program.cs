@@ -10,7 +10,7 @@ if (!Uri.TryCreate(backendUrl, UriKind.Absolute, out var backend) ||
 builder.Services.AddHttpClient("RAC.Api", client =>
 {
     client.BaseAddress = backend;
-    client.Timeout = TimeSpan.FromSeconds(15);
+    client.Timeout = TimeSpan.FromSeconds(45);
 }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
 {
     UseCookies = false, // Never pool browser authentication cookies across users.
@@ -25,13 +25,14 @@ var getRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     "/api/health", "/api/state", "/api/history", "/api/auth/me",
     "/api/market/overview", "/api/binance/testnet/ping",
     "/api/binance/spot/status", "/api/binance/spot/balances",
-    "/api/portfolio/history"
+    "/api/portfolio/history", "/api/portfolio/activity/history"
 };
 var postRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
     "/api/auth/login", "/api/auth/logout", "/api/risk/review",
     "/api/control/start", "/api/control/pause", "/api/control/step", "/api/control/reset",
-    "/api/portfolio/snapshot", "/api/portfolio/plan", "/api/portfolio/cashflows"
+    "/api/portfolio/snapshot", "/api/portfolio/plan", "/api/portfolio/cashflows",
+    "/api/portfolio/activity/import"
 };
 
 app.MapMethods("/api/{**path}", ["GET", "POST"], async (HttpContext context, IHttpClientFactory factory) =>
