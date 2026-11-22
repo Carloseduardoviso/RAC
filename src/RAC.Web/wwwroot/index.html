@@ -246,6 +246,11 @@
   <p id="shadowComparisonStatus" role="status">Comparacao ainda nao executada.</p>
   <p><small>Duas janelas cronologicas independentes, baseline com stop 2x ATR versus candidato com o mesmo stop e 5 candles de espera para reentrada. Capital ficticio de 100 USDT por janela, custos fixos estimados, sem execucoes na Binance. Sem otimizacao fora da amostra nem promocao automatica da estrategia.</small></p>
   <div class="scroll"><table><thead><tr><th>Agente</th><th>Condicao</th><th>Janela antiga (base / pausa)</th><th>Janela recente (base / pausa)</th><th>Stops ATR recente (base / pausa)</th><th>Entradas evitadas recente</th></tr></thead><tbody id="shadowComparisonRows"><tr><td colspan="6">Sem comparacao.</td></tr></tbody></table></div>
+  <h3>MVP 1.3.0 - Analise walk-forward (somente leitura)</h3>
+  <button id="runWalkForward" type="button">Analisar 12 agentes com historico publico ampliado</button>
+  <p id="walkForwardStatus" role="status">Nenhuma analise executada.</p>
+  <p><small>Consulta sob demanda de ate 1.000 candles fechados por par, sem gravar no banco operacional. Para cada janela, compara baseline e pausa no treino e seleciona somente pelos resultados anteriores; mede a alternativa selecionada em periodo posterior separado. Historico curto e custos estimados; nenhuma estrategia e ativada automaticamente.</small></p>
+  <div class="scroll"><table><thead><tr><th>Agente</th><th>Candles</th><th>Janelas teste</th><th>Pausa selecionada</th><th>Testes positivos</th><th>Retorno medio baseline</th><th>Retorno medio selecionado</th><th>Situacao</th></tr></thead><tbody id="walkForwardRows"><tr><td colspan="8">Sem analise.</td></tr></tbody></table></div>
   <h3>Revisao de risco PAPER (somente leitura)</h3>
   <p id="strategyRiskReviewStatus" role="status">Execute a validacao para carregar o diagnostico financeiro.</p>
   <p><small>Resultados realizados das vendas ja incluem as taxas de entrada e saida. Nao subtrair as taxas totais novamente. Posicoes abertas nao sao lucro realizado. Este relatorio nao desbloqueia a carteira nem modifica os limites financeiros.</small></p>

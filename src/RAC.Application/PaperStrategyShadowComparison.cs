@@ -61,6 +61,23 @@ public static class PaperStrategyShadowComparison
         new("BLOCKED", candles, 0m, 0m, 0, 0, 0, 0, 0, 0,
             "No results when history is insufficient or stale.");
 
+    /// <summary>Independent self-contained historical slice, with no external state.</summary>
+    public static Slice SimulateSlice(string symbol,
+        IReadOnlyList<MarketCandlePoint> candles, int cooldown)
+    {
+        if (!RacMarketSymbols.IsSupported(symbol))
+            throw new ArgumentException("Unsupported monitored pair.", nameof(symbol));
+        if (cooldown is not (0 or CooldownCandles))
+            throw new ArgumentOutOfRangeException(nameof(cooldown));
+        if (candles.Count < RacStrategyEvaluator.MinimumCandles + 10 || candles.Count > 2000 ||
+            candles.Any(x => x.Symbol != symbol || x.Close <= 0m || x.High < x.Low ||
+                x.CloseUtc <= x.OpenUtc)) return Unavailable(candles.Count);
+        for (var i = 1; i < candles.Count; i++)
+            if (candles[i].OpenUtc - candles[i - 1].OpenUtc != TimeSpan.FromMinutes(1))
+                return Unavailable(candles.Count);
+        return Simulate(symbol, candles.ToArray(), cooldown);
+    }
+
     private static Slice Simulate(string symbol, MarketCandlePoint[] candles, int cooldown)
     {
         decimal cash = 100m, qty = 0m, stop = 0m, entryValue = 0m;

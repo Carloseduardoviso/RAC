@@ -685,6 +685,35 @@ async function refreshRealStrategies() {
 }
 
 $('refreshRealStrategies').onclick = refreshRealStrategies;
+$('runWalkForward').onclick = async () => {
+  if (!authenticated) return;
+  $('runWalkForward').disabled = true;
+  $('walkForwardStatus').textContent = 'Consultando candles publicos e analisando janelas cronologicas...';
+  $('walkForwardRows').innerHTML = '<tr><td colspan="8">Calculando...</td></tr>';
+  try {
+    const r = await api('strategy/walk-forward');
+    if (r.mode !== 'WALK_FORWARD_RESEARCH_ONLY' || r.orderPlacementEnabled ||
+        r.paperModified || r.promotionAllowed || r.riskLimitsModified ||
+        r.historyPersisted || r.count !== 12 || !Array.isArray(r.agents) ||
+        r.agents.length !== 12)
+      throw new Error('Relatorio walk-forward fora do modo seguro.');
+    const done = r.agents.filter(x => x.status === 'COMPLETE');
+    $('walkForwardStatus').textContent = done.length+'/12 agentes com janelas completas; treino '+
+      Number(r.trainingCandles)+' candles, teste '+Number(r.testCandles)+
+      ' candles; historico externo sem persistencia. Nao aprova nenhuma estrategia.';
+    $('walkForwardRows').innerHTML = r.agents.map(x =>
+      '<tr><td>'+safe(x.symbol)+'</td><td>'+Number(x.candleCount)+
+      '</td><td>'+Number(x.foldCount)+'</td><td>'+Number(x.selectedCooldownFolds)+
+      '</td><td>'+Number(x.positiveSelectedHoldouts)+
+      '</td><td>'+(x.status === 'COMPLETE' ? pct(x.averageHoldoutBaselinePct) : '-')+
+      '</td><td>'+(x.status === 'COMPLETE' ? pct(x.averageHoldoutSelectedPct) : '-')+
+      '</td><td>'+safe(x.status)+'</td></tr>').join('');
+  } catch(error) {
+    $('walkForwardStatus').textContent = 'Walk-forward indisponivel: '+error.message;
+    $('walkForwardRows').innerHTML = '<tr><td colspan="8">Dados indisponiveis.</td></tr>';
+  } finally { $('runWalkForward').disabled = false; }
+};
+
 $('runShadowComparison').onclick = async () => {
   if (!authenticated) return;
   $('runShadowComparison').disabled = true;

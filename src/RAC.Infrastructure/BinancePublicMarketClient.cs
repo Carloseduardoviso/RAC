@@ -28,6 +28,20 @@ public sealed class BinancePublicMarketClient(HttpClient client)
         return ParseClosedCandles(symbol, document.RootElement, DateTimeOffset.UtcNow);
     }
 
+    /// <summary>
+    /// On-demand, bounded historical snapshot for analysis only. No credentials,
+    /// database writes, order endpoints or continuously scheduled backfill.
+    /// </summary>
+    public async Task<IReadOnlyList<MarketCandlePoint>> GetHistoricalClosedOneMinuteCandlesAsync(
+        string symbol, CancellationToken ct)
+    {
+        if (!RacMarketSymbols.IsSupported(symbol))
+            throw new ArgumentOutOfRangeException(nameof(symbol));
+        using var document = await FetchAsync(
+            $"api/v3/klines?symbol={symbol}&interval=1m&limit=1000", ct);
+        return ParseClosedCandles(symbol, document.RootElement, DateTimeOffset.UtcNow);
+    }
+
     private async Task<JsonDocument> FetchAsync(string path, CancellationToken ct)
     {
         using var response = await client.GetAsync(path, HttpCompletionOption.ResponseHeadersRead, ct);

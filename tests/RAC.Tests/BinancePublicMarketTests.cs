@@ -62,6 +62,54 @@ public sealed class BinancePublicMarketTests
         Assert.False(handler.HadApiKey);
     }
 
+    [Fact]
+    public async Task Walk_forward_history_uses_only_bounded_public_get_and_filters_unclosed_candle()
+    {
+        var handler = new HistoryHandler();
+        using var http = new HttpClient(handler) {
+            BaseAddress = new Uri("https://data-api.binance.vision/")
+        };
+        var client = new BinancePublicMarketClient(http);
+        var history = await client.GetHistoricalClosedOneMinuteCandlesAsync(
+            "BTCUSDT", CancellationToken.None);
+        Assert.Single(history);
+        Assert.Equal("BTCUSDT", history[0].Symbol);
+        Assert.Equal(HttpMethod.Get, handler.Method);
+        Assert.Equal("data-api.binance.vision", handler.Host);
+        Assert.Contains("symbol=BTCUSDT", handler.Query);
+        Assert.Contains("limit=1000", handler.Query);
+        Assert.Contains("interval=1m", handler.Query);
+        Assert.False(handler.HadCredential);
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
+            client.GetHistoricalClosedOneMinuteCandlesAsync("INVALID", CancellationToken.None));
+    }
+
+    private sealed class HistoryHandler : HttpMessageHandler
+    {
+        public HttpMethod? Method { get; private set; }
+        public string? Host { get; private set; }
+        public string Query { get; private set; } = "";
+        public bool HadCredential { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken ct)
+        {
+            Method = request.Method;
+            Host = request.RequestUri?.Host;
+            Query = request.RequestUri?.Query ?? "";
+            HadCredential = request.Headers.Contains("X-MBX-APIKEY") ||
+                request.Headers.Authorization is not null;
+            const long openTime = 1_735_689_600_000;
+            var finished = $"[{openTime},\"10.00\",\"12.00\",\"9.00\",\"11.00\",\"5.00\",{openTime + 59999},\"55.00\",10]";
+            var nowMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var forming = $"[{nowMs},\"10.00\",\"12.00\",\"9.00\",\"11.00\",\"5.00\",{nowMs + 59999},\"55.00\",10]";
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) {
+                Content = new StringContent("[" + finished + "," + forming + "]",
+                    Encoding.UTF8, "application/json")
+            });
+        }
+    }
+
     private sealed class FakeHandler : HttpMessageHandler
     {
         public HttpMethod? RequestMethod { get; private set; }
