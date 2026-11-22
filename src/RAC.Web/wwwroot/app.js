@@ -493,9 +493,12 @@ async function refreshMonitoring() {
     $('paperMonitorRealized').textContent = brl(p.realizedPnlBrl);
     $('paperMonitorFees').textContent = brl(p.feesBrl);
     $('paperMonitorDrawdown').textContent = Number(p.drawdownPct).toFixed(3) + '%';
+    const healthyAgents = m.agentStates.filter(a => a.healthy === true);
+    const unhealthySymbols = m.agentStates.filter(a => !a.healthy).map(a => a.symbol);
     $('paperMonitorHealth').textContent =
-      'Agentes prontos: '+m.agentStates.filter(a=>a.status==='READY').length+
-      '/12 • último ciclo: '+(p.paperCycleUtc ? formatDate(p.paperCycleUtc) : 'nenhum')+
+      'Agentes com candle recente: '+healthyAgents.length+
+      '/12'+(unhealthySymbols.length ? ' • verificar: '+unhealthySymbols.join(', ') : '')+
+      ' • último ciclo: '+(p.paperCycleUtc ? formatDate(p.paperCycleUtc) : 'nenhum')+
       ' • monitor: '+(p.latestMonitorUtc ? formatDate(p.latestMonitorUtc) : 'ainda não coletado')+
       ' • posições abertas: '+p.openPositions+' • fills virtuais: '+p.virtualFills+
       ' • operações fechadas: '+p.closedPositions+'.';

@@ -85,6 +85,23 @@ public sealed class PaperMonitoringTests
     }
 
     [Fact]
+    public void Each_stale_or_missing_agent_has_a_stable_individual_alert()
+    {
+        var agents = HealthyAgents().ToArray();
+        agents[0].LastCandleUtc = Now.AddMinutes(-10);
+        var missing = agents[1].Symbol;
+        var stale = agents[0].Symbol;
+        var incidents = PaperMonitoringPolicy.Evaluate(Account(),
+            agents.Where(x => x.Symbol != missing).ToArray(), Now.AddMinutes(-1), Now);
+        Assert.Contains("AGENT_" + stale, incidents.Keys);
+        Assert.Contains("AGENT_" + missing, incidents.Keys);
+        Assert.Contains("AGENTS_NOT_READY", incidents.Keys);
+        Assert.DoesNotContain("AGENT_" + agents[2].Symbol, incidents.Keys);
+        Assert.Empty(PaperMonitoringPolicy.Evaluate(Account(false),
+            agents.Where(x => x.Symbol != missing).ToArray(), null, Now));
+    }
+
+    [Fact]
     public void Monitoring_identifies_daily_loss_and_drawdown()
     {
         var account = Account();

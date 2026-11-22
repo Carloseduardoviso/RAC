@@ -85,9 +85,11 @@ public sealed class RacPaperMonitoringService(
                     TotalContributionsBrl = account.TotalContributionsBrl,
                     DrawdownPercent = PaperMonitoringPolicy.DrawdownPercent(
                         account.LastEquityBrl, account.PeakEquityBrl),
-                    ReadyAgents = agents.Count(x => x.Status == "READY"),
+                    ReadyAgents = agents.Count(x => x.Status == "READY" &&
+                        x.LastCandleUtc <= now && now - x.LastCandleUtc <= TimeSpan.FromMinutes(4)),
                     BlockedAgents = Math.Max(0, RacMarketSymbols.Supported.Length -
-                        agents.Count(x => x.Status == "READY")),
+                        agents.Count(x => x.Status == "READY" && x.LastCandleUtc <= now &&
+                            now - x.LastCandleUtc <= TimeSpan.FromMinutes(4))),
                     OpenPositions = positions.Length,
                     Running = account.Running, RiskLocked = account.RiskLocked,
                     LastPaperCycleUtc = account.LastCycleUtc
@@ -155,8 +157,17 @@ public sealed class RacPaperMonitoringService(
                 paperCycleUtc = account?.LastCycleUtc,
                 latestMonitorUtc = latest?.RecordedUtc
             },
-            agentStates = agents.Select(x => new {
-                x.Symbol, x.LastSignal, x.Status, x.LastCandleUtc, x.Note }),
+            agentStates = RacMarketSymbols.Supported.Select(symbol => {
+                var x = agents.FirstOrDefault(a => a.Symbol == symbol);
+                var fresh = x is not null && x.LastCandleUtc <= now &&
+                    now - x.LastCandleUtc <= TimeSpan.FromMinutes(4);
+                return new {
+                    Symbol = symbol, LastSignal = x?.LastSignal ?? "SEM_SINAL",
+                    Status = x?.Status ?? "MISSING", LastCandleUtc = x?.LastCandleUtc,
+                    Note = x?.Note ?? "Sem cursor persistido", fresh,
+                    healthy = x?.Status == "READY" && fresh
+                };
+            }),
             alerts = alerts.Select(x => new {
                 x.Code, x.Severity, x.Message, x.OpenedUtc,
                 x.LastObservedUtc, x.ResolvedUtc, x.Observations,

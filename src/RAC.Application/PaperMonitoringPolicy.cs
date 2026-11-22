@@ -23,9 +23,21 @@ public static class PaperMonitoringPolicy
                 incidents["PAPER_CYCLE_STALE"] = ("CRITICAL", "Motor de operações fictícias sem ciclo recente.");
             if (lastPublicCandle is null || now - lastPublicCandle > TimeSpan.FromMinutes(4))
                 incidents["MARKET_STALE"] = ("CRITICAL", "Candles públicos desatualizados.");
+            // Stable individual incident per supported agent; deliberate pauses are exempt.
+            foreach (var symbol in RacMarketSymbols.Supported)
+            {
+                var matches = agents.Where(x => x.Symbol == symbol).Take(2).ToArray();
+                if (matches.Length == 1 && matches[0].Status == "READY" &&
+                    matches[0].LastCandleUtc <= now &&
+                    now - matches[0].LastCandleUtc <= TimeSpan.FromMinutes(4))
+                    continue;
+                incidents["AGENT_" + symbol] = ("WARNING",
+                    $"Agente {symbol} sem candle recente ou sinal READY; verificar coleta publica.");
+            }
             if (agents.Count != RacMarketSymbols.Supported.Length ||
-                agents.Count(x => x.Status == "READY") < RacMarketSymbols.Supported.Length)
-                incidents["AGENTS_NOT_READY"] = ("WARNING", "Um ou mais agentes não possuem sinal de candle válido.");
+                agents.Count(x => x.Status == "READY" && x.LastCandleUtc <= now &&
+                    now - x.LastCandleUtc <= TimeSpan.FromMinutes(4)) < RacMarketSymbols.Supported.Length)
+                incidents["AGENTS_NOT_READY"] = ("WARNING", "Um ou mais agentes sem sinal recente valido.");
         }
         if (account.CashBrl < 0m || account.LastEquityBrl < 0m)
             incidents["INVALID_PAPER_BALANCE"] = ("CRITICAL", "Saldo virtual negativo: inconsistência contábil.");
