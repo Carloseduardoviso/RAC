@@ -22,10 +22,28 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public DbSet<SpotPortfolioHolding> SpotPortfolioHoldings => Set<SpotPortfolioHolding>();
     public DbSet<SpotCashFlowNote> SpotCashFlowNotes => Set<SpotCashFlowNote>();
     public DbSet<SpotInvestmentPlan> SpotInvestmentPlans => Set<SpotInvestmentPlan>();
+    public DbSet<SpotActivity> SpotActivities => Set<SpotActivity>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<SpotActivity>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Kind).HasMaxLength(12).IsRequired();
+            e.Property(x => x.ReferenceId).HasMaxLength(128).IsRequired();
+            e.Property(x => x.Symbol).HasMaxLength(24).IsRequired();
+            e.Property(x => x.Asset).HasMaxLength(24).IsRequired();
+            e.Property(x => x.Side).HasMaxLength(8).IsRequired();
+            e.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            e.Property(x => x.FeeAsset).HasMaxLength(24).IsRequired();
+            e.Property(x => x.Quantity).HasPrecision(28, 12);
+            e.Property(x => x.Price).HasPrecision(28, 12);
+            e.Property(x => x.QuoteQuantity).HasPrecision(28, 12);
+            e.Property(x => x.Fee).HasPrecision(28, 12);
+            e.HasIndex(x => new { x.OwnerUserId, x.Kind, x.Symbol, x.ReferenceId }).IsUnique();
+            e.HasIndex(x => new { x.OwnerUserId, x.OccurredUtc });
+        });
         model.Entity<SpotPortfolioSnapshot>(e =>
         {
             e.HasKey(x => x.Id);
