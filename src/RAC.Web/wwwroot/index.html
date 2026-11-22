@@ -7,7 +7,7 @@
 </head>
 <body>
 <div class="shell">
-<header><div class="brand"><div class="logo">R<span>●</span></div><div><strong>RAC</strong><small>Rebeca · Ana · Carlos | MVP 0.8</small></div></div><div class="mode">● SIMULAÇÃO • ORDENS REAIS DESATIVADAS</div></header>
+<header><div class="brand"><div class="logo">R<span>●</span></div><div><strong>RAC</strong><small>Rebeca · Ana · Carlos | MVP 0.9 (prévia)</small></div></div><div class="mode">● SIMULAÇÃO • ORDENS REAIS DESATIVADAS</div></header>
 <section id="authPanel" class="panel login-box">
   <h2>Acesso ao RAC</h2>
   <p>Entre com uma conta autorizada para visualizar e controlar a simulação.</p>
@@ -109,6 +109,45 @@
     <tbody id="portfolioCashflows"><tr><td colspan="5">Nenhuma anotação.</td></tr></tbody>
   </table></div>
   <p><small>Observação: somente Binance Spot. Não inclui Funding, Earn, margem ou Futuros. Os registros mostram estimativas, não comprovam depósitos, lucro, rendimento ou imposto devido.</small></p>
+</section>
+<section class="panel" id="activityPanel" hidden>
+  <div class="section-head">
+    <div>
+      <h2>MVP 0.9 — Conciliação de atividades Binance Spot</h2>
+      <p>Importação privada e manual de histórico de execuções, depósitos e retiradas. Não envia ordens.</p>
+    </div>
+    <span class="chip" id="activityStatus">Histórico não consultado</span>
+  </div>
+  <p><strong>Lucro líquido realizado em BRL: <span id="activityProfit">Não conciliado</span></strong></p>
+  <p id="activityExplanation">Os últimos 100 negócios por par não garantem custo médio ou histórico completo. Taxas em moedas diferentes não são convertidas em lucro.</p>
+  <form id="activityImportForm" style="display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin:16px 0">
+    <label style="min-width:160px">Par a importar
+      <select id="activitySymbol">
+        <option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option>
+        <option>BNBUSDT</option><option>XRPUSDT</option><option>ADAUSDT</option>
+        <option>DOGEUSDT</option><option>LINKUSDT</option><option>AVAXUSDT</option>
+        <option>LTCUSDT</option><option>DOTUSDT</option><option>TRXUSDT</option>
+      </select>
+    </label>
+    <label style="min-width:200px">Movimentações dos últimos 30 dias
+      <select id="activityTransfers">
+        <option value="true">Consultar depósitos e retiradas</option>
+        <option value="false">Somente negociações do par</option>
+      </select>
+    </label>
+    <button id="activityImport" type="submit">Consultar e registrar histórico real</button>
+  </form>
+  <p id="activityWarnings" role="status">Nenhuma importação nesta sessão.</p>
+  <h3>Registros por tipo</h3>
+  <p id="activityCounts">Ainda não há lançamentos reais importados.</p>
+  <h3>Comissões agrupadas por moeda</h3>
+  <p id="activityFees">Sem comissões importadas.</p>
+  <h3>Últimos eventos reais importados (até 200)</h3>
+  <div class="scroll"><table>
+    <thead><tr><th>Data</th><th>Tipo</th><th>Par / ativo</th><th>Operação</th><th>Quantidade</th><th>Preço</th><th>Taxa</th><th>Situação</th></tr></thead>
+    <tbody id="activityRows"><tr><td colspan="8">Nenhum evento importado.</td></tr></tbody>
+  </table></div>
+  <p><small>Os dados são parciais: negócios limitados aos últimos 100 por par, movimentações limitadas aos últimos 30 dias e até 100 por categoria. Os valores não incluem automaticamente Funding, Earn, margem, Futuros, transferências internas ou histórico de todos os pares.</small></p>
 </section><section class="panel"><div class="section-head"><div><h2>Supervisores RAC</h2><p>Ana coordena, Rebeca monitora notícias (pendente), Carlos controla o risco</p></div></div><div class="agent-grid" id="supervisors"></div><p id="binanceStatus">Binance Spot Testnet: conectividade não verificada</p><button id="ping">Verificar conexão pública da Testnet</button></section><div class="layout"><main><section class="panel"><div class="section-head"><div><h2>Mapa dos agentes</h2><p>12 criptomoedas Spot, preços simulados e sinais experimentais</p></div><span id="tick" class="chip">Tick 0</span></div><div class="agent-grid" id="agents"></div></section><section class="panel"><div class="section-head"><div><h2>Evolução do patrimônio</h2><p>Curva sintética em reais de referência (BRL), incluindo aportes virtuais</p></div></div><div class="chart"><svg id="chart" viewBox="0 0 700 200" preserveAspectRatio="none" role="img" aria-label="Evolução do patrimônio simulado"><path id="area" fill="rgba(44,221,157,.12)"/><polyline id="line" fill="none" stroke="#2cdd9d" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg></div></section><section class="panel"><div class="section-head"><div><h2>Operações</h2><p>Posições ativas e últimos fechamentos</p></div></div><h3>Em andamento</h3><div class="scroll"><table><thead><tr><th>Ativo</th><th>Direção</th><th>Entrada</th><th>Atual</th><th>P/L estimado</th></tr></thead><tbody id="positions"></tbody></table></div><h3>Concluídas</h3><div class="scroll"><table><thead><tr><th>Ativo</th><th>Resultado</th><th>Motivo</th><th>Tick</th></tr></thead><tbody id="trades"></tbody></table></div></section><section class="panel">
   <div class="section-head">
     <div><h2>Histórico persistido no SQL Server</h2><p>Operações e patrimônio registrados em RAC (LocalDB)</p></div>
