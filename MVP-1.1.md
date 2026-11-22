@@ -8,7 +8,7 @@
 - Risco máximo previsto por entrada: **0,5% do patrimônio fictício**, considerado stop de 2 ATR e provisões para taxas/slippage.
 - Limite de perda diária: **1%**, calculado sobre patrimônio virtual do início do dia UTC.
 - Queda acumulada máxima: **10%**, em relação ao pico de patrimônio virtual ajustado por aportes.
-- Alocação por posição: no máximo **20%**; exposição total: no máximo **30%**; **1 posição simultânea** e até **3 entradas virtuais por dia**.
+- Alocação por posição: no máximo **20%**; exposição total: no máximo **30%**; **1 posição simultânea**, sem limite de quantidade de entradas por dia (as travas financeiras continuam).
 - Taxa fictícia: 0,1% por lado; slippage simulado: 0,05% por lado.
 - Posições long-only Spot fictícias, sem alavancagem. Cotações são públicas Binance USDT e USDTBRL, nunca provenientes de APIs de negociação.
 - A perda real poderia exceder o orçamento por lacunas, slippage ou volatilidade; limites de papel são controles estimados e não garantias.

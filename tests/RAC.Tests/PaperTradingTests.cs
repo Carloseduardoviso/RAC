@@ -17,6 +17,7 @@ public sealed class PaperTradingTests
         Assert.Equal(10m, PaperRisk.MaxDrawdownPct);
         Assert.Equal(100m, PaperRisk.ReinvestmentPercent);
         Assert.Equal(1, PaperRisk.MaxOpenPositions);
+        Assert.Equal(0, PaperRisk.MaxEntriesPerDay);
         Assert.Equal(12, RacMarketSymbols.Supported.Length);
     }
 
@@ -47,10 +48,21 @@ public sealed class PaperTradingTests
     public void Exhausted_limits_and_invalid_market_data_refuse_new_positions()
     {
         Assert.Equal(0m, PaperRisk.Quantity(100m, 100m, 10m, 0.5m, 0m, 1, 0));
-        Assert.Equal(0m, PaperRisk.Quantity(100m, 100m, 10m, 0.5m, 0m, 0, 3));
+        Assert.True(PaperRisk.Quantity(100m, 100m, 10m, 0.5m, 0m, 0, 3) > 0m);
         Assert.Equal(0m, PaperRisk.Quantity(100m, 100m, 0m, 0.5m, 0m, 0, 0));
         Assert.Equal(0m, PaperRisk.Quantity(100m, 100m, 10m, 0m, 0m, 0, 0));
         Assert.Equal(0m, PaperRisk.Quantity(100m, 100m, 10m, 0.5m, 40m, 0, 0));
+    }
+
+    [Fact]
+    public void Unlimited_daily_entries_still_respect_position_and_financial_limits()
+    {
+        var first=PaperRisk.Quantity(100m,100m,10m,0.5m,0m,0,0);
+        var next=PaperRisk.Quantity(100m,100m,10m,0.5m,0m,0,1000);
+        Assert.True(first>0m);
+        Assert.Equal(first,next);
+        Assert.Equal(0m,PaperRisk.Quantity(100m,100m,10m,0.5m,0m,1,1000));
+        Assert.NotNull(PaperRisk.LockReason(98.99m,100m,100m));
     }
 
     [Fact]

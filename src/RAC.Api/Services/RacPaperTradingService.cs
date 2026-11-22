@@ -248,7 +248,6 @@ public sealed class RacPaperTradingService(
                 var outcome = signal.Status != "READY" ? "BLOCKED_DATA" :
                     signal.Action != "COMPRA_OBSERVACIONAL" ? "NO_ENTRY_SIGNAL" :
                     positions.Count >= PaperRisk.MaxOpenPositions ? "BLOCKED_MAX_POSITIONS" :
-                    account.EntriesToday >= PaperRisk.MaxEntriesPerDay ? "BLOCKED_DAILY_ENTRIES" :
                     "ENTRY_EVALUATED";
                 db.PaperDecisionAudits.Add(new PaperDecisionAudit
                 {
@@ -265,8 +264,7 @@ public sealed class RacPaperTradingService(
                 });
                 if (signal.Status != "READY" || signal.Action != "COMPRA_OBSERVACIONAL")
                     continue;
-                if (positions.Count >= PaperRisk.MaxOpenPositions ||
-                    account.EntriesToday >= PaperRisk.MaxEntriesPerDay) continue;
+                if (positions.Count >= PaperRisk.MaxOpenPositions) continue;
                 if (!batch.Prices.TryGetValue(symbol, out var quote) || quote <= 0m ||
                     signal.PriceUsdt is null || signal.Atr14 is null)
                     continue;

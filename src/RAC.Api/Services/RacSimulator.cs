@@ -49,7 +49,7 @@ public sealed class RacSimulator
             _policy.MaxCumulativeDrawdownPct > 100 || _policy.MaxRiskPerTradePct <= 0 ||
             _policy.MaxDailyLossPct <= 0 || _policy.MaxAllocationPerPositionPct <= 0 ||
             _policy.MaxTotalAllocationPct <= 0 || _policy.MaxOpenPositions < 1 ||
-            _policy.MaxEntriesPerDay < 1 || _policy.SimulatedTicksPerDay < 1 ||
+            _policy.MaxEntriesPerDay < 0 || _policy.SimulatedTicksPerDay < 1 ||
             _policy.SimulatedDaysPerMonth < 1 || _policy.IllustrativeFeePctPerSide < 0 ||
             _policy.AssumedBrlPerUsdt <= 0)
             throw new InvalidOperationException("Politica RAC invalida; simulação interrompida.");
@@ -181,7 +181,7 @@ public sealed class RacSimulator
 
     private void EnterPosition()
     {
-        if (_tick < 12 || _entriesToday >= _policy.MaxEntriesPerDay || _positions.Count >= _policy.MaxOpenPositions) return;
+        if (_tick < 12 || (_policy.MaxEntriesPerDay > 0 && _entriesToday >= _policy.MaxEntriesPerDay) || _positions.Count >= _policy.MaxOpenPositions) return;
         foreach (var trader in _traders.Values.OrderBy(t => t.Symbol))
         {
             if (trader.Signal != "COMPRA" || _positions.Any(p => p.Symbol == trader.Symbol) || RandomUnit() > .15m) continue;

@@ -11,7 +11,7 @@ public static class PaperRisk
     public const decimal MaxPositionPct = 20m;
     public const decimal MaxTotalExposurePct = 30m;
     public const int MaxOpenPositions = 1;
-    public const int MaxEntriesPerDay = 3;
+    public const int MaxEntriesPerDay = 0; // 0 = sem limite por contagem diária; limites financeiros permanecem.
     public const decimal FeePercentPerSide = 0.1m;
     public const decimal SlippagePercentPerSide = 0.05m;
     public const decimal ReinvestmentPercent = 100m;
@@ -36,8 +36,7 @@ public static class PaperRisk
         int openPositions, int entriesToday)
     {
         if (cashBrl <= 0 || equityBrl <= 0 || priceBrl <= 0 || atrBrl <= 0 ||
-            currentExposureBrl < 0 || openPositions >= MaxOpenPositions ||
-            entriesToday >= MaxEntriesPerDay)
+            currentExposureBrl < 0 || openPositions >= MaxOpenPositions)
             return 0m;
         var stopDistance = atrBrl * 2m;
         if (stopDistance <= 0m) return 0m;

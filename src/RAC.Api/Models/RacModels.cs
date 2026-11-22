@@ -4,7 +4,7 @@ public record RiskPolicy(decimal ReferenceCapitalBrl = 100m, decimal MonthlyCont
     decimal ReinvestmentPct = 100m, decimal MaxCumulativeDrawdownPct = 10m,
     decimal MaxRiskPerTradePct = 0.5m, decimal MaxDailyLossPct = 1m,
     decimal MaxAllocationPerPositionPct = 20m, decimal MaxTotalAllocationPct = 30m,
-    int MaxOpenPositions = 1, int MaxEntriesPerDay = 3,
+    int MaxOpenPositions = 1, int MaxEntriesPerDay = 0,
     decimal IllustrativeFeePctPerSide = 0.1m, decimal AssumedBrlPerUsdt = 5m,
     int SimulatedTicksPerDay = 288, int SimulatedDaysPerMonth = 30);
 public record TraderView(string Symbol, decimal Price, decimal ChangePct, string Signal, string Status, int Wins, int Losses, decimal RealizedPnl);

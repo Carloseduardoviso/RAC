@@ -38,7 +38,7 @@ Arquivo: `src/RAC.Api/appsettings.json` -> `Rac:Risk`.
 | `MaxAllocationPerPositionPct` | 20 | No máximo 20% do patrimônio por posição |
 | `MaxTotalAllocationPct` | 30 | Exposição Spot total máxima de 30% |
 | `MaxOpenPositions` | 1 | Uma posição simultânea |
-| `MaxEntriesPerDay` | 3 | Três novas entradas por dia simulado |
+| `MaxEntriesPerDay` | 0 | Sem limite diário por quantidade de entradas (mantidas todas as travas financeiras de risco) |
 | `SimulatedTicksPerDay` | 288 | Calendário **fictício**, sem relação com tempo de relógio |
 | `SimulatedDaysPerMonth` | 30 | Aporte a cada 8.640 ticks fictícios |
 | `IllustrativeFeePctPerSide` | 0.1 | Taxa apenas ilustrativa em cada lado |
