@@ -237,11 +237,34 @@ public sealed class RacPaperTradingService(
                 cursor.LastSignal = signal.Action;
                 cursor.Status = signal.Status;
                 cursor.Note = signal.Note ?? string.Empty;
-                if (signal.Status != "READY" || signal.LastClosedUtc is null ||
+                if (signal.LastClosedUtc is null ||
                     signal.LastClosedUtc <= cursor.LastCandleUtc)
                     continue;
                 cursor.LastCandleUtc = signal.LastClosedUtc.Value;
-                if (signal.Action != "COMPRA_OBSERVACIONAL") continue;
+
+                // One auditable decision for each newly processed closed candle,
+                // even if a risk gate refuses a virtual entry. Never records
+                // claims of actual news analysis or real Binance execution.
+                var outcome = signal.Status != "READY" ? "BLOCKED_DATA" :
+                    signal.Action != "COMPRA_OBSERVACIONAL" ? "NO_ENTRY_SIGNAL" :
+                    positions.Count >= PaperRisk.MaxOpenPositions ? "BLOCKED_MAX_POSITIONS" :
+                    account.EntriesToday >= PaperRisk.MaxEntriesPerDay ? "BLOCKED_DAILY_ENTRIES" :
+                    "ENTRY_EVALUATED";
+                db.PaperDecisionAudits.Add(new PaperDecisionAudit
+                {
+                    Symbol = symbol,
+                    CandleClosedUtc = signal.LastClosedUtc.Value,
+                    RecordedUtc = now,
+                    Signal = signal.Action,
+                    Outcome = outcome,
+                    Actor = "Ana/Carlos",
+                    Reason = outcome == "BLOCKED_DATA"
+                        ? (signal.Note ?? "Dados públicos insuficientes.")
+                        : "Ana: sinal técnico; Carlos: limites fixos de risco; Rebeca: notícias ainda não integradas.",
+                    PlacedRealOrder = false
+                });
+                if (signal.Status != "READY" || signal.Action != "COMPRA_OBSERVACIONAL")
+                    continue;
                 if (positions.Count >= PaperRisk.MaxOpenPositions ||
                     account.EntriesToday >= PaperRisk.MaxEntriesPerDay) continue;
                 if (!batch.Prices.TryGetValue(symbol, out var quote) || quote <= 0m ||
@@ -282,6 +305,9 @@ public sealed class RacPaperTradingService(
                     Quantity = qty, PriceBrl = price, FeeBrl = fee,
                     ExecutedUtc = now, SignalClosedUtc = signal.LastClosedUtc.Value
                 });
+                // The paper decision and the fill share the same database transaction.
+                db.PaperDecisionAudits.Local.Last(x => x.Symbol == symbol &&
+                    x.CandleClosedUtc == signal.LastClosedUtc.Value).Outcome = "PAPER_BUY";
                 logger.LogInformation("Paper BUY {Symbol}; never a Binance order", symbol);
             }
             account.LastEquityBrl = equity;

@@ -144,7 +144,8 @@ function showSession(session) {
   $('activityPanel').hidden = !authenticated || !canViewWallet;
   $('realStrategiesPanel').hidden = !authenticated;
   $('paperPanel').hidden = !authenticated;
-  if (!authenticated) { clearRealStrategiesDisplay(); clearPaperDisplay(); }
+  $('paperMonitoringPanel').hidden = !authenticated;
+  if (!authenticated) { clearRealStrategiesDisplay(); clearPaperDisplay(); clearMonitoringDisplay(); }
   if (!authenticated || !canViewWallet) {
     clearWalletDisplay();
     clearPortfolioDisplay();
@@ -169,6 +170,7 @@ async function loadSession() {
     await refreshMarketCandles();
     await refreshRealStrategies();
     await refreshPaper();
+    await refreshMonitoring();
     await checkWalletStatus();
     if (canViewWallet) { await refreshPortfolioHistory(); await refreshActivityHistory(); }
   } catch {
@@ -404,6 +406,64 @@ $('portfolioCashFlowForm').onsubmit = async event => {
 
 
 const brl = usd;
+function clearMonitoringDisplay() {
+  $('paperMonitorStatus').textContent = 'Sem dados';
+  $('paperMonitorPnl').textContent = '—';
+  $('paperMonitorRealized').textContent = '—';
+  $('paperMonitorFees').textContent = '—';
+  $('paperMonitorDrawdown').textContent = '—';
+  $('paperMonitorHealth').textContent = 'Aguardando dados de monitoramento.';
+  $('paperMonitorAlerts').innerHTML = '<tr><td colspan="5">Nenhum alerta.</td></tr>';
+  $('paperMonitorDecisions').innerHTML = '<tr><td colspan="5">Aguardando decisões.</td></tr>';
+  $('paperMonitorHistory').innerHTML = '<tr><td colspan="5">Aguardando amostras.</td></tr>';
+}
+async function refreshMonitoring() {
+  if (!authenticated) return;
+  try {
+    const m = await api('paper/monitoring');
+    if (m.mode !== 'PAPER_ONLY' || m.realOrdersEnabled || m.testnetOrdersEnabled)
+      throw new Error('Relatório fora do modo PAPER ONLY.');
+    const p = m.performance;
+    const active = m.alerts.filter(a => a.active);
+    const ageMs = p.latestMonitorUtc ? Date.now() - Date.parse(p.latestMonitorUtc) : Infinity;
+    const fresh = Number.isFinite(ageMs) && ageMs >= 0 && ageMs < 180000;
+    $('paperMonitorStatus').textContent = !fresh ? 'MONITOR SEM ATUALIZAÇÃO' :
+      active.length ? active.length + ' alerta(s) ativo(s)' :
+      m.running ? 'MONITORANDO PAPEL' : 'PAUSADO';
+    $('paperMonitorPnl').textContent = brl(p.pnlExcludingContributionsBrl);
+    $('paperMonitorRealized').textContent = brl(p.realizedPnlBrl);
+    $('paperMonitorFees').textContent = brl(p.feesBrl);
+    $('paperMonitorDrawdown').textContent = Number(p.drawdownPct).toFixed(3) + '%';
+    $('paperMonitorHealth').textContent =
+      'Agentes prontos: '+m.agentStates.filter(a=>a.status==='READY').length+
+      '/12 • último ciclo: '+(p.paperCycleUtc ? formatDate(p.paperCycleUtc) : 'nenhum')+
+      ' • monitor: '+(p.latestMonitorUtc ? formatDate(p.latestMonitorUtc) : 'ainda não coletado')+
+      ' • posições abertas: '+p.openPositions+' • fills virtuais: '+p.virtualFills+
+      ' • operações fechadas: '+p.closedPositions+'.';
+    $('paperMonitorAlerts').innerHTML = m.alerts.length ? m.alerts.map(a =>
+      '<tr><td>'+safe(formatDate(a.openedUtc))+'</td><td>'+safe(a.code)+
+      '</td><td>'+safe(a.severity)+'</td><td>'+(a.active ? 'ATIVO' : 'RESOLVIDO')+
+      '</td><td>'+safe(a.message)+'</td></tr>').join('')
+      : '<tr><td colspan="5">Nenhum alerta registrado.</td></tr>';
+    $('paperMonitorDecisions').innerHTML = m.decisions.length ? m.decisions.map(x =>
+      '<tr><td>'+safe(formatDate(x.recordedUtc))+'</td><td>'+safe(x.symbol)+
+      '</td><td>'+safe(x.signal)+'</td><td>'+safe(x.outcome)+
+      '</td><td>'+safe(x.actor)+'</td></tr>').join('')
+      : '<tr><td colspan="5">Nenhuma decisão de candle registrada.</td></tr>';
+    $('paperMonitorHistory').innerHTML = m.history.length ? m.history.slice(-30).reverse().map(x =>
+      '<tr><td>'+safe(formatDate(x.recordedUtc))+'</td><td>'+brl(x.equityBrl)+
+      '</td><td>'+brl(x.exposureBrl)+'</td><td>'+x.readyAgents+
+      '/12</td><td>'+(x.riskLocked ? 'BLOQUEADO' : x.running ? 'EXECUTANDO' : 'PAUSADO')+
+      '</td></tr>').join('')
+      : '<tr><td colspan="5">Aguardando amostras.</td></tr>';
+  } catch(error) {
+    $('paperMonitorStatus').textContent = 'MONITOR INDISPONÍVEL';
+    $('paperMonitorHealth').textContent = error.message;
+  }
+}
+$('paperMonitorRefresh').onclick = refreshMonitoring;
+setInterval(() => { if(authenticated) refreshMonitoring(); }, 30000);
+
 function clearPaperDisplay() {
   $('paperStatus').textContent = 'Pausado';
   $('paperEquity').textContent = '—';

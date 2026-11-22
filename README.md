@@ -1,3 +1,5 @@
+> **MVP 1.1.1:** monitoramento independente dos 12 agentes fictícios, alertas persistidos, relatórios virtuais e auditoria por candle, sem ordens reais. Consulte [MVP-1.1.1.md](MVP-1.1.1.md).
+
 > **MVP 1.1:** na `main`, operações **PAPER ONLY** automáticas após comando de início do operador, usando candles/quotes reais públicos Binance, R$ 100 de capital fictício, R$ 200 de aporte virtual a cada 30 dias e travas de risco. Veja [MVP-1.1.md](MVP-1.1.md). **Nunca negocia dinheiro real.**
 
 > **MVP 1.0:** a `main` inclui agora análise observacional dos 12 pares Spot com SMA 9/21, RSI 14, ATR 14 e backtest ilustrativo usando candles reais fechados. O simulador legado ainda usa preços sintéticos; **não existem ordens reais**. Consulte [MVP-1.0.md](MVP-1.0.md).

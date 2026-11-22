@@ -29,9 +29,43 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public DbSet<PaperFill> PaperFills => Set<PaperFill>();
     public DbSet<PaperAgentCursor> PaperAgentCursors => Set<PaperAgentCursor>();
 
+    public DbSet<PaperMonitorSample> PaperMonitorSamples => Set<PaperMonitorSample>();
+    public DbSet<PaperDecisionAudit> PaperDecisionAudits => Set<PaperDecisionAudit>();
+    public DbSet<PaperMonitorAlert> PaperMonitorAlerts => Set<PaperMonitorAlert>();
+
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<PaperMonitorSample>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.RecordedUtc);
+            foreach (var property in new[] { nameof(PaperMonitorSample.EquityBrl),
+                nameof(PaperMonitorSample.CashBrl), nameof(PaperMonitorSample.ExposureBrl),
+                nameof(PaperMonitorSample.TotalContributionsBrl),
+                nameof(PaperMonitorSample.DrawdownPercent) })
+                e.Property<decimal>(property).HasPrecision(28, 12);
+        });
+        model.Entity<PaperDecisionAudit>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Symbol).HasMaxLength(24).IsRequired();
+            e.Property(x => x.Signal).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Outcome).HasMaxLength(40).IsRequired();
+            e.Property(x => x.Actor).HasMaxLength(24).IsRequired();
+            e.Property(x => x.Reason).HasMaxLength(250).IsRequired();
+            e.HasIndex(x => new { x.Symbol, x.CandleClosedUtc }).IsUnique();
+            e.HasIndex(x => x.RecordedUtc);
+        });
+        model.Entity<PaperMonitorAlert>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Code).HasMaxLength(80).IsRequired();
+            e.Property(x => x.Severity).HasMaxLength(20).IsRequired();
+            e.Property(x => x.Message).HasMaxLength(350).IsRequired();
+            e.HasIndex(x => new { x.Code, x.ResolvedUtc });
+            e.HasIndex(x => x.OpenedUtc);
+        });
         model.Entity<PaperAccount>(e =>
         {
             e.HasKey(x => x.Id);

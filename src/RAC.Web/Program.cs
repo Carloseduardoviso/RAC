@@ -23,7 +23,7 @@ app.UseStaticFiles();
 var getRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
     "/api/health", "/api/state", "/api/history", "/api/auth/me",
-    "/api/market/overview", "/api/strategy/overview", "/api/paper/status", "/api/binance/testnet/ping",
+    "/api/market/overview", "/api/strategy/overview", "/api/paper/status", "/api/paper/monitoring", "/api/binance/testnet/ping",
     "/api/binance/spot/status", "/api/binance/spot/balances",
     "/api/portfolio/history", "/api/portfolio/activity/history"
 };

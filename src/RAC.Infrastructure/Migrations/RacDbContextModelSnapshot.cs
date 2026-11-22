@@ -314,6 +314,58 @@ namespace RAC.Infrastructure.Migrations
                     b.ToTable("PaperAgentCursors", "rac");
                 });
 
+            modelBuilder.Entity("RAC.Domain.PaperDecisionAudit", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Actor")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.Property<DateTimeOffset>("CandleClosedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Outcome")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<bool>("PlacedRealOrder")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<DateTimeOffset>("RecordedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Signal")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecordedUtc");
+
+                    b.HasIndex("Symbol", "CandleClosedUtc")
+                        .IsUnique();
+
+                    b.ToTable("PaperDecisionAudits", "rac");
+                });
+
             modelBuilder.Entity("RAC.Domain.PaperFill", b =>
                 {
                     b.Property<long>("Id")
@@ -367,6 +419,106 @@ namespace RAC.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("PaperFills", "rac");
+                });
+
+            modelBuilder.Entity("RAC.Domain.PaperMonitorAlert", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateTimeOffset>("LastObservedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(350)
+                        .HasColumnType("nvarchar(350)");
+
+                    b.Property<int>("Observations")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("OpenedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("ResolvedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OpenedUtc");
+
+                    b.HasIndex("Code", "ResolvedUtc");
+
+                    b.ToTable("PaperMonitorAlerts", "rac");
+                });
+
+            modelBuilder.Entity("RAC.Domain.PaperMonitorSample", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("BlockedAgents")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("CashBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<decimal>("DrawdownPercent")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<decimal>("EquityBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<decimal>("ExposureBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.Property<DateTimeOffset?>("LastPaperCycleUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("OpenPositions")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ReadyAgents")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("RecordedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("RiskLocked")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Running")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("TotalContributionsBrl")
+                        .HasPrecision(28, 12)
+                        .HasColumnType("decimal(28,12)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecordedUtc");
+
+                    b.ToTable("PaperMonitorSamples", "rac");
                 });
 
             modelBuilder.Entity("RAC.Domain.PaperPosition", b =>

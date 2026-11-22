@@ -142,6 +142,32 @@
     <tbody id="paperFills"><tr><td colspan="7">Nenhuma operação.</td></tr></tbody>
   </table></div>
 </section>
+<section class="panel" id="paperMonitoringPanel" hidden>
+  <div class="section-head">
+    <div><h2>MVP 1.1.1 — Monitoramento e auditoria PAPER ONLY</h2>
+      <p>Acompanhamento automático a cada minuto, alertas persistidos no SQL e decisões por candle. Rebeca: notícias ainda não integradas.</p>
+    </div>
+    <span id="paperMonitorStatus" class="chip">Carregando...</span>
+  </div>
+  <div class="metrics" style="margin:12px 0">
+    <div class="metric"><span>Resultado líquido virtual (sem aportes)</span><strong id="paperMonitorPnl">—</strong></div>
+    <div class="metric"><span>Resultado realizado virtual</span><strong id="paperMonitorRealized">—</strong></div>
+    <div class="metric"><span>Taxas virtuais acumuladas</span><strong id="paperMonitorFees">—</strong></div>
+    <div class="metric"><span>Drawdown virtual</span><strong id="paperMonitorDrawdown">—</strong></div>
+  </div>
+  <p id="paperMonitorHealth" role="status">Nenhuma observação registrada.</p>
+  <button type="button" id="paperMonitorRefresh">Atualizar relatório e alertas</button>
+  <h3>Alertas (ativos e resolvidos)</h3>
+  <div class="scroll"><table><thead><tr><th>Início</th><th>Código</th><th>Severidade</th><th>Estado</th><th>Mensagem</th></tr></thead>
+  <tbody id="paperMonitorAlerts"><tr><td colspan="5">Nenhum alerta.</td></tr></tbody></table></div>
+  <h3>Auditoria das últimas 100 decisões por candle</h3>
+  <div class="scroll"><table><thead><tr><th>Registro</th><th>Agente</th><th>Sinal</th><th>Decisão / bloqueio</th><th>Responsáveis</th></tr></thead>
+  <tbody id="paperMonitorDecisions"><tr><td colspan="5">Aguardando decisões.</td></tr></tbody></table></div>
+  <h3>Últimas 120 amostras de monitoramento</h3>
+  <div class="scroll"><table><thead><tr><th>UTC</th><th>Patrimônio fictício</th><th>Exposição fictícia</th><th>Agentes prontos</th><th>Status</th></tr></thead>
+  <tbody id="paperMonitorHistory"><tr><td colspan="5">Sem amostras.</td></tr></tbody></table></div>
+  <p><small>Monitoramento interno ao RAC, sem envio externo de notificações. Contas reais não são consultadas. Resultados são apenas virtuais; não estimam lucros futuros.</small></p>
+</section>
 <section class="panel" id="realStrategiesPanel" hidden>
   <div class="section-head">
     <div>

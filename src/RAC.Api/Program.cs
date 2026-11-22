@@ -30,6 +30,8 @@ builder.Services.AddSingleton<RacMarketDataService>();
 builder.Services.AddSingleton<RacStrategyService>();
 builder.Services.AddSingleton<RacPaperTradingService>();
 builder.Services.AddHostedService<RacPaperTradingWorker>();
+builder.Services.AddSingleton<RacPaperMonitoringService>();
+builder.Services.AddHostedService<RacPaperMonitoringWorker>();
 builder.Services.AddHostedService<RacMarketDataWorker>();
 builder.Services.AddHttpClient<BinancePortfolioPricesClient>(client =>
 {
@@ -170,6 +172,11 @@ app.MapPost("/api/paper/pause", async (RacPaperTradingService paper,
     ClaimsPrincipal user, CancellationToken ct) =>
     await HandlePortfolioAsync(() => paper.SetRunningAsync(false,
         user.Identity?.Name ?? "operator", ct))).RequireAuthorization("RacOperator");
+
+app.MapGet("/api/paper/monitoring", async (
+    RacPaperMonitoringService monitor, CancellationToken ct) =>
+    Results.Ok(await monitor.ReportAsync(ct)))
+    .RequireAuthorization();
 
 app.MapGet("/api/binance/spot/status", (BinanceSpotCredentialStore store,
     HttpContext context) =>
