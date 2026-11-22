@@ -53,6 +53,15 @@ public sealed class PaperSqlRecoveryIntegrationTests
             {
                 var agentStates = report.RootElement.GetProperty("agentStates");
                 Assert.Equal(12, agentStates.GetArrayLength());
+                var performance = report.RootElement.GetProperty("agentPerformance");
+                Assert.Equal(12, performance.GetArrayLength());
+                var btc = performance.EnumerateArray().Single(agent =>
+                    agent.GetProperty("symbol").GetString() == "BTCUSDT");
+                Assert.Equal(1, btc.GetProperty("buys").GetInt32());
+                Assert.Equal(0, btc.GetProperty("sells").GetInt32());
+                Assert.Equal(1, btc.GetProperty("decisions").GetInt32());
+                Assert.Equal(0m, btc.GetProperty("realizedPnlBrl").GetDecimal());
+                Assert.Equal(.01m, btc.GetProperty("feesBrl").GetDecimal());
                 Assert.Contains(agentStates.EnumerateArray(), agent =>
                     agent.GetProperty("Symbol").GetString() == "BTCUSDT" &&
                     agent.GetProperty("healthy").GetBoolean());

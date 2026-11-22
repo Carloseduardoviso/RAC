@@ -130,6 +130,25 @@ public sealed class RacPaperMonitoringService(
         var agents = await db.PaperAgentCursors.AsNoTracking()
             .OrderBy(x => x.Symbol).ToListAsync(ct);
         var positions = await db.PaperPositions.AsNoTracking().ToListAsync(ct);
+        // SQL aggregates keep report cost bounded as the unlimited PAPER ledger grows.
+        // Realized profit is attributed to SELL fills only; it excludes unrealized PnL.
+        var fillsPerAgent = await db.PaperFills.AsNoTracking()
+            .GroupBy(x => x.Symbol)
+            .Select(g => new {
+                Symbol = g.Key, Buys = g.Count(x => x.Side == "BUY"),
+                Sells = g.Count(x => x.Side == "SELL"),
+                Wins = g.Count(x => x.Side == "SELL" && x.RealizedPnlBrl >= 0m),
+                Losses = g.Count(x => x.Side == "SELL" && x.RealizedPnlBrl < 0m),
+                RealizedPnlBrl = g.Sum(x => x.RealizedPnlBrl ?? 0m),
+                FeesBrl = g.Sum(x => x.FeeBrl)
+            }).ToDictionaryAsync(x => x.Symbol, ct);
+        var decisionsPerAgent = await db.PaperDecisionAudits.AsNoTracking()
+            .GroupBy(x => x.Symbol)
+            .Select(g => new {
+                Symbol = g.Key, Decisions = g.Count(),
+                PaperBuys = g.Count(x => x.Outcome == "PAPER_BUY"),
+                LastDecisionUtc = g.Max(x => x.RecordedUtc)
+            }).ToDictionaryAsync(x => x.Symbol, ct);
         var realized = fillStats?.Realized ?? 0m;
         var fees = fillStats?.Fees ?? 0m;
         var latest = samples.FirstOrDefault();
@@ -166,6 +185,24 @@ public sealed class RacPaperMonitoringService(
                     Status = x?.Status ?? "MISSING", LastCandleUtc = x?.LastCandleUtc,
                     Note = x?.Note ?? "Sem cursor persistido", fresh,
                     healthy = x?.Status == "READY" && fresh
+                };
+            }),
+            agentPerformance = RacMarketSymbols.Supported.Select(symbol => {
+                fillsPerAgent.TryGetValue(symbol, out var fills);
+                decisionsPerAgent.TryGetValue(symbol, out var decisions);
+                var cursor = agents.FirstOrDefault(a => a.Symbol == symbol);
+                var pos = positions.FirstOrDefault(p => p.Symbol == symbol);
+                return new {
+                    symbol, status = cursor?.Status ?? "MISSING",
+                    lastSignal = cursor?.LastSignal ?? "SEM_SINAL",
+                    buys = fills?.Buys ?? 0, sells = fills?.Sells ?? 0,
+                    wins = fills?.Wins ?? 0, losses = fills?.Losses ?? 0,
+                    realizedPnlBrl = fills?.RealizedPnlBrl ?? 0m,
+                    feesBrl = fills?.FeesBrl ?? 0m,
+                    decisions = decisions?.Decisions ?? 0,
+                    paperBuyDecisions = decisions?.PaperBuys ?? 0,
+                    lastDecisionUtc = decisions?.LastDecisionUtc,
+                    openPositionBrl = pos is null ? 0m : pos.Quantity * pos.LastPriceBrl
                 };
             }),
             alerts = alerts.Select(x => new {
