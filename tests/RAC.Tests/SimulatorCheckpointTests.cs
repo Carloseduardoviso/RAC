@@ -63,6 +63,41 @@ public sealed class SimulatorCheckpointTests
     }
 
     [Fact]
+    public void Checkpoint_rejects_duplicate_agent_without_changing_live_state()
+    {
+        var simulator = new RacSimulator(new RiskPolicy());
+        simulator.Tick();
+        var before = simulator.ExportState();
+        var agents = before.Traders.ToArray();
+        agents[1] = agents[0] with { };
+        Assert.Throws<InvalidOperationException>(() => simulator.RestoreState(before with { Traders = agents }));
+        Assert.Equal(before.SessionId, simulator.ExportState().SessionId);
+        Assert.Equal(before.Tick, simulator.ExportState().Tick);
+    }
+
+    [Fact]
+    public void Checkpoint_rejects_invalid_price_and_financial_totals()
+    {
+        var simulator = new RacSimulator(new RiskPolicy());
+        var valid = simulator.ExportState();
+        var agents = valid.Traders.ToArray();
+        agents[0] = agents[0] with { History = [0m] };
+        Assert.Throws<InvalidOperationException>(() => simulator.RestoreState(valid with { Traders = agents }));
+        Assert.Throws<InvalidOperationException>(() => simulator.RestoreState(valid with { TotalContributions = -1m }));
+        Assert.Throws<InvalidOperationException>(() => simulator.RestoreState(valid with { EntriesToday = -1 }));
+    }
+
+    [Fact]
+    public void Checkpoint_rejects_invalid_open_position_before_mutation()
+    {
+        var simulator = new RacSimulator(new RiskPolicy());
+        var valid = simulator.ExportState();
+        var invalid = new SimPositionState(1, "BTCUSDT", 100m, 1m, 95m, 110m, 100m, 0m, 0);
+        Assert.Throws<InvalidOperationException>(() => simulator.RestoreState(valid with { Positions = [invalid] }));
+        Assert.Empty(simulator.ExportState().Positions);
+    }
+
+    [Fact]
     public void Checkpoint_rejects_modified_policy()
     {
         var simulator = new RacSimulator(new RiskPolicy());

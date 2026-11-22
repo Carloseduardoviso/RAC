@@ -253,11 +253,23 @@ public sealed class RacSimulator
         if (state.Version != 1 || state.SessionId == Guid.Empty ||
             state.Policy with { MaxEntriesPerDay = _policy.MaxEntriesPerDay } != _policy ||
             state.Traders is null || state.Traders.Length != Markets.Length ||
-            state.Traders.Any(t => !Markets.Any(m => m.Symbol == t.Symbol) ||
-                t.Price <= 0m || t.Previous <= 0m || t.History is null || t.History.Length == 0) ||
-            state.Positions is null || state.Positions.Any(p => p.Qty <= 0m ||
-                !Markets.Any(m => m.Symbol == p.Symbol)) ||
-            state.Cash < 0m || state.Tick < 0 || state.EquityHistory is null ||
+            state.Traders.Any(t => t is null || !Markets.Any(m => m.Symbol == t.Symbol) ||
+                t.Price <= 0m || t.Previous <= 0m || t.History is null ||
+                t.History.Length == 0 || t.History.Length > 12 || t.History.Any(h => h <= 0m) ||
+                t.Wins < 0 || t.Losses < 0) ||
+            state.Traders.Select(t => t.Symbol).Distinct(StringComparer.Ordinal).Count() != Markets.Length ||
+            state.Positions is null || state.Positions.Length > _policy.MaxOpenPositions ||
+            state.Positions.Any(p => p is null || p.Id <= 0 || p.Id > state.LastPositionId ||
+                p.Qty <= 0m || p.Entry <= 0m || p.Stop <= 0m || p.Target <= p.Stop ||
+                p.EntryCostBrl <= 0m || p.EntryFeeBrl < 0m || p.OpenedTick < 0 ||
+                p.OpenedTick > state.Tick || !Markets.Any(m => m.Symbol == p.Symbol)) ||
+            state.Positions.Select(p => p.Id).Distinct().Count() != state.Positions.Length ||
+            state.Positions.Select(p => p.Symbol).Distinct(StringComparer.Ordinal).Count() != state.Positions.Length ||
+            state.Cash < 0m || state.StartDayEquity <= 0m || state.TotalContributions <= 0m ||
+            state.AdjustedPeak <= 0m || state.ContributedMonths < 0 || state.Tick < 0 ||
+            state.EntriesToday < 0 || state.LastPositionId < 0 ||
+            state.EquityHistory is null || state.EquityHistory.Length == 0 ||
+            state.EquityHistory.Any(e => e < 0m) ||
             state.Trades is null || state.PendingEvents is null)
             throw new InvalidOperationException("Checkpoint RAC invalido ou politica de risco diferente. Inicializacao bloqueada.");
 
