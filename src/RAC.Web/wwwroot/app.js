@@ -141,9 +141,11 @@ function showSession(session) {
   canViewWallet = !!session?.canViewWallet;
   $('walletPanel').hidden = !authenticated || !canViewWallet;
   $('portfolioPanel').hidden = !authenticated || !canViewWallet;
+  $('activityPanel').hidden = !authenticated || !canViewWallet;
   if (!authenticated || !canViewWallet) {
     clearWalletDisplay();
     clearPortfolioDisplay();
+    clearActivityDisplay();
     $('walletStatus').textContent = 'Não consultado';
     $('walletInfo').textContent = 'Configure uma chave exclusivamente de leitura no Windows.';
   }
@@ -163,7 +165,7 @@ async function loadSession() {
     await refreshMarketData();
     await refreshMarketCandles();
     await checkWalletStatus();
-    if (canViewWallet) await refreshPortfolioHistory();
+    if (canViewWallet) { await refreshPortfolioHistory(); await refreshActivityHistory(); }
   } catch {
     showSession(null);
   }
@@ -392,4 +394,69 @@ $('portfolioCashFlowForm').onsubmit = async event => {
   } catch(error) {
     $('portfolioCashflowMessage').textContent = error.message;
   }
+};
+
+function clearActivityDisplay() {
+  $('activityStatus').textContent = 'Histórico não consultado';
+  $('activityProfit').textContent = 'Não conciliado';
+  $('activityWarnings').textContent = 'Nenhuma importação nesta sessão.';
+  $('activityCounts').textContent = 'Ainda não há lançamentos reais importados.';
+  $('activityFees').textContent = 'Sem comissões importadas.';
+  $('activityRows').innerHTML = '<tr><td colspan="8">Nenhum evento importado.</td></tr>';
+  $('activityExplanation').textContent = 'Custo médio, movimentações e histórico completo precisam ser conciliados.';
+}
+
+async function refreshActivityHistory() {
+  if (!authenticated || !canViewWallet) return;
+  try {
+    const h = await api('portfolio/activity/history');
+    if (h.source !== 'BINANCE_SPOT_REAL' || h.realOrdersEnabled ||
+        h.profitReconciled || h.completeHistory)
+      throw new Error('Histórico da Binance incompatível com modo de segurança.');
+    $('activityProfit').textContent = 'Não conciliado';
+    $('activityStatus').textContent = h.latestImportUtc
+      ? 'SQL Server • ' + formatDate(h.latestImportUtc) : 'Sem importações';
+    $('activityExplanation').textContent = h.reason;
+    $('activityCounts').textContent = h.counts.length
+      ? h.counts.map(x => x.kind + ': ' + x.count).join(' • ')
+      : 'Nenhum registro importado.';
+    $('activityFees').textContent = h.feesByAsset.length
+      ? h.feesByAsset.map(x => walletNumber(x.amount) + ' ' + x.asset).join(' • ')
+      : 'Sem comissões importadas.';
+    $('activityRows').innerHTML = h.entries.length ? h.entries.map(x =>
+      '<tr><td>'+safe(formatDate(x.occurredUtc))+'</td><td>'+safe(x.kind)+
+      '</td><td>'+safe(x.symbol || x.asset)+'</td><td>'+safe(x.side || '—')+
+      '</td><td>'+walletNumber(x.quantity)+'</td><td>'+walletNumber(x.price)+
+      '</td><td>'+walletNumber(x.fee)+' '+safe(x.feeAsset)+
+      '</td><td>'+safe(x.status)+'</td></tr>').join('')
+      : '<tr><td colspan="8">Nenhuma atividade importada.</td></tr>';
+  } catch (error) {
+    $('activityStatus').textContent = 'Histórico indisponível';
+    $('activityWarnings').textContent = error.message;
+  }
+}
+
+$('activityImportForm').onsubmit = async event => {
+  event.preventDefault();
+  if (!authenticated || !canViewWallet) return;
+  $('activityImport').disabled = true;
+  $('activityStatus').textContent = 'Consultando Binance (somente GET)...';
+  try {
+    const result = await api('portfolio/activity/import', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        symbol:$('activitySymbol').value,
+        includeTransfers:$('activityTransfers').value === 'true'
+      })
+    });
+    if (result.realOrdersEnabled || result.completeHistory || result.profitReconciled)
+      throw new Error('Resultado incompatível com importação de histórico parcial.');
+    $('activityWarnings').textContent =
+      'Novos eventos: '+result.imported+' • situações atualizadas: '+result.updated+
+      ' • '+result.warnings.join(' ');
+    await refreshActivityHistory();
+  } catch(error) {
+    $('activityWarnings').textContent = error.message;
+    $('activityStatus').textContent = 'Importação não concluída';
+  } finally { $('activityImport').disabled = false; }
 };
