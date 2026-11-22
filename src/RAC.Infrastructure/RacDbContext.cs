@@ -33,9 +33,35 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public DbSet<PaperDecisionAudit> PaperDecisionAudits => Set<PaperDecisionAudit>();
     public DbSet<PaperMonitorAlert> PaperMonitorAlerts => Set<PaperMonitorAlert>();
 
+    public DbSet<TestnetOrderRecord> TestnetOrders => Set<TestnetOrderRecord>();
+    public DbSet<TestnetExecutionState> TestnetExecutionStates => Set<TestnetExecutionState>();
+
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<TestnetExecutionState>(e =>
+        {
+            e.HasKey(x=>x.Id);
+            e.Property(x=>x.Id).ValueGeneratedNever();
+            e.Property(x=>x.RowVersion).IsRowVersion();
+            e.Property(x=>x.LockReason).IsRequired().HasMaxLength(500);
+        });
+        model.Entity<TestnetOrderRecord>(e =>
+        {
+            e.HasKey(x=>x.Id);
+            e.Property(x=>x.Symbol).IsRequired().HasMaxLength(24);
+            e.Property(x=>x.Side).IsRequired().HasMaxLength(8);
+            e.Property(x=>x.ClientOrderId).IsRequired().HasMaxLength(36);
+            e.Property(x=>x.Status).IsRequired().HasMaxLength(32);
+            e.Property(x=>x.Note).IsRequired().HasMaxLength(500);
+            e.Property(x=>x.ExchangeOrderId).HasMaxLength(40);
+            e.Property(x=>x.Quantity).HasPrecision(28,12);
+            e.Property(x=>x.ExecutedQuantity).HasPrecision(28,12);
+            e.Property(x=>x.CumulativeQuoteQuantity).HasPrecision(28,12);
+            e.Property(x=>x.RowVersion).IsRowVersion();
+            e.HasIndex(x=>x.PaperFillId).IsUnique();
+            e.HasIndex(x=>x.ClientOrderId).IsUnique();
+        });
         model.Entity<PaperMonitorSample>(e =>
         {
             e.HasKey(x => x.Id);

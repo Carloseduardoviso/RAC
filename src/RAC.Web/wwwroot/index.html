@@ -142,6 +142,28 @@
     <tbody id="paperFills"><tr><td colspan="7">Nenhuma operação.</td></tr></tbody>
   </table></div>
 </section>
+<section class="panel" id="testnetExecutionPanel" hidden>
+  <div class="section-head">
+    <div>
+      <h2>MVP 1.2 — Executor Binance Spot Testnet</h2>
+      <p>Somente fundos fictícios da Binance Testnet. Credenciais separadas; sem acesso a ordens de produção.</p>
+    </div>
+    <span class="chip" id="testnetExecutionStatus">PAUSADO</span>
+  </div>
+  <p id="testnetExecutionMessage" role="status">Verificando configuração e travas...</p>
+  <p><strong>Configuração:</strong> configure a chave Testnet no terminal Windows, nunca neste painel. Ativar exige carteira PAPER saudável e chave de teste; a API sempre inicia pausada.</p>
+  <div style="display:flex;gap:12px;flex-wrap:wrap;margin:12px 0">
+    <button type="button" id="testnetExecutionStart">Ativar apenas ordens Testnet</button>
+    <button type="button" id="testnetExecutionPause">Pausar Testnet</button>
+    <button type="button" id="testnetExecutionStop">PARADA DE EMERGÊNCIA</button>
+    <button type="button" id="testnetExecutionRefresh">Atualizar Testnet</button>
+  </div>
+  <p><small>Parada de emergência desarma permanentemente a sessão; revisão manual obrigatória. Testnet não é Binance real. Nenhum saldo de produção é usado.</small></p>
+  <h3>Ordens Testnet registradas no SQL Server</h3>
+  <div class="scroll"><table><thead><tr><th>Data</th><th>Par</th><th>Lado</th><th>Quantidade</th><th>Status Binance</th><th>ID do cliente</th><th>Observação</th></tr></thead>
+    <tbody id="testnetExecutionOrders"><tr><td colspan="7">Nenhuma ordem Testnet.</td></tr></tbody>
+  </table></div>
+</section>
 <section class="panel" id="paperMonitoringPanel" hidden>
   <div class="section-head">
     <div><h2>MVP 1.1.1 — Monitoramento e auditoria PAPER ONLY</h2>

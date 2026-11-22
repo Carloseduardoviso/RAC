@@ -32,6 +32,20 @@ builder.Services.AddSingleton<RacPaperTradingService>();
 builder.Services.AddHostedService<RacPaperTradingWorker>();
 builder.Services.AddSingleton<RacPaperMonitoringService>();
 builder.Services.AddHostedService<RacPaperMonitoringWorker>();
+// No mainnet order endpoint can be injected into this hard-pinned Testnet client.
+builder.Services.AddSingleton<BinanceTestnetCredentialStore>();
+builder.Services.AddHttpClient<BinanceTestnetOrderClient>(client =>
+{
+    client.BaseAddress = new Uri("https://testnet.binance.vision/");
+    client.Timeout = TimeSpan.FromSeconds(10);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("RAC-Testnet-Only/1.2");
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    UseCookies = false, AllowAutoRedirect = false
+});
+builder.Logging.AddFilter("System.Net.Http.HttpClient.BinanceTestnetOrderClient", LogLevel.None);
+builder.Services.AddSingleton<RacTestnetExecutor>();
+builder.Services.AddHostedService<RacTestnetWorker>();
 builder.Services.AddHostedService<RacMarketDataWorker>();
 builder.Services.AddHttpClient<BinancePortfolioPricesClient>(client =>
 {
@@ -76,10 +90,16 @@ var app = builder.Build();
 app.UseRacSecurity();
 app.MapRacAuthentication();
 
-app.MapGet("/api/health", () => new
+app.MapGet("/api/health", async (IDbContextFactory<RacDbContext> factory, CancellationToken ct) =>
 {
-    status = "ok", project = "RAC", environment = "SIMULACAO_LOCAL",
-    realOrdersEnabled = false, testnetOrderEnabled = false
+    await using var db=await factory.CreateDbContextAsync(ct);
+    var testnetEnabled=await db.TestnetExecutionStates.AsNoTracking()
+        .AnyAsync(x=>x.Id==1 && x.Enabled && !x.CircuitLocked && !x.EmergencyStopped,ct);
+    return new
+    {
+        status = "ok", project = "RAC", environment = "SIMULACAO_LOCAL",
+        realOrdersEnabled = false, testnetOrderEnabled = testnetEnabled
+    };
 });
 
 app.MapGet("/api/state", (RacPersistentEngine engine, CancellationToken ct) =>
@@ -177,6 +197,21 @@ app.MapGet("/api/paper/monitoring", async (
     RacPaperMonitoringService monitor, CancellationToken ct) =>
     Results.Ok(await monitor.ReportAsync(ct)))
     .RequireAuthorization();
+
+app.MapGet("/api/testnet/execution/status", async (RacTestnetExecutor executor,CancellationToken ct) =>
+    Results.Ok(await executor.StatusAsync(ct))).RequireAuthorization("RacOperator");
+
+app.MapPost("/api/testnet/execution/start", async (RacTestnetExecutor executor,CancellationToken ct) =>
+    await HandlePortfolioAsync(() => executor.SetEnabledAsync(true,ct)))
+    .RequireAuthorization("RacOperator");
+
+app.MapPost("/api/testnet/execution/pause", async (RacTestnetExecutor executor,CancellationToken ct) =>
+    await HandlePortfolioAsync(() => executor.SetEnabledAsync(false,ct)))
+    .RequireAuthorization("RacOperator");
+
+app.MapPost("/api/testnet/execution/emergency", async (RacTestnetExecutor executor,CancellationToken ct) =>
+    await HandlePortfolioAsync(() => executor.EmergencyStopAsync(ct)))
+    .RequireAuthorization("RacOperator");
 
 app.MapGet("/api/binance/spot/status", (BinanceSpotCredentialStore store,
     HttpContext context) =>

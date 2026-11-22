@@ -1,3 +1,5 @@
+> **MVP 1.2 — Binance Spot Testnet:** executor exclusivamente de teste, com credenciais Windows DPAPI separadas, ordens idempotentes no SQL, filtros, reconciliação, trava de emergência e painel. Por padrão INATIVO; não envia ordens reais. Veja [MVP-1.2.md](MVP-1.2.md).
+
 > **MVP 1.1.1:** monitoramento independente dos 12 agentes fictícios, alertas persistidos, relatórios virtuais e auditoria por candle, sem ordens reais. Consulte [MVP-1.1.1.md](MVP-1.1.1.md).
 
 > **MVP 1.1:** na `main`, operações **PAPER ONLY** automáticas após comando de início do operador, usando candles/quotes reais públicos Binance, R$ 100 de capital fictício, R$ 200 de aporte virtual a cada 30 dias e travas de risco. Veja [MVP-1.1.md](MVP-1.1.md). **Nunca negocia dinheiro real.**

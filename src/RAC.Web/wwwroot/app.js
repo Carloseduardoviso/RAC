@@ -145,6 +145,7 @@ function showSession(session) {
   $('realStrategiesPanel').hidden = !authenticated;
   $('paperPanel').hidden = !authenticated;
   $('paperMonitoringPanel').hidden = !authenticated;
+  $('testnetExecutionPanel').hidden = !authenticated || !canControl;
   if (!authenticated) { clearRealStrategiesDisplay(); clearPaperDisplay(); clearMonitoringDisplay(); }
   if (!authenticated || !canViewWallet) {
     clearWalletDisplay();
@@ -171,6 +172,7 @@ async function loadSession() {
     await refreshRealStrategies();
     await refreshPaper();
     await refreshMonitoring();
+    if (canControl) await refreshTestnetExecution();
     await checkWalletStatus();
     if (canViewWallet) { await refreshPortfolioHistory(); await refreshActivityHistory(); }
   } catch {
@@ -406,6 +408,54 @@ $('portfolioCashFlowForm').onsubmit = async event => {
 
 
 const brl = usd;
+async function refreshTestnetExecution() {
+  if (!authenticated || !canControl) return;
+  try {
+    const s = await api('testnet/execution/status');
+    if (s.mode !== 'BINANCE_SPOT_TESTNET_ONLY' || s.realOrdersEnabled ||
+        s.endpoint !== 'https://testnet.binance.vision')
+      throw new Error('Endpoint da Testnet inesperado.');
+    $('testnetExecutionStatus').textContent = s.emergencyStopped ? 'EMERGÊNCIA' :
+      s.circuitLocked ? 'BLOQUEADO' : s.enabled ? 'TESTNET ATIVO' : 'TESTNET PAUSADO';
+    $('testnetExecutionMessage').textContent =
+      'Credenciais TESTNET: '+(s.credentialsConfigured ? 'configuradas' : 'ausentes')+
+      ' • PAPER: '+(s.paperRunning ? 'ativo' : 'pausado')+
+      ' • última verificação: '+(s.lastCycleUtc ? formatDate(s.lastCycleUtc) : 'nenhuma')+
+      (s.lockReason ? ' • '+s.lockReason : '')+
+      '. Nenhuma ordem real habilitada.';
+    $('testnetExecutionStart').disabled = !s.credentialsConfigured ||
+      !s.paperRunning || s.paperRiskLocked || s.enabled ||
+      s.circuitLocked || s.emergencyStopped;
+    $('testnetExecutionPause').disabled = !s.enabled;
+    $('testnetExecutionStop').disabled = s.emergencyStopped;
+    $('testnetExecutionOrders').innerHTML = s.orders.length ? s.orders.map(x =>
+      '<tr><td>'+safe(formatDate(x.createdUtc))+'</td><td>'+safe(x.symbol)+
+      '</td><td>'+safe(x.side)+'</td><td>'+walletNumber(x.quantity)+
+      '</td><td>'+safe(x.status)+'</td><td>'+safe(x.clientOrderId)+
+      '</td><td>'+safe(x.note || '—')+'</td></tr>').join('')
+      : '<tr><td colspan="7">Nenhuma ordem de teste.</td></tr>';
+  } catch(error) {
+    $('testnetExecutionStatus').textContent = 'INDISPONÍVEL';
+    $('testnetExecutionMessage').textContent = error.message;
+  }
+}
+async function testnetCommand(action) {
+  if(action === 'emergency' &&
+      !confirm('Parar permanentemente o executor de ordens TESTNET? Exige revisão manual.')) return;
+  try {
+    await api('testnet/execution/'+action, {method:'POST',
+      headers:{'Content-Type':'application/json'},body:'{}'});
+  } catch(error) {
+    $('testnetExecutionMessage').textContent = 'Erro no controle Testnet: '+error.message;
+  }
+  await refreshTestnetExecution();
+}
+$('testnetExecutionStart').onclick = () => testnetCommand('start');
+$('testnetExecutionPause').onclick = () => testnetCommand('pause');
+$('testnetExecutionStop').onclick = () => testnetCommand('emergency');
+$('testnetExecutionRefresh').onclick = refreshTestnetExecution;
+setInterval(() => {if(authenticated && canControl) refreshTestnetExecution();},30000);
+
 function clearMonitoringDisplay() {
   $('paperMonitorStatus').textContent = 'Sem dados';
   $('paperMonitorPnl').textContent = '—';
