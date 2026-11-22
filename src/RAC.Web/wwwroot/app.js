@@ -690,6 +690,8 @@ $('runWalkForward').onclick = async () => {
   $('runWalkForward').disabled = true;
   $('walkForwardStatus').textContent = 'Consultando candles publicos e analisando janelas cronologicas...';
   $('walkForwardRows').innerHTML = '<tr><td colspan="8">Calculando...</td></tr>';
+  $('profitabilityStatus').textContent = 'Calculando custos hipoteticos, entradas e stops...';
+  $('profitabilityRows').innerHTML = '<tr><td colspan="9">Calculando...</td></tr>';
   try {
     const r = await api('strategy/walk-forward');
     if (r.mode !== 'WALK_FORWARD_RESEARCH_ONLY' || r.orderPlacementEnabled ||
@@ -698,6 +700,24 @@ $('runWalkForward').onclick = async () => {
         r.agents.length !== 12)
       throw new Error('Relatorio walk-forward fora do modo seguro.');
     const done = r.agents.filter(x => x.status === 'COMPLETE');
+    const diagnostic = r.profitabilityDiagnostics;
+    if (!diagnostic || diagnostic.mode !== 'READ_ONLY_SIGNAL_COST_DIAGNOSTICS' ||
+        diagnostic.paperModified || diagnostic.orderPlacementEnabled ||
+        diagnostic.promotionAllowed || diagnostic.count !== 12 ||
+        !Array.isArray(diagnostic.agents) || diagnostic.agents.length !== 12)
+      throw new Error('Diagnostico de rentabilidade fora do modo somente leitura.');
+    $('profitabilityStatus').textContent = 'Custo hipotetico de compra e venda: '+
+      pct(diagnostic.roundTripAssumedCostPct)+
+      ' • sinais por candle nao sao trades nem lucro realizado.';
+    $('profitabilityRows').innerHTML = diagnostic.agents.map(x =>
+      '<tr><td>'+safe(x.symbol)+'</td><td>'+Number(x.buySignalCandles)+
+      '</td><td>'+Number(x.positiveNextCandleMoves)+'/'+Number(x.buyWithNextCandle)+
+      '</td><td>'+Number(x.nextCandleMovesAboveRoundTripCost)+
+      '</td><td>'+(x.meanNextCandleGrossMovePct === null ? '-' : pct(x.meanNextCandleGrossMovePct))+
+      '</td><td>'+(x.meanNextCandleNetIfRoundTripPct === null ? '-' : pct(x.meanNextCandleNetIfRoundTripPct))+
+      '</td><td>'+Number(x.lowAtrBuySignals)+' / '+Number(x.highAtrBuySignals)+
+      '</td><td>'+Number(x.historicalHoldoutStopsBaseline)+' / '+Number(x.historicalHoldoutStopsSelected)+
+      '</td><td>'+safe(x.status)+'</td></tr>').join('');
     $('walkForwardStatus').textContent = done.length+'/12 agentes com janelas completas; treino '+
       Number(r.trainingCandles)+' candles, teste '+Number(r.testCandles)+
       ' candles; historico externo sem persistencia. Nao aprova nenhuma estrategia.';
@@ -711,6 +731,8 @@ $('runWalkForward').onclick = async () => {
   } catch(error) {
     $('walkForwardStatus').textContent = 'Walk-forward indisponivel: '+error.message;
     $('walkForwardRows').innerHTML = '<tr><td colspan="8">Dados indisponiveis.</td></tr>';
+    $('profitabilityStatus').textContent = 'Diagnostico indisponivel: '+error.message;
+    $('profitabilityRows').innerHTML = '<tr><td colspan="9">Dados indisponiveis.</td></tr>';
   } finally { $('runWalkForward').disabled = false; }
 };
 

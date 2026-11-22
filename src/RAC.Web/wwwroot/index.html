@@ -251,6 +251,10 @@
   <p id="walkForwardStatus" role="status">Nenhuma analise executada.</p>
   <p><small>Consulta sob demanda de ate 1.000 candles fechados por par, sem gravar no banco operacional. Para cada janela, compara baseline e pausa no treino e seleciona somente pelos resultados anteriores; mede a alternativa selecionada em periodo posterior separado. Historico curto e custos estimados; nenhuma estrategia e ativada automaticamente.</small></p>
   <div class="scroll"><table><thead><tr><th>Agente</th><th>Candles</th><th>Janelas teste</th><th>Pausa selecionada</th><th>Testes positivos</th><th>Retorno medio baseline</th><th>Retorno medio selecionado</th><th>Situacao</th></tr></thead><tbody id="walkForwardRows"><tr><td colspan="8">Sem analise.</td></tr></tbody></table></div>
+  <h3>MVP 1.3.1 - Diagnostico de rentabilidade observacional</h3>
+  <p id="profitabilityStatus" role="status">Execute a analise walk-forward para carregar o diagnostico de sinais e custos.</p>
+  <p><small>Consulta os mesmos candles publicos, sem requisicoes extras e sem modificar o PAPER. Sinais de compra por candle NAO sao operacoes. A variacao do candle seguinte e uma observacao, nao uma execucao. Taxa, slippage e spread sao hipoteticos. Os stops sao dos cenarios walk-forward isolados, nao do historico real de fills PAPER.</small></p>
+  <div class="scroll"><table><thead><tr><th>Agente</th><th>Sinais compra</th><th>Proximo candle positivo</th><th>Movimento acima do custo</th><th>Movimento bruto medio</th><th>Movimento liquido hipotetico</th><th>ATR baixo / alto</th><th>Stops baseline / selecionado</th><th>Estado</th></tr></thead><tbody id="profitabilityRows"><tr><td colspan="9">Sem diagnostico.</td></tr></tbody></table></div>
   <h3>Revisao de risco PAPER (somente leitura)</h3>
   <p id="strategyRiskReviewStatus" role="status">Execute a validacao para carregar o diagnostico financeiro.</p>
   <p><small>Resultados realizados das vendas ja incluem as taxas de entrada e saida. Nao subtrair as taxas totais novamente. Posicoes abertas nao sao lucro realizado. Este relatorio nao desbloqueia a carteira nem modifica os limites financeiros.</small></p>

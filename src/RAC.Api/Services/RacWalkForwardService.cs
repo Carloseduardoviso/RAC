@@ -24,6 +24,7 @@ public sealed class RacWalkForwardService(BinancePublicMarketClient publicMarket
             if (_cached is not null && now - _lastCompleted < TimeSpan.FromSeconds(60))
                 return _cached;
             var results = new List<PaperStrategyWalkForward.Result>();
+            var profitabilityDiagnostics = new List<PaperProfitabilityDiagnostics.Result>();
             foreach (var symbol in RacMarketSymbols.Supported)
             {
                 ct.ThrowIfCancellationRequested();
@@ -31,7 +32,11 @@ public sealed class RacWalkForwardService(BinancePublicMarketClient publicMarket
                 // the existing 60-second incremental collector is untouched.
                 var candles = await publicMarket.GetHistoricalClosedOneMinuteCandlesAsync(symbol, ct);
                 var sorted = candles.OrderBy(x => x.OpenUtc).ToArray();
-                results.Add(PaperStrategyWalkForward.Run(symbol, sorted, DateTimeOffset.UtcNow));
+                var assessedUtc = DateTimeOffset.UtcNow;
+                var walk = PaperStrategyWalkForward.Run(symbol, sorted, assessedUtc);
+                results.Add(walk);
+                profitabilityDiagnostics.Add(PaperProfitabilityDiagnostics.Run(
+                    symbol, sorted, assessedUtc, walk));
             }
             if (results.Count != RacMarketSymbols.Supported.Length)
                 throw new InvalidOperationException("Incomplete historical response.");
@@ -59,7 +64,16 @@ public sealed class RacWalkForwardService(BinancePublicMarketClient publicMarket
                     candidate = "FIVE_CANDLE_REENTRY_COOLDOWN",
                     warning = "Limited recent minute history, overlapping training windows, fixed costs and all-in USDT position sizing. NOT a PAPER replay, independent validation or proof of future profit."
                 },
-                agents = results
+                agents = results,
+                profitabilityDiagnostics = new {
+                    mode = "READ_ONLY_SIGNAL_COST_DIAGNOSTICS",
+                    methodology = "CLOSED_CANDLE_SIGNAL_NEXT_CANDLE_RESPONSE_NOT_REALIZED_TRADES",
+                    roundTripAssumedCostPct = Math.Round(
+                        PaperProfitabilityDiagnostics.RoundTripCostPct, 4),
+                    paperModified = false, orderPlacementEnabled = false,
+                    promotionAllowed = false, count = profitabilityDiagnostics.Count,
+                    agents = profitabilityDiagnostics
+                }
             };
             _cached = payload;
             _lastCompleted = DateTimeOffset.UtcNow;
