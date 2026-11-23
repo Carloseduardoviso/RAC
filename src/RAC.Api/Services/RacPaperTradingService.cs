@@ -357,29 +357,29 @@ public sealed class RacPaperTradingWorker(
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(60));
         try
         {
-            // Initialize and force a safe PAUSED state immediately on startup.
-            // This call never fetches public prices unless the operator has started it.
+            // Startup and recurring failures have the same fail-closed policy.
+            // No automatic resumption, even after a transient network exception.
             await trading.RunCycleAsync(stoppingToken);
             while (await timer.WaitForNextTickAsync(stoppingToken))
-            {
-                try { await trading.RunCycleAsync(stoppingToken); }
-                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-                { break; }
-                catch (Exception exception)
-                {
-                    logger.LogCritical(exception, "Motor PAPER suspenso após falha.");
-                    try
-                    {
-                        await trading.HaltAsync("Carlos: erro de rede, dados ou persistência. Revisão obrigatória.", stoppingToken);
-                    }
-                    catch (Exception dbError)
-                    {
-                        logger.LogCritical(dbError, "Falha ao persistir trava PAPER; worker encerrado.");
-                    }
-                    break; // never auto-retry after an unknown state.
-                }
-            }
+                await trading.RunCycleAsync(stoppingToken);
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            var category = RacPaperFailureClassifier.Classify(exception);
+            logger.LogCritical(exception, "Motor PAPER suspenso após falha {FailureCategory}.", category);
+            try
+            {
+                // Only a fixed category is persisted. Never store raw exception
+                // details which can contain connection strings or credentials.
+                await trading.HaltAsync(RacPaperFailureClassifier.SafeReason(exception),
+                    CancellationToken.None);
+            }
+            catch (Exception dbError)
+            {
+                logger.LogCritical(dbError, "Falha ao persistir trava PAPER; worker encerrado.");
+            }
+            // Worker remains stopped. Human risk review is mandatory.
+        }
     }
 }
