@@ -65,8 +65,10 @@ internal static class FixedHoldoutReplayCli
                     $"trades={replay.ClosedTrades} unresolved={replay.UnresolvedExitIntents}");
             }
         }
+        var diagnostic = RacFixedCandidateDiagnostics.Compare(frozen, results);
         var payload = new {
             mode = "FIXED_POST_TRAINING_SHADOW_ONLY",
+            diagnostic,
             trainingMonths = RacFrozenDecisionAudit.TrainMonths,
             holdoutMonths = RacFrozenDecisionAudit.HoldoutMonths,
             agents = frozen.Agents,
