@@ -1,0 +1,57 @@
+using RAC.Application;
+using RAC.Infrastructure;
+
+namespace RAC.Tests;
+
+public sealed class ProductionRiskPolicyStoreTests
+{
+    private static ProductionRiskLimits Limits() => new(
+        100m, 20m, 1m, 10m, 1, 3, 10,
+        new HashSet<string>(StringComparer.Ordinal) { "ETHUSDT", "BTCUSDT" });
+
+    [Fact]
+    public void Canonical_policy_has_stable_hash_regardless_of_symbol_order()
+    {
+        var first = ProductionRiskPolicyStore.CanonicalLimits(Limits());
+        var second = ProductionRiskPolicyStore.CanonicalLimits(
+            Limits() with { AllowedSymbols = new HashSet<string>(
+                StringComparer.Ordinal) { "BTCUSDT", "ETHUSDT" } });
+        Assert.Equal(first, second);
+        Assert.Equal(64, ProductionRiskPolicyStore.Sha256(first).Length);
+        Assert.Equal(ProductionRiskPolicyStore.Sha256(first),
+            ProductionRiskPolicyStore.Sha256(second));
+        Assert.False(ProductionRiskGate.RealTradingImplementedAndAuthorized);
+    }
+
+    [Fact]
+    public void Unapproved_or_incomplete_limits_cannot_be_persisted()
+    {
+        Assert.Throws<InvalidDataException>(() =>
+            ProductionRiskPolicyStore.CanonicalLimits(ProductionRiskLimits.Unapproved));
+        Assert.Throws<InvalidDataException>(() =>
+            ProductionRiskPolicyStore.CanonicalLimits(Limits() with {
+                MaximumOrdersPerDay = 0 }));
+    }
+
+    [Theory]
+    [InlineData("alice", "alice", "ADMIN", "Review with complete details is required.")]
+    [InlineData("alice", "bob", "VIEWER", "Review with complete details is required.")]
+    [InlineData("alice", "bob", "ADMIN", "too short")]
+    public void Review_requires_separate_administrator_and_reason(
+        string proposer, string reviewer, string role, string reason)
+    {
+        Assert.Throws<InvalidOperationException>(() =>
+            ProductionRiskPolicyStore.ValidateReview(
+                proposer, reviewer, role, reason));
+    }
+
+    [Fact]
+    public void Distinct_administrator_review_is_record_only()
+    {
+        ProductionRiskPolicyStore.ValidateReview("alice", "bob",
+            "ADMIN", "Independent review of risk policy proposal.");
+        Assert.Equal("REAL_TRADING_DISABLED_IN_SOURCE",
+            ProductionRiskGate.Validate(Limits(), null, "BTCUSDT",
+                "BUY", 10m, DateTimeOffset.UtcNow));
+    }
+}

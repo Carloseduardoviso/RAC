@@ -35,10 +35,33 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
 
     public DbSet<TestnetOrderRecord> TestnetOrders => Set<TestnetOrderRecord>();
     public DbSet<TestnetExecutionState> TestnetExecutionStates => Set<TestnetExecutionState>();
+    public DbSet<ProductionRiskPolicyRecord> ProductionRiskPolicies => Set<ProductionRiskPolicyRecord>();
+    public DbSet<ProductionRiskPolicyAudit> ProductionRiskPolicyAudits => Set<ProductionRiskPolicyAudit>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<ProductionRiskPolicyRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.Version).IsUnique();
+            e.Property(x => x.LimitsJson).IsRequired().HasMaxLength(2000);
+            e.Property(x => x.LimitsSha256).IsRequired().HasMaxLength(64);
+            e.Property(x => x.Status).IsRequired().HasMaxLength(32);
+            e.Property(x => x.ProposedBy).IsRequired().HasMaxLength(128);
+            e.Property(x => x.ReviewedBy).HasMaxLength(128);
+            e.Property(x => x.ReviewReason).HasMaxLength(500);
+            e.Property(x => x.RowVersion).IsRowVersion();
+        });
+        model.Entity<ProductionRiskPolicyAudit>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Action).IsRequired().HasMaxLength(40);
+            e.Property(x => x.Actor).IsRequired().HasMaxLength(128);
+            e.Property(x => x.Reason).IsRequired().HasMaxLength(500);
+            e.Property(x => x.LimitsSha256).IsRequired().HasMaxLength(64);
+            e.HasIndex(x => new { x.PolicyId, x.CreatedUtc });
+        });
         model.Entity<TestnetExecutionState>(e =>
         {
             e.HasKey(x=>x.Id);
