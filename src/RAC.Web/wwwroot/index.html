@@ -4,6 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0a0c16"><title>RAC — Simulador de agentes</title>
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="trading-floor.css">
 </head>
 <body>
 <div class="shell">
@@ -25,9 +26,9 @@
 <section class="panel office-map" aria-labelledby="office-title" aria-describedby="office-legend">
   <div class="office-hud" aria-label="Resumo do escritório">
     <div class="office-hud-title"><span class="office-live-dot" aria-hidden="true"></span><strong>Escritório operacional</strong><span class="office-hud-pill">12 agentes</span><span class="office-hud-pill">3 líderes</span></div>
-    <div class="office-hud-code">TRADING FLOOR 01</div>
+    <div class="office-hud-code">TRADING FLOOR 01 · PAPER</div>
   </div>
-  <div class="office-activity-strip" aria-hidden="true"><strong>Observando</strong><span>Avaliando sinais</span><span>Decidindo entradas</span><span>Protegendo risco</span><b>SIMULAÇÃO</b></div>
+  <div class="office-activity-strip" aria-label="Etapas operacionais do escritório"><strong>Observando</strong><span>Avaliando sinais</span><span>Decidindo entradas</span><span>Protegendo risco</span><b id="officeStageState">PAPER</b></div>
   <div class="section-head office-title-row">
     <div>
       <h1 id="office-title">Trading floor dos agentes</h1>
@@ -43,8 +44,24 @@
   </div>
   <div id="error" role="alert" hidden></div>
   <div class="office-scene-shell">
-  <div class="office-scene-label" aria-hidden="true">NÍVEL OPERACIONAL · SIMULAÇÃO SEGURA</div>
+  <div class="office-skyline" aria-hidden="true">
+    <div class="office-windows"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="office-specialist"><span>ÁREA ESPECIALISTA</span><strong>TRADING LAB</strong><small>Somente análise · sem ordens reais</small></div>
+  </div>
+  <div class="office-day-result" role="group" aria-label="Resultado do simulador no dia">
+    <small><span class="office-live-dot" aria-hidden="true"></span> RESULTADO PAPER · HOJE</small>
+    <strong id="officeDayResult">R$ 0,00</strong>
+    <span id="officeDayCaption">Resultado virtual · não representa retorno real</span>
+  </div>
+  <div class="office-scene-label" aria-hidden="true">ESCRITÓRIO DIGITAL · 12 ESTAÇÕES · 3 APOIOS</div>
   <div class="office-rooms">
+    <aside class="office-lounge" aria-label="Sala de descanso">
+      <strong>ANDAR 2</strong>
+      <h2>Sala de descanso</h2>
+      <p id="officeLoungeCount">Status dos agentes atualizado ao consultar o simulador.</p>
+      <div class="office-sofa" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div class="office-lounge-light" aria-hidden="true"></div>
+    </aside>
     <section class="office-room office-leadership" aria-labelledby="office-leadership-title">
       <h2 id="office-leadership-title">Sala da liderança</h2>
       <p>Carlos controla o risco, Ana coordena a operação e Rebeca acompanha notícias (integração pendente).</p>
@@ -57,7 +74,13 @@
     </section>
   </div>
   </div>
-  <div class="office-floor-legend" aria-label="Legenda do mapa"><span><i class="office-key observing"></i>Observando</span><span><i class="office-key active"></i>Em operação</span><span><i class="office-key awaiting"></i>Aguardando</span><span><i class="office-key resting"></i>Em pausa</span></div>
+  <div class="office-floor-legend" aria-label="Legenda dos estados dos agentes">
+    <span><i class="office-key observing"></i>Analisando <strong id="officeCountAnalyzing">0</strong></span>
+    <span><i class="office-key active"></i>Em operação <strong id="officeCountOperating">0</strong></span>
+    <span><i class="office-key awaiting"></i>Aguardando <strong id="officeCountWaiting">0</strong></span>
+    <span><i class="office-key resting"></i>Pausa / bloqueio <strong id="officeCountPaused">0</strong></span>
+    <span class="office-count-info" id="officeCountInfo">12 agentes monitorados · 3 apoios</span>
+  </div>
 </section>
 <section class="metrics"><div class="metric"><span>Patrimônio simulado</span><strong id="equity">—</strong><small id="balance">Saldo: —</small></div><div class="metric"><span>Resultado do trading (sem aportes)</span><strong id="pnl">—</strong><small id="daily">Hoje: —</small></div><div class="metric"><span>Posições abertas</span><strong id="open">—</strong><small id="limit">Limite: —</small></div><div class="metric"><span>Status de risco</span><strong id="risk">—</strong><small id="drawdown">Queda acumulada: —</small></div></section>
 <section class="panel" id="walletPanel" hidden>
@@ -577,4 +600,4 @@
 <section class="panel note"><h2>Sobre este MVP</h2><p><b>As operações e o patrimônio seguem sintéticos.</b> O simulador produz variações aleatórias; os sinais vêm de uma regra de momentum, não de um modelo de IA treinado.</p><p>O resultado inclui taxa ilustrativa de 0,1% por lado e câmbio fictício de R$ 5 por USDT. Não prevê slippage real, spreads variáveis ou outras condições de mercado.</p><p>O RAC consulta cotações públicas reais e, quando o administrador solicita, lê a carteira Spot pela API com permissão exclusivamente de leitura. O histórico real em BRL representa estimativas de mercado, sem conciliação de lucro. A Testnet está disponível para verificações públicas. Não existem endpoints para ordens reais, saques ou pagamentos.</p></section></aside></div>
 </main>
 <footer>RAC • Protótipo educacional • Nenhuma promessa de rentabilidade</footer>
-</div><script src="app.js" defer></script></body></html>
+</div><script src="app.js" defer></script><script src="trading-floor.js" defer></script></body></html>
