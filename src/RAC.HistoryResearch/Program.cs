@@ -6,6 +6,8 @@ using RAC.Application;
 using RAC.Domain;
 
 // Manual invocation only. No API registration, worker, trading state or secrets.
+if (args.Length > 0 && args[0] == "--entry-gates-summary")
+    return await EntryGateCrossMonthCli.RunAsync(args);
 if (args.Length > 0 && args[0] == "--entry-gates")
     return await EntryGateResearchCli.RunAsync(args);
 if (args.Length > 0 && args[0] == "--three-months")
