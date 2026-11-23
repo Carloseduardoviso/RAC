@@ -345,6 +345,8 @@ $('frozenDecisionsRefresh').onclick = refreshFrozenDecisions;
 function clearProductionPolicies() {
   $('policyStatus').textContent = 'Aguardando consulta';
   $('policyNotice').textContent = 'Políticas documentais não habilitam ordens.';
+  for (const id of ['policyPending', 'policyReviewed', 'policyRejected',
+                    'policyIntegrity']) $(id).textContent = '—';
   $('policyRows').innerHTML = '<tr><td colspan="7">Sem dados disponíveis.</td></tr>';
   $('policyAuditRows').innerHTML = '<tr><td colspan="6">Sem dados disponíveis.</td></tr>';
 }
@@ -355,9 +357,15 @@ async function refreshProductionPolicies() {
     const report = await api('risk/policies');
     if (report.mode !== 'RISK_POLICY_REVIEW_ONLY' ||
         report.tradingEnabled || report.paperModified ||
-        !Array.isArray(report.policies) || !Array.isArray(report.audits))
+        !Array.isArray(report.policies) || !Array.isArray(report.audits) ||
+        !report.security || report.security.orderPlacementEnabled ||
+        report.security.integrityAlerts !== 0)
       throw new Error('Resposta de auditoria incompatível com modo seguro.');
     $('policyStatus').textContent = 'Auditoria consultada — ordens desabilitadas';
+    $('policyPending').textContent = report.security.pendingReview;
+    $('policyReviewed').textContent = report.security.reviewedDocumentOnly;
+    $('policyRejected').textContent = report.security.rejected;
+    $('policyIntegrity').textContent = report.security.integrityAlerts;
     $('policyRows').innerHTML = report.policies.length
       ? report.policies.map(p =>
         '<tr><td>' + Number(p.id) + '</td><td>' + Number(p.version) +

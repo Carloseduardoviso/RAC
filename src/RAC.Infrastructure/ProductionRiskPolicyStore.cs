@@ -53,8 +53,41 @@ public sealed class ProductionRiskPolicyStore(IDbContextFactory<RacDbContext> fa
             .OrderByDescending(x => x.Id).Take(80)
             .Select(x => new { x.Id, x.PolicyId, x.Action, x.Actor, x.Reason,
                 x.LimitsSha256, x.CreatedUtc }).ToArrayAsync(ct);
-        return new { policies, audits, tradingEnabled = false,
-            paperModified = false, mode = "RISK_POLICY_REVIEW_ONLY" };
+        // Fail closed on modified policy documents or missing/mismatched
+        // audit events. The UI must never depict corrupt records as approved.
+        if (policies.Any(p => Sha256(p.LimitsJson) != p.LimitsSha256 ||
+            p.Status is not ("PENDING_REVIEW" or
+                "REVIEWED_NO_TRADING_PERMISSION" or "REJECTED")))
+            throw new InvalidDataException("Risk policy integrity check failed.");
+        var policyIds = policies.Select(p => p.Id).ToArray();
+        var policyAudits = await db.ProductionRiskPolicyAudits.AsNoTracking()
+            .Where(a => policyIds.Contains(a.PolicyId))
+            .Select(a => new { a.PolicyId, a.Action, a.LimitsSha256 })
+            .ToArrayAsync(ct);
+        if (policies.Any(p =>
+            policyAudits.Count(a => a.PolicyId == p.Id && a.Action == "PROPOSED" &&
+                a.LimitsSha256 == p.LimitsSha256) != 1 ||
+            policyAudits.Count(a => a.PolicyId == p.Id &&
+                (a.Action == "REVIEWED" || a.Action == "REJECTED") &&
+                a.LimitsSha256 == p.LimitsSha256) !=
+                (p.Status == "PENDING_REVIEW" ? 0 : 1) ||
+            (p.Status != "PENDING_REVIEW" &&
+                !policyAudits.Any(a => a.PolicyId == p.Id &&
+                    a.Action == (p.Status == "REJECTED" ? "REJECTED" : "REVIEWED") &&
+                    a.LimitsSha256 == p.LimitsSha256))))
+            throw new InvalidDataException("Risk policy audit integrity check failed.");
+        var pending = await db.ProductionRiskPolicies.CountAsync(
+            p => p.Status == "PENDING_REVIEW", ct);
+        var reviewed = await db.ProductionRiskPolicies.CountAsync(
+            p => p.Status == "REVIEWED_NO_TRADING_PERMISSION", ct);
+        var rejected = await db.ProductionRiskPolicies.CountAsync(
+            p => p.Status == "REJECTED", ct);
+        return new { policies, audits, security = new {
+            pendingReview = pending, reviewedDocumentOnly = reviewed,
+            rejected, checkedPolicies = policies.Length, integrityAlerts = 0,
+            orderPlacementEnabled = false },
+            tradingEnabled = false, paperModified = false,
+            mode = "RISK_POLICY_REVIEW_ONLY" };
     }
 
     public async Task<ProductionRiskPolicyRecord> ProposeAsync(
@@ -95,7 +128,11 @@ public sealed class ProductionRiskPolicyStore(IDbContextFactory<RacDbContext> fa
         await using var db = await factory.CreateDbContextAsync(ct);
         await using var tx = await db.Database.BeginTransactionAsync(
             IsolationLevel.Serializable, ct);
-        var policy = await db.ProductionRiskPolicies.SingleAsync(x => x.Id == policyId, ct);
+        // Acquire an update lock before inspecting status to serialize
+        // competing reviewers and avoid an S-to-X conversion deadlock.
+        var policy = await db.ProductionRiskPolicies.FromSqlInterpolated(
+            $"SELECT * FROM [rac].[ProductionRiskPolicies] WITH (UPDLOCK, HOLDLOCK) WHERE [Id] = {policyId}")
+            .SingleAsync(ct);
         ValidateReview(policy.ProposedBy, reviewer, role, reason);
         if (policy.Status != "PENDING_REVIEW" ||
             Sha256(policy.LimitsJson) != policy.LimitsSha256)

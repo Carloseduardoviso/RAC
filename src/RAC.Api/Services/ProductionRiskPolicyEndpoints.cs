@@ -24,7 +24,18 @@ public static class ProductionRiskPolicyEndpoints
             ProductionRiskPolicyStore store, HttpContext http, CancellationToken ct) =>
         {
             http.Response.Headers.CacheControl = "no-store";
-            return Results.Ok(await store.HistoryAsync(ct));
+            try { return Results.Ok(await store.HistoryAsync(ct)); }
+            catch (InvalidDataException)
+            {
+                return Results.Conflict(new { error =
+                    "Policy or audit integrity failure. Review blocked." });
+            }
+            catch (Exception ex) when (ex is DbUpdateException or
+                Microsoft.Data.SqlClient.SqlException)
+            {
+                return Results.Json(new { error = "Risk policy SQL unavailable." },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
         }).RequireAuthorization("RacRiskReviewer");
 
         app.MapPost("/api/risk/policies", async (
@@ -60,6 +71,11 @@ public static class ProductionRiskPolicyEndpoints
             {
                 return Results.Conflict(new { error = "Policy version conflict." });
             }
+            catch (Microsoft.Data.SqlClient.SqlException)
+            {
+                return Results.Json(new { error = "Risk policy SQL unavailable or locked." },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
         }).RequireAuthorization("RacRiskReviewer");
 
         // Role is resolved from authenticated claims, never from request input.
@@ -91,6 +107,11 @@ public static class ProductionRiskPolicyEndpoints
             catch (DbUpdateConcurrencyException)
             {
                 return Results.Conflict(new { error = "Policy review conflict." });
+            }
+            catch (Microsoft.Data.SqlClient.SqlException)
+            {
+                return Results.Json(new { error = "Risk policy SQL unavailable or locked." },
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
             }
         }).RequireAuthorization("RacWalletOwner");
         return app;
