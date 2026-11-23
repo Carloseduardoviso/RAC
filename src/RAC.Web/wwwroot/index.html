@@ -329,6 +329,26 @@
     <tbody id="frozenDecisionsRows"><tr><td colspan="7">Aguardando auditoria.</td></tr></tbody></table></div>
   <p><small>Se uma escolha ativa for a mais frequente, ela exige replay com parâmetros realmente fixos; não é permitido reutilizar os retornos de estratégias recalibradas por janela. NO_TRADE não comprova lucro ou vantagem estatística.</small></p>
 </section>
+<section class="panel" id="robustnessPanel" hidden>
+  <div class="section-head"><div>
+    <h2>RAC MVP 1.5.8 — Robustez dos agentes (SHADOW)</h2>
+    <p>Escolhas congeladas em maio–julho; observação de agosto–outubro de 2026. Nenhuma operação habilitada.</p>
+  </div><span class="chip" id="robustnessStatus">Aguardando relatório</span></div>
+  <p id="robustnessNotice">Métricas de custo e retorno só aparecem com evidências completas de estratégia ativa.</p>
+  <button id="robustnessRefresh" type="button">Atualizar robustez (somente leitura)</button>
+  <div class="metrics" style="margin:16px 0">
+    <div class="metric"><span>Agentes avaliados</span><strong id="robustnessAgents">—</strong></div>
+    <div class="metric"><span>Sem estratégia ativa</span><strong id="robustnessAbstaining">—</strong></div>
+    <div class="metric"><span>Evidência insuficiente</span><strong id="robustnessInsufficient">—</strong></div>
+    <div class="metric"><span>Alertas de instabilidade</span><strong id="robustnessUnstable">—</strong></div>
+  </div>
+  <div class="scroll"><table><thead><tr>
+    <th>Agente</th><th>Gate fixo</th><th>Meses positivos</th><th>Trades simulados</th>
+    <th>Custo 1x (%)</th><th>Custo 2x (%)</th><th>Penalidade (%)</th>
+    <th>Drawdown (%)</th><th>Diagnóstico</th>
+  </tr></thead><tbody id="robustnessRows"><tr><td colspan="9">Sem pesquisa validada.</td></tr></tbody></table></div>
+  <p><small>Dados SHADOW retrospectivos; NO_TRADE não possui retorno de estratégia ativa. Nenhum resultado significa autorização para negociação.</small></p>
+</section>
 <section class="panel" id="realStrategiesPanel" hidden>
   <div class="section-head">
     <div>

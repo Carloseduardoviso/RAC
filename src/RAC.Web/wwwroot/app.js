@@ -148,6 +148,8 @@ function showSession(session) {
   $('overfitScreenPanel').hidden = !authenticated;
   $('sixMonthValidationPanel').hidden = !authenticated;
   $('frozenDecisionsPanel').hidden = !authenticated;
+  $('robustnessPanel').hidden = !authenticated;
+  if (!authenticated) clearRobustness();
   if (!authenticated) clearFrozenDecisions();
   if (!authenticated) clearSixMonthValidation();
   if (!authenticated) clearOverfitScreen();
@@ -336,6 +338,64 @@ async function refreshFrozenDecisions() {
 }
 $('frozenDecisionsRefresh').onclick = refreshFrozenDecisions;
 
+function clearRobustness() {
+  $('robustnessStatus').textContent = 'Aguardando relatório';
+  $('robustnessNotice').textContent = 'Sem análise de robustez validada nesta sessão.';
+  for (const id of ['robustnessAgents', 'robustnessAbstaining',
+                    'robustnessInsufficient', 'robustnessUnstable']) {
+    $(id).textContent = '—';
+  }
+  $('robustnessRows').innerHTML =
+    '<tr><td colspan="9">Sem pesquisa validada.</td></tr>';
+}
+
+async function refreshRobustness() {
+  if (!authenticated) return;
+  $('robustnessRefresh').disabled = true;
+  try {
+    const report = await api('research/robustness');
+    if (!report.available) {
+      clearRobustness();
+      $('robustnessStatus').textContent = 'Indisponível';
+      $('robustnessNotice').textContent = report.notice || 'Relatório indisponível.';
+      return;
+    }
+    if (report.mode !== 'FIXED_REPLAY_ROBUSTNESS_SHADOW_ONLY' ||
+        report.agents !== 12 || report.holdoutMonths !== 3 ||
+        report.paperModified || report.orderPlacementEnabled ||
+        report.promotionAllowed || !Array.isArray(report.rows) ||
+        report.rows.length !== 12 ||
+        report.rows.some(r => r.tradingAllowed ||
+          r.evaluatedMonths !== 3 ||
+          (r.frozenGate === 'NO_TRADE' &&
+           (r.normalMeanPct !== null || r.doubleCostMeanPct !== null)))) {
+      throw new Error('Dados SHADOW de robustez incompatíveis com as salvaguardas.');
+    }
+    $('robustnessStatus').textContent = 'Pesquisa SHADOW — sem autorização de ordens';
+    $('robustnessNotice').textContent = report.notice;
+    $('robustnessAgents').textContent = report.agents;
+    $('robustnessAbstaining').textContent = report.abstainingAgents;
+    $('robustnessInsufficient').textContent = report.insufficientEvidenceAgents;
+    $('robustnessUnstable').textContent = report.unstableAgents;
+    const percentage = n => n === null || n === undefined ? 'não avaliado' : pct(n);
+    $('robustnessRows').innerHTML = report.rows.map(r =>
+      '<tr><td>' + safe(r.symbol) + '</td><td>' + safe(r.frozenGate) + '</td>' +
+      '<td>' + (r.frozenGate === 'NO_TRADE' ? 'sem estratégia ativa' : r.positiveMonths + ' / 3') + '</td>' +
+      '<td>' + r.closedTrades + '</td><td>' + percentage(r.normalMeanPct) +
+      '</td><td>' + percentage(r.doubleCostMeanPct) +
+      '</td><td>' + percentage(r.costPenaltyPct) +
+      '</td><td>' + (r.frozenGate === 'NO_TRADE' ? 'não aplicável' : percentage(r.worstDrawdownPct)) +
+      '</td><td>' + safe(r.status) + '</td></tr>').join('');
+  } catch (error) {
+    clearRobustness();
+    $('robustnessStatus').textContent = 'Falha de validação';
+    $('robustnessNotice').textContent = error.message;
+  } finally {
+    $('robustnessRefresh').disabled = !authenticated;
+  }
+}
+$('robustnessRefresh').onclick = refreshRobustness;
+
 function clearSixMonthValidation() {
   $('sixMonthValidationStatus').textContent = 'Aguardando pesquisa';
   $('sixMonthValidationNotice').textContent = 'Sem comparação de seis meses validada nesta sessão.';
@@ -519,6 +579,7 @@ async function loadSession() {
     await refreshOverfitScreen();
     await refreshSixMonthValidation();
     await refreshFrozenDecisions();
+    await refreshRobustness();
     await refreshPaper();
     await refreshMonitoring();
     if (canControl) await refreshTestnetExecution();

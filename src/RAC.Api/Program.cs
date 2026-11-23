@@ -104,6 +104,25 @@ app.MapGet("/api/health", async (IDbContextFactory<RacDbContext> factory, Cancel
     };
 });
 
+app.MapGet("/api/research/robustness", () =>
+{
+    try
+    {
+        var monthly = Path.Combine(Environment.GetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData), "RAC", "research", "monthly");
+        return Results.Ok(RacRobustnessDashboardReport.Load(monthly));
+    }
+    catch (Exception e) when (e is IOException or System.Text.Json.JsonException or
+        ArgumentException or InvalidOperationException or KeyNotFoundException or
+        FormatException or OverflowException)
+    {
+        return Results.Ok(new { available = false, mode = "ROBUSTNESS_INVALID",
+            paperModified = false, orderPlacementEnabled = false,
+            promotionAllowed = false,
+            notice = "Relatório SHADOW inválido ou incompleto. Nenhuma estratégia aprovada." });
+    }
+}).RequireAuthorization();
+
 app.MapGet("/api/research/frozen-decisions", () =>
 {
     try
