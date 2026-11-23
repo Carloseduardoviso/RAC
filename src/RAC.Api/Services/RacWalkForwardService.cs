@@ -25,6 +25,7 @@ public sealed class RacWalkForwardService(BinancePublicMarketClient publicMarket
                 return _cached;
             var results = new List<PaperStrategyWalkForward.Result>();
             var profitabilityDiagnostics = new List<PaperProfitabilityDiagnostics.Result>();
+            var entryFilterResearch = new List<PaperEntryFilterResearch.Result>();
             foreach (var symbol in RacMarketSymbols.Supported)
             {
                 ct.ThrowIfCancellationRequested();
@@ -36,6 +37,8 @@ public sealed class RacWalkForwardService(BinancePublicMarketClient publicMarket
                 var walk = PaperStrategyWalkForward.Run(symbol, sorted, assessedUtc);
                 results.Add(walk);
                 profitabilityDiagnostics.Add(PaperProfitabilityDiagnostics.Run(
+                    symbol, sorted, assessedUtc, walk));
+                entryFilterResearch.Add(PaperEntryFilterResearch.Run(
                     symbol, sorted, assessedUtc, walk));
             }
             if (results.Count != RacMarketSymbols.Supported.Length)
@@ -73,6 +76,18 @@ public sealed class RacWalkForwardService(BinancePublicMarketClient publicMarket
                     paperModified = false, orderPlacementEnabled = false,
                     promotionAllowed = false, count = profitabilityDiagnostics.Count,
                     agents = profitabilityDiagnostics
+                },
+                entryFilterResearch = new {
+                    mode = "ENTRY_FILTER_WALK_FORWARD_SHADOW_ONLY",
+                    method = "TRAIN_ONLY_FILTER_SELECTION_NONOVERLAPPING_HOLDOUTS",
+                    count = entryFilterResearch.Count,
+                    costAssumptionRoundTripPct = Math.Round(
+                        PaperProfitabilityDiagnostics.RoundTripCostPct, 4),
+                    paperModified = false, historyPersisted = false,
+                    orderPlacementEnabled = false, promotionAllowed = false,
+                    riskLimitsModified = false,
+                    warning = "Signals per candle are NOT trades. One-minute next-candle response is not real or PAPER PnL; small samples, overlapping training windows and hypothetical costs.",
+                    agents = entryFilterResearch
                 }
             };
             _cached = payload;

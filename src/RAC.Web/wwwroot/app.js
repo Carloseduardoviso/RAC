@@ -692,6 +692,8 @@ $('runWalkForward').onclick = async () => {
   $('walkForwardRows').innerHTML = '<tr><td colspan="8">Calculando...</td></tr>';
   $('profitabilityStatus').textContent = 'Calculando custos hipoteticos, entradas e stops...';
   $('profitabilityRows').innerHTML = '<tr><td colspan="9">Calculando...</td></tr>';
+  $('entryFilterStatus').textContent = 'Comparando filtros somente no modo SHADOW...';
+  $('entryFilterRows').innerHTML = '<tr><td colspan="8">Calculando...</td></tr>';
   try {
     const r = await api('strategy/walk-forward');
     if (r.mode !== 'WALK_FORWARD_RESEARCH_ONLY' || r.orderPlacementEnabled ||
@@ -706,6 +708,22 @@ $('runWalkForward').onclick = async () => {
         diagnostic.promotionAllowed || diagnostic.count !== 12 ||
         !Array.isArray(diagnostic.agents) || diagnostic.agents.length !== 12)
       throw new Error('Diagnostico de rentabilidade fora do modo somente leitura.');
+    const filters = r.entryFilterResearch;
+    if (!filters || filters.mode !== 'ENTRY_FILTER_WALK_FORWARD_SHADOW_ONLY' ||
+        filters.paperModified || filters.historyPersisted ||
+        filters.orderPlacementEnabled || filters.promotionAllowed ||
+        filters.riskLimitsModified || filters.count !== 12 ||
+        !Array.isArray(filters.agents) || filters.agents.length !== 12)
+      throw new Error('Filtros de entrada fora do modo exclusivamente experimental.');
+    $('entryFilterStatus').textContent = 'Comparativo de filtros em 12 agentes, treino sem acesso ao teste. Movimento de apenas um candle; NAO sao lucros de operacoes.';
+    $('entryFilterRows').innerHTML = filters.agents.map(x =>
+      '<tr><td>'+safe(x.symbol)+'</td><td>'+Number(x.foldCount)+
+      '</td><td>'+Number(x.filteredSelectionFolds)+
+      '</td><td>'+Number(x.holdoutsWithSelectedSignals)+
+      '</td><td>'+Number(x.totalBaselineHoldoutSignals)+' / '+Number(x.totalSelectedHoldoutSignals)+
+      '</td><td>'+(x.weightedBaselineHoldoutMeanNetPct === null ? '-' : pct(x.weightedBaselineHoldoutMeanNetPct))+
+      '</td><td>'+(x.weightedSelectedHoldoutMeanNetPct === null ? '-' : pct(x.weightedSelectedHoldoutMeanNetPct))+
+      '</td><td>'+safe(x.status)+'</td></tr>').join('');
     $('profitabilityStatus').textContent = 'Custo hipotetico de compra e venda: '+
       pct(diagnostic.roundTripAssumedCostPct)+
       ' • sinais por candle nao sao trades nem lucro realizado.';
@@ -733,6 +751,8 @@ $('runWalkForward').onclick = async () => {
     $('walkForwardRows').innerHTML = '<tr><td colspan="8">Dados indisponiveis.</td></tr>';
     $('profitabilityStatus').textContent = 'Diagnostico indisponivel: '+error.message;
     $('profitabilityRows').innerHTML = '<tr><td colspan="9">Dados indisponiveis.</td></tr>';
+    $('entryFilterStatus').textContent = 'Filtros indisponiveis: '+error.message;
+    $('entryFilterRows').innerHTML = '<tr><td colspan="8">Dados indisponiveis.</td></tr>';
   } finally { $('runWalkForward').disabled = false; }
 };
 
