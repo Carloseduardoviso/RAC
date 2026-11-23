@@ -77,6 +77,245 @@ function draw(history) {
   $('line').setAttribute('points',pts.join(' '));
   $('area').setAttribute('d',`M ${pts[0]} L ${pts.slice(1).join(' L ')} L 700,200 L 0,200 Z`);
 }
+
+const officeStationScene = `
+  <svg class="office-station-scene" viewBox="0 0 200 112" aria-hidden="true" focusable="false">
+    <path class="office-floor" d="M63 22h74l48 62-85 20-85-20z"/>
+    <path class="office-floor-lines" d="m40 53 120 0M28 69h144M51 92l32-70m17 82V22m49 70-32-70"/>
+    <g class="office-monitor">
+      <path d="M77 44v11m46-11v11M69 55h16m30 0h16"/>
+      <rect x="57" y="24" width="40" height="22" rx="3"/>
+      <rect x="103" y="21" width="40" height="25" rx="3"/>
+      <path class="office-monitor-display" d="m63 39 7-4 6 3 6-7 9 1m18 2h16m-16 5h24m-24-10h11"/>
+    </g>
+    <g class="office-desk">
+      <path class="office-desk-legs" d="M55 66v19m90-19v19"/>
+      <path class="office-desk-top" d="M52 53h96l13 13H39z"/>
+      <path class="office-desk-edge" d="M39 66h122v5H39z"/>
+      <path class="office-keyboard" d="M87 57h26l5 5H82z"/>
+    </g>
+    <g class="office-chair">
+      <path class="office-chair-base" d="M100 86v11m-10 3 10-3 10 3"/>
+      <rect x="84" y="69" width="32" height="21" rx="8"/>
+    </g>
+    <g class="office-person">
+      <path class="office-walker-leg" d="M95 80l-2 15h-4"/>
+      <path class="office-walker-leg" d="M105 80l2 15h4"/>
+      <path class="office-person-shirt" d="M87 80v-8c0-5 5-8 13-8s13 3 13 8v8z"/>
+      <circle class="office-person-face" cx="100" cy="59" r="8"/>
+      <path class="office-person-hair" d="M92 59a8 8 0 1 1 16 0l-3-4-5 2-5-1z"/>
+      <path class="office-person-eyes" d="M97 60h.1m5.8 0h.1"/>
+    </g>
+  </svg>`;
+
+const officeLeaderNames = ['Carlos', 'Ana', 'Rebeca'];
+const officeVisitDuration = { stand: 520, walk: 850, meeting: 2200 };
+const officeRooms = document.querySelector('.office-rooms');
+const officeVisitControls = document.createElement('div');
+officeVisitControls.className = 'office-visit-controls';
+officeVisitControls.innerHTML = `
+  <label>Chefe para visita
+    <select>${officeLeaderNames.map(name => `<option>${name}</option>`).join('')}</select>
+  </label>
+  <p role="status" aria-live="polite" aria-atomic="true">Liderança disponível para visitas locais.</p>`;
+officeRooms.before(officeVisitControls);
+
+const officeLeaderSelect = officeVisitControls.querySelector('select');
+const officeVisitStatus = officeVisitControls.querySelector('[role="status"]');
+let officeVisit = null;
+
+function renderOfficeStations(container, records, key, create, update) {
+  const stations = new Map(Array.from(container.children, station => [station.dataset.officeKey, station]));
+  records.forEach((record, index) => {
+    const name = record[key];
+    let station = stations.get(name);
+    if (!station) {
+      station = document.createElement('article');
+      station.dataset.officeKey = name;
+      station.innerHTML = create(name);
+    }
+    stations.delete(name);
+    update(station, record);
+    if (container.children[index] !== station) {
+      container.insertBefore(station, container.children[index] || null);
+    }
+  });
+  for (const station of stations.values()) station.remove();
+}
+
+function renderOffice(state) {
+  renderOfficeStations($('supervisors'), state.supervisors, 'name', name => `
+    <div class="agent-top">
+      <h3>${safe(name)}</h3>
+      <span></span>
+    </div>
+    ${officeStationScene}
+    <div class="office-station-details"></div>
+    ${officeLeaderNames.includes(name) ? '<p class="office-leader-state">Na estação</p>' : ''}`,
+  (station, supervisor) => {
+    station.classList.add('agent', 'office-station');
+    if (officeLeaderNames.includes(supervisor.name) && !station.dataset.officeState) {
+      station.dataset.officeState = 'seated';
+    }
+    station.querySelector('.agent-top > span').textContent = supervisor.status;
+    station.querySelector('.office-station-details').innerHTML = `
+      <p><strong>${safe(supervisor.function)}</strong></p>
+      <p>${safe(supervisor.detail)}</p>`;
+  });
+
+  renderOfficeStations($('agents'), state.agents, 'symbol', symbol => `
+    <div class="agent-top">
+      <h3>${safe(symbol)}</h3>
+      <span><span aria-hidden="true">● </span><span class="office-agent-status"></span></span>
+    </div>
+    ${officeStationScene}
+    <div class="office-station-details"></div>
+    <button type="button" class="office-visit-request" aria-label="Solicitar visita a ${safe(symbol)}">
+      Solicitar visita
+    </button>`,
+  (station, agent) => {
+    const signal = String(agent.signal ?? '—');
+    const signalClass = signal.toLowerCase();
+    const signalColor = signalClass === 'compra' || signalClass === 'venda' ? ' ' + signalClass : '';
+    const changeColor = agent.changePct >= 0 ? 'positive' : 'negative';
+    station.classList.add('agent', 'office-station');
+    station.classList.toggle('active', agent.status === 'EM OPERAÇÃO');
+    station.querySelector('.office-agent-status').textContent = agent.status;
+    station.querySelector('.office-station-details').innerHTML = `
+      <div class="price">${safe(decimal(agent.price))}</div>
+      <div class="foot">
+        <span class="${changeColor}">${agent.changePct > 0 ? '+' : ''}${safe(pct(agent.changePct))}</span>
+        <span class="signal${signalColor}">${safe(signal)}</span>
+      </div>
+      <dl class="office-results">
+        <div><dt>Vitórias</dt><dd>${safe(agent.wins)}</dd></div>
+        <div><dt>Perdas</dt><dd>${safe(agent.losses)}</dd></div>
+        <div><dt>P/L</dt><dd>${safe(usd(agent.realizedPnl))}</dd></div>
+      </dl>`;
+  });
+
+  if (officeVisit && (!officeVisit.leader.isConnected || !officeVisit.agent.isConnected)) {
+    finishOfficeVisit('Visita encerrada. Uma estação ficou indisponível.');
+  }
+  updateOfficeVisitControls();
+}
+
+function updateOfficeVisitControls() {
+  const leaders = Array.from($('supervisors').children, station => station.dataset.officeKey);
+  for (const option of officeLeaderSelect.options) {
+    option.disabled = !leaders.includes(option.value);
+  }
+  if (officeLeaderSelect.selectedIndex < 0 || officeLeaderSelect.selectedOptions[0].disabled) {
+    officeLeaderSelect.selectedIndex = Array.from(officeLeaderSelect.options).findIndex(option => !option.disabled);
+  }
+  const unavailable = String(Boolean(officeVisit) || officeLeaderSelect.selectedIndex < 0);
+  for (const button of $('agents').querySelectorAll('.office-visit-request')) {
+    if (button.getAttribute('aria-disabled') !== unavailable) button.setAttribute('aria-disabled', unavailable);
+  }
+}
+
+function positionOfficeWalker(visit) {
+  const room = officeRooms.getBoundingClientRect();
+  const corridor = parseFloat(getComputedStyle(officeRooms).getPropertyValue('--office-corridor-width'));
+  let path;
+
+  if (corridor) {
+    const home = visit.leader.getBoundingClientRect();
+    const destination = visit.agent.getBoundingClientRect();
+    const spine = corridor / 2;
+    const homeY = home.top - room.top - spine;
+    const destinationY = destination.top - room.top - spine;
+    path = `M ${home.left + home.width / 2 - room.left} ${homeY} L ${spine} ${homeY} ` +
+      `L ${spine} ${destinationY} L ${destination.left + destination.width / 2 - room.left} ${destinationY}`;
+  } else {
+    const home = visit.leader.querySelector('.office-chair rect').getBoundingClientRect();
+    const destination = visit.agent.querySelector('.office-chair rect').getBoundingClientRect();
+    const homeX = home.left + home.width / 2 - room.left;
+    const homeY = home.top + home.height / 2 - room.top - 8;
+    const destinationX = destination.left + destination.width / 2 - room.left - 28;
+    const destinationY = destination.top + destination.height / 2 - room.top - 8;
+    path = `M ${homeX} ${homeY} L ${destinationX} ${destinationY}`;
+  }
+
+  visit.route.firstElementChild.setAttribute('d', path);
+  visit.walker.style.offsetPath = `path("${path}")`;
+  visit.walker.style.offsetDistance = visit.atAgent ? '100%' : '0%';
+}
+
+function setOfficeVisitState(visit, state, label) {
+  visit.leader.dataset.officeState = state;
+  visit.leader.querySelector('.office-leader-state').textContent = label;
+  visit.walker.dataset.officeState = state;
+  officeVisitStatus.textContent = `${visit.leader.dataset.officeKey}: ${label}.`;
+}
+
+function finishOfficeVisit(message) {
+  const visit = officeVisit;
+  clearTimeout(visit.timer);
+  visit.layout.disconnect();
+  setOfficeVisitState(visit, 'seated', 'Na estação');
+  visit.agent.classList.remove('office-meeting');
+  visit.route.remove();
+  visit.walker.remove();
+  officeVisit = null;
+  if (message) officeVisitStatus.textContent = message;
+  updateOfficeVisitControls();
+}
+
+$('agents').addEventListener('click', event => {
+  const button = event.target.closest('.office-visit-request');
+  if (!button || officeVisit || button.getAttribute('aria-disabled') === 'true') return;
+
+  const agent = button.closest('.office-station');
+  const leader = Array.from($('supervisors').children)
+    .find(station => station.dataset.officeKey === officeLeaderSelect.value);
+  if (!leader) return;
+
+  const scene = leader.querySelector('.office-station-scene');
+  const walker = scene.cloneNode(false);
+  walker.setAttribute('class', 'office-walker');
+  walker.setAttribute('viewBox', '80 42 40 56');
+  walker.style.setProperty('--office-walk-duration', `${officeVisitDuration.walk}ms`);
+  walker.append(scene.querySelector('.office-person').cloneNode(true));
+
+  const route = scene.cloneNode(false);
+  route.setAttribute('class', 'office-route');
+  route.removeAttribute('viewBox');
+  route.innerHTML = '<path/>';
+
+  const colors = getComputedStyle(scene);
+  for (const property of ['--office-shirt', '--office-skin', '--office-hair']) {
+    walker.style.setProperty(property, colors.getPropertyValue(property));
+  }
+
+  const visit = { leader, agent, route, walker, atAgent: false, timer: null };
+  visit.layout = new ResizeObserver(() => positionOfficeWalker(visit));
+  visit.layout.observe(officeRooms);
+  officeRooms.append(route, walker);
+  positionOfficeWalker(visit);
+  officeVisit = visit;
+  updateOfficeVisitControls();
+
+  const symbol = agent.dataset.officeKey;
+  setOfficeVisitState(visit, 'standing', `Levantando para visitar ${symbol}`);
+  visit.timer = setTimeout(() => {
+    setOfficeVisitState(visit, 'walking', `A caminho de ${symbol}`);
+    visit.atAgent = true;
+    positionOfficeWalker(visit);
+    visit.timer = setTimeout(() => {
+      agent.classList.add('office-meeting');
+      setOfficeVisitState(visit, 'meeting', `Em reunião com ${symbol}`);
+      visit.timer = setTimeout(() => {
+        agent.classList.remove('office-meeting');
+        setOfficeVisitState(visit, 'walking', `Retornando de ${symbol}`);
+        visit.atAgent = false;
+        positionOfficeWalker(visit);
+        visit.timer = setTimeout(() => finishOfficeVisit(), officeVisitDuration.walk);
+      }, officeVisitDuration.meeting);
+    }, officeVisitDuration.walk);
+  }, officeVisitDuration.stand);
+});
+
 function render(state){
   $('error').hidden=true;
   $('equity').textContent=usd(state.equity);
@@ -97,8 +336,7 @@ function render(state){
   $('step').disabled=!canControl || state.riskLocked;
   $('riskReviewPanel').hidden=!(canReview && state.riskLocked);
   $('tick').textContent=`Tick ${state.tick}`;
-  $('supervisors').innerHTML=state.supervisors.map(a=>`<article class="agent"><div class="agent-top"><b>${safe(a.name)}</b><span>${safe(a.status)}</span></div><p>${safe(a.function)}</p><p>${safe(a.detail)}</p></article>`).join('');
-  $('agents').innerHTML=state.agents.map(a=>`<article class="agent ${a.status==='EM OPERAÇÃO'?'active':''}"><div class="agent-top"><b>${safe(a.symbol)}</b><span>● ${safe(a.status)}</span></div><div class="price">${decimal(a.price)}</div><div class="foot"><span class="${a.changePct>=0?'positive':'negative'}">${a.changePct>0?'+':''}${pct(a.changePct)}</span><span class="signal ${a.signal.toLowerCase()}">${safe(a.signal)}</span></div><div class="foot" style="margin-top:10px"><span>${a.wins}W / ${a.losses}L</span><span>${usd(a.realizedPnl)}</span></div></article>`).join('');
+  renderOffice(state);
   $('positions').innerHTML=state.positions.length ? state.positions.map(p=>`<tr><td>${safe(p.symbol)}</td><td>${safe(p.side)}</td><td>${decimal(p.entry)}</td><td>${decimal(p.currentPrice)}</td><td class="${p.unrealizedPnl>=0?'positive':'negative'}">${usd(p.unrealizedPnl)}</td></tr>`).join('') : '<tr><td colspan="5">Nenhuma posição aberta</td></tr>';
   $('trades').innerHTML=state.trades.length ? state.trades.slice(0,15).map(t=>`<tr><td>${safe(t.symbol)}</td><td class="${t.pnl>=0?'positive':'negative'}">${usd(t.pnl)}</td><td>${safe(t.exitReason)}</td><td>${t.closedTick}</td></tr>`).join('') : '<tr><td colspan="4">Sem operações concluídas</td></tr>';
   draw(state.equityHistory);

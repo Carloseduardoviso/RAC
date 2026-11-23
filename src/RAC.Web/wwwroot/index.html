@@ -23,12 +23,17 @@
 </div>
 <main class="layout" style="display:block">
 <section class="panel office-map" aria-labelledby="office-title" aria-describedby="office-legend">
-  <div class="section-head">
+  <div class="office-hud" aria-label="Resumo do escritório">
+    <div class="office-hud-title"><span class="office-live-dot" aria-hidden="true"></span><strong>Escritório operacional</strong><span class="office-hud-pill">12 agentes</span><span class="office-hud-pill">3 líderes</span></div>
+    <div class="office-hud-code">TRADING FLOOR 01</div>
+  </div>
+  <div class="office-activity-strip" aria-hidden="true"><strong>Observando</strong><span>Avaliando sinais</span><span>Decidindo entradas</span><span>Protegendo risco</span><b>SIMULAÇÃO</b></div>
+  <div class="section-head office-title-row">
     <div>
-      <h1 id="office-title">Mapa dos agentes</h1>
+      <h1 id="office-title">Trading floor dos agentes</h1>
       <p id="office-legend">O mapa exibe preços simulados e sinais experimentais. Os painéis abaixo incluem a análise de candles reais da Binance.</p>
     </div>
-    <span id="tick" class="chip">Tick 0</span>
+    <span id="tick" class="chip office-tick">Tick 0</span>
   </div>
   <div class="actions" role="group" aria-label="Controles da simulação">
     <button id="start" class="primary" type="button">▶ Iniciar</button>
@@ -37,18 +42,22 @@
     <button id="reset" class="danger" type="button">↻ Reiniciar</button>
   </div>
   <div id="error" role="alert" hidden></div>
+  <div class="office-scene-shell">
+  <div class="office-scene-label" aria-hidden="true">NÍVEL OPERACIONAL · SIMULAÇÃO SEGURA</div>
   <div class="office-rooms">
     <section class="office-room office-leadership" aria-labelledby="office-leadership-title">
       <h2 id="office-leadership-title">Sala da liderança</h2>
       <p>Carlos controla o risco, Ana coordena a operação e Rebeca acompanha notícias (integração pendente).</p>
-      <div class="agent-grid" id="supervisors"></div>
+      <div class="agent-grid office-stations" id="supervisors"></div>
     </section>
     <section class="office-room office-operations" aria-labelledby="office-operations-title">
       <h2 id="office-operations-title">Salão operacional</h2>
       <p>12 agentes, um por par de criptomoedas Spot.</p>
-      <div class="agent-grid" id="agents"></div>
+      <div class="agent-grid office-stations" id="agents"></div>
     </section>
   </div>
+  </div>
+  <div class="office-floor-legend" aria-label="Legenda do mapa"><span><i class="office-key observing"></i>Observando</span><span><i class="office-key active"></i>Em operação</span><span><i class="office-key awaiting"></i>Aguardando</span><span><i class="office-key resting"></i>Em pausa</span></div>
 </section>
 <section class="metrics"><div class="metric"><span>Patrimônio simulado</span><strong id="equity">—</strong><small id="balance">Saldo: —</small></div><div class="metric"><span>Resultado do trading (sem aportes)</span><strong id="pnl">—</strong><small id="daily">Hoje: —</small></div><div class="metric"><span>Posições abertas</span><strong id="open">—</strong><small id="limit">Limite: —</small></div><div class="metric"><span>Status de risco</span><strong id="risk">—</strong><small id="drawdown">Queda acumulada: —</small></div></section>
 <section class="panel" id="walletPanel" hidden>
