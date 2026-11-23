@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Text;
 using RAC.Application;
+using RAC.Domain;
 
 namespace RAC.Tests;
 
@@ -52,6 +53,53 @@ public sealed class RacFixedHoldoutReplayTests
         Assert.Throws<InvalidDataException>(() =>
             RacFixedHoldoutReplay.Evaluate("BTCUSDT", 2026, 10,
                 archive, gate, horizon));
+    }
+
+    private static MarketCandlePoint[] Window(int count = 720)
+    {
+        var start = new DateTimeOffset(2026, 10, 3, 12, 0, 0, TimeSpan.Zero);
+        return Enumerable.Range(0, count).Select(i =>
+        {
+            var time = start.AddMinutes(i);
+            var open = 100m + i * 0.002m + (i % 19) * 0.08m;
+            return new MarketCandlePoint("BTCUSDT", time,
+                time.AddMinutes(1).AddMilliseconds(-1),
+                open, open + 0.25m, open - 0.25m,
+                open + 0.02m, 1m, open, 5);
+        }).ToArray();
+    }
+
+    [Fact]
+    public void Active_fixed_window_is_deterministic_at_both_cost_levels()
+    {
+        var bars = Window();
+        var normal = RacFixedHoldoutReplay.AssessWindow(
+            "BTCUSDT", bars, "BASELINE", 15, 1m);
+        var stressed = RacFixedHoldoutReplay.AssessWindow(
+            "BTCUSDT", bars, "BASELINE", 15, 2m);
+        Assert.Equal(normal, RacFixedHoldoutReplay.AssessWindow(
+            "BTCUSDT", bars, "BASELINE", 15, 1m));
+        Assert.Equal(stressed, RacFixedHoldoutReplay.AssessWindow(
+            "BTCUSDT", bars, "BASELINE", 15, 2m));
+        Assert.True(normal.ClosedTrades >= 0);
+        Assert.True(stressed.ClosedTrades >= 0);
+        Assert.True(normal.MaxDrawdownPct >= 0m);
+        Assert.True(stressed.MaxDrawdownPct >= 0m);
+    }
+
+    [Fact]
+    public void Active_window_refuses_invalid_costs_and_incomplete_data()
+    {
+        var bars = Window();
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            RacFixedHoldoutReplay.AssessWindow(
+                "BTCUSDT", bars, "BASELINE", 15, 3m));
+        Assert.Throws<InvalidDataException>(() =>
+            RacFixedHoldoutReplay.AssessWindow(
+                "BTCUSDT", Window(719), "BASELINE", 15, 1m));
+        Assert.Throws<InvalidDataException>(() =>
+            RacFixedHoldoutReplay.AssessWindow(
+                "BTCUSDT", bars, "NO_TRADE", 15, 1m));
     }
 
     [Fact]

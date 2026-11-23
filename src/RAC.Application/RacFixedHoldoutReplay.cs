@@ -16,7 +16,38 @@ public static class RacFixedHoldoutReplay
         int FrozenHorizonMinutes, int TestedDays, int ClosedTrades,
         int UnresolvedExitIntents, decimal? MeanNetReturnPct,
         string EvaluationStatus, bool ReviewEligible, bool PaperModified,
-        bool OrderPlacementEnabled, bool PromotionAllowed);
+        bool OrderPlacementEnabled, bool PromotionAllowed,
+        decimal? DoubleCostMeanNetReturnPct = null,
+        int DoubleCostUnresolvedExitIntents = 0,
+        decimal WorstDrawdownPct = 0m,
+        bool RiskScreenPassed = false);
+
+    public sealed record WindowAssessment(decimal HypotheticalNetReturnPct,
+        decimal MaxDrawdownPct, int ClosedTrades, int UnresolvedExits,
+        int BlockedEntries, int PartialEntryFills, bool EvidenceComplete);
+
+    // Reusable fixed-parameter test window; does not optimize against its returns.
+    // Two fixed stress scenarios (1x and 2x costs) use the same frozen decision.
+    public static WindowAssessment AssessWindow(string symbol,
+        IReadOnlyList<MarketCandlePoint> holdout, string gate,
+        int horizon, decimal costMultiplier)
+    {
+        RacFrozenDecisionAudit.FreezeByVotes([(gate, horizon)]);
+        if (costMultiplier is not (1m or 2m))
+            throw new ArgumentOutOfRangeException(nameof(costMultiplier));
+        if (holdout.Count != MonthlyWalkForwardResearch.HoldoutMinutes)
+            throw new InvalidDataException("Fixed holdout must contain exactly 720 candles.");
+        var slice = PaperTradeHorizonResearch.SimulateSlice(symbol, holdout,
+            horizon, costMultiplier, gate,
+            liquidityStress: true, captureExitIntents: true);
+        if (slice.Status != "COMPLETE")
+            throw new InvalidDataException("Fixed replay simulator blocked.");
+        var exits = PaperExitCapacityGate.Assess(slice, holdout, costMultiplier);
+        return new(slice.ReturnPct, slice.MaxDrawdownPct,
+            slice.CompletedTrades, exits.UnresolvedExits,
+            slice.LiquidityBlockedEntries, slice.PartialEntryFills,
+            exits.UnresolvedExits == 0 && exits.MissingFutureCandles == 0);
+    }
 
     public static Result Evaluate(string symbol, int year, int month,
         Stream archive, string frozenGate, int frozenHorizonMinutes)
@@ -37,7 +68,7 @@ public static class RacFixedHoldoutReplay
         using var reader = new StreamReader(zip.Entries.Single().Open());
         var culture = CultureInfo.InvariantCulture;
         var candles = new List<MarketCandlePoint>(1440);
-        var results = new List<(decimal Return, int Trades, int Unresolved)>();
+        var results = new List<(WindowAssessment Base, WindowAssessment Stress)>();
         DateOnly? date = null;
         string? line;
         while ((line = reader.ReadLine()) is not null)
@@ -63,13 +94,25 @@ public static class RacFixedHoldoutReplay
         if (date.HasValue) EvaluateDay();
         if (results.Count != validated.CalendarDays)
             throw new InvalidDataException("Missing fixed holdout days.");
-        var unresolved = results.Sum(x => x.Unresolved);
+        var unresolved = results.Sum(x => x.Base.UnresolvedExits);
+        var stressUnresolved = results.Sum(x => x.Stress.UnresolvedExits);
+        var evidenceComplete = results.All(x =>
+            x.Base.EvidenceComplete && x.Stress.EvidenceComplete);
+        var worstDrawdown = results.Max(x => Math.Max(
+            x.Base.MaxDrawdownPct, x.Stress.MaxDrawdownPct));
+        var riskPassed = evidenceComplete &&
+            worstDrawdown <= MonthlyWalkForwardResearch.MaximumTestDrawdownPct;
         return new(symbol, period, frozenGate, frozenHorizonMinutes,
-            results.Count, results.Sum(x => x.Trades), unresolved,
-            unresolved == 0 ? Math.Round(results.Average(x => x.Return), 4) : null,
-            unresolved == 0 ? "FIXED_SHADOW_REPLAY_RESEARCH_ONLY" :
-                "EXIT_UNRESOLVED_RETURN_WITHHELD",
-            false, false, false, false);
+            results.Count, results.Sum(x => x.Base.ClosedTrades), unresolved,
+            evidenceComplete ? Math.Round(results.Average(
+                x => x.Base.HypotheticalNetReturnPct), 4) : null,
+            !evidenceComplete ? "EXIT_UNRESOLVED_RETURN_WITHHELD" :
+                !riskPassed ? "FIXED_REPLAY_RISK_SCREEN_REJECTED" :
+                "FIXED_SHADOW_REPLAY_RESEARCH_ONLY",
+            false, false, false, false,
+            evidenceComplete ? Math.Round(results.Average(
+                x => x.Stress.HypotheticalNetReturnPct), 4) : null,
+            stressUnresolved, worstDrawdown, riskPassed);
 
         void EvaluateDay()
         {
@@ -78,13 +121,11 @@ public static class RacFixedHoldoutReplay
             // Only UTC 12:00–23:59 candles are evaluated. Daily morning
             // windows and all later holdout returns are never used for selection.
             var test = candles.Skip(MonthlyWalkForwardResearch.TrainMinutes).ToArray();
-            var slice = PaperTradeHorizonResearch.SimulateSlice(symbol, test,
-                frozenHorizonMinutes, 1m, frozenGate,
-                liquidityStress: true, captureExitIntents: true);
-            if (slice.Status != "COMPLETE")
-                throw new InvalidDataException("Fixed replay simulator blocked.");
-            var exits = PaperExitCapacityGate.Assess(slice, test);
-            results.Add((slice.ReturnPct, slice.CompletedTrades, exits.UnresolvedExits));
+            var normal = AssessWindow(symbol, test, frozenGate,
+                frozenHorizonMinutes, 1m);
+            var stress = AssessWindow(symbol, test, frozenGate,
+                frozenHorizonMinutes, 2m);
+            results.Add((normal, stress));
         }
     }
 }
