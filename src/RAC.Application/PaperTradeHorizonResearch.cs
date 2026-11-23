@@ -107,10 +107,16 @@ public static class PaperTradeHorizonResearch
         var impact = Impact * costMultiplier;
         if (input.Count < RacStrategyEvaluator.MinimumCandles + 10 || input.Count > 2000 ||
             input.Any(x => x.Symbol != symbol || x.Open <= 0m || x.Close <= 0m ||
-                x.High < x.Low || x.CloseUtc <= x.OpenUtc))
+                x.High < x.Low || x.Low <= 0m ||
+                x.Open < x.Low || x.Open > x.High ||
+                x.Close < x.Low || x.Close > x.High ||
+                x.Volume < 0m || x.QuoteVolume < 0m || x.Trades < 0 ||
+                x.CloseUtc <= x.OpenUtc ||
+                x.CloseUtc > x.OpenUtc.AddMinutes(1)))
             return Unavailable(input.Count, horizonMinutes);
         for (var j = 1; j < input.Count; j++)
-            if (input[j].OpenUtc - input[j - 1].OpenUtc != TimeSpan.FromMinutes(1))
+            if (input[j].OpenUtc - input[j - 1].OpenUtc != TimeSpan.FromMinutes(1) ||
+                input[j - 1].CloseUtc >= input[j].OpenUtc)
                 return Unavailable(input.Count, horizonMinutes);
         var candles = input.ToArray();
         if (entryGate == "NO_TRADE")
@@ -140,8 +146,9 @@ public static class PaperTradeHorizonResearch
                     EntryGatePasses(signal, candles[i].Close, entryGate, costMultiplier))
                 {
                     entryCapital = cash;
-                    var entry = next.Open * (1m + impact);
-                    qty = cash * (1m - fee) / entry;
+                    var buy = PaperExecutionAudit.BuyAll(cash, next.Open, costMultiplier);
+                    var entry = buy.ImpactAdjustedEntryQuote;
+                    qty = buy.FilledQuantity;
                     cash = 0m;
                     enteredAt = nextIndex;
                     stop = Math.Max(0m, entry - 2m * signal.Atr14.Value);
@@ -150,7 +157,8 @@ public static class PaperTradeHorizonResearch
             if (qty > 0m && next.Low <= stop)
             {
                 // A gap below the stop exits at the worse opening quote.
-                Exit(Math.Min(next.Open, stop), nextIndex, ref stops);
+                Exit(PaperExecutionAudit.ConservativeStopFill(stop, next.Open,
+                    next.Low), nextIndex, ref stops);
             }
             else if (qty > 0m && nextIndex - enteredAt + 1 >= horizonMinutes)
             {
@@ -172,7 +180,8 @@ public static class PaperTradeHorizonResearch
 
         void Exit(decimal quotedPrice, int exclusiveExitCandleIndex, ref int reasonCounter)
         {
-            cash = qty * Math.Max(0m, quotedPrice) * (1m - impact) * (1m - fee);
+            cash = PaperExecutionAudit.SellAll(qty, quotedPrice,
+                costMultiplier).NetCashAfter;
             qty = 0m;
             completed++;
             if (cash > entryCapital) wins++;
