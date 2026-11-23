@@ -66,9 +66,11 @@ internal static class FixedHoldoutReplayCli
             }
         }
         var diagnostic = RacFixedCandidateDiagnostics.Compare(frozen, results);
+        var robustness = RacCandidateRobustnessScreen.Evaluate(frozen, results);
         var payload = new {
             mode = "FIXED_POST_TRAINING_SHADOW_ONLY",
             diagnostic,
+            robustness,
             trainingMonths = RacFrozenDecisionAudit.TrainMonths,
             holdoutMonths = RacFrozenDecisionAudit.HoldoutMonths,
             agents = frozen.Agents,
