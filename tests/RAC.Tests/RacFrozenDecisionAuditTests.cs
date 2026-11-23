@@ -40,6 +40,42 @@ public sealed class RacFrozenDecisionAuditTests
     }
 
     [Fact]
+    public void Active_gate_ties_are_deterministic_and_never_use_holdout_returns()
+    {
+        var first = new[] {
+            (Gate: "TREND_STRENGTH", Horizon: 30),
+            (Gate: "ATR_COST", Horizon: 15),
+            (Gate: "TREND_STRENGTH", Horizon: 30),
+            (Gate: "ATR_COST", Horizon: 15)
+        };
+        var forward = RacFrozenDecisionAudit.FreezeByVotes(first);
+        var reverse = RacFrozenDecisionAudit.FreezeByVotes(first.Reverse().ToArray());
+        Assert.Equal(forward, reverse);
+        Assert.Equal("ATR_COST", forward.Gate);
+        Assert.Equal(15, forward.Horizon);
+        Assert.Equal(2, forward.Votes);
+    }
+
+    [Fact]
+    public void Majority_rule_does_not_ignore_invalid_minority_choices()
+    {
+        var choices = Enumerable.Repeat((Gate: "NO_TRADE", Horizon: 1), 91)
+            .Append((Gate: "BASELINE", Horizon: 1)).ToArray();
+        Assert.Throws<InvalidDataException>(() =>
+            RacFrozenDecisionAudit.FreezeByVotes(choices));
+    }
+
+    [Fact]
+    public void No_trade_with_wrong_horizon_is_never_selected()
+    {
+        Assert.Throws<InvalidDataException>(() =>
+            RacFrozenDecisionAudit.FreezeByVotes([
+                (Gate: "NO_TRADE", Horizon: 15),
+                (Gate: "NO_TRADE", Horizon: 1)
+            ]));
+    }
+
+    [Fact]
     public void Missing_research_months_do_not_become_zero_return()
     {
         var result = RacFrozenDecisionAudit.Load(Path.Combine(
