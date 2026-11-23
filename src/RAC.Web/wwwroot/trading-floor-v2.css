@@ -1,0 +1,170 @@
+/* RAC Office 2.5D v2 — one continuous trading room rather than card columns.
+   CSS/SVG scene is decorative. Everything live remains PAPER read-only data. */
+.office-map{background:#070b15!important;border-radius:11px!important;box-shadow:0 25px 80px #02030cbb!important}
+.office-map .office-hud{padding:13px 17px!important;border-color:#2a2f42!important}
+.office-map .office-hud-title strong{font-size:15px}
+.office-map .office-hud-pill{font-size:12px}
+.office-map .office-activity-strip{padding:16px 20px 12px!important}
+.office-map .section-head{background:#0e1220!important;padding:8px 17px!important}
+.office-map .section-head h1{font-size:14px!important}
+.office-map .section-head p{font-size:10px}
+.office-map>.actions{padding:7px 12px!important;justify-content:flex-end;gap:5px;background:#0d1220!important}
+.office-map>.actions button{font-size:10px!important;padding:6px 9px!important;opacity:.8}
+.office-map>.actions button:hover,.office-map>.actions button:focus-visible{opacity:1}
+.office-scene-shell{min-height:850px!important;overflow:hidden!important;padding:160px 9px 12px!important;background:#101322 url("trading-floor-scene.svg") center top/100% 100% no-repeat!important}
+.office-scene-shell::after{display:none!important}
+.office-skyline{height:150px!important;background:transparent!important;pointer-events:none;z-index:0}
+.office-skyline::before,.office-windows{display:none!important}
+.office-specialist{left:18px;top:13px;width:210px;min-height:103px;background:linear-gradient(125deg,#171223f0,#24172fb0);border:2px solid #ddae6d;box-shadow:inset 0 0 28px #f6a24c28,0 0 26px #eeb85c50}
+.office-specialist strong{font-size:17px}
+.office-day-result{right:19px;top:13px;width:260px;min-height:100px;background:#10121aeb;border-color:#787184;box-shadow:0 9px 25px #000c}
+.office-map .office-rooms{
+ grid-template-columns:minmax(120px,.15fr) minmax(0,.85fr)!important;
+ grid-template-areas:"lounge operations" "leaders leaders"!important;
+ padding:16px 15px 12px!important;
+ gap:10px 16px!important;
+ min-height:0!important;
+ background:transparent!important;border:0!important;box-shadow:none!important;
+ overflow:visible!important;
+}
+.office-map .office-rooms::after,.office-map .office-rooms::before{display:none!important}
+.office-lounge{min-height:390px;align-self:stretch;padding:15px 10px!important;border:1px solid #57416f!important;background:linear-gradient(165deg,#282044bd,#161526c9 75%)!important;box-shadow:inset 0 0 22px #9165e21c,0 12px 40px #08091db0!important}
+.office-lounge h2{font-size:12px!important;margin:10px 0 3px!important}
+.office-lounge p{font-size:10px!important}
+.office-sofa{height:52px;bottom:100px;left:8px;right:8px;border-color:#392d50;box-shadow:0 10px 0 #272039,0 18px 12px #080617}
+.office-lounge::after{content:"";position:absolute;width:77px;height:20px;bottom:30px;left:calc(50% - 38px);border-radius:50%;background:#7459952e;filter:blur(5px)}
+.office-map .office-operations{align-self:start;position:relative;isolation:isolate}
+.office-map .office-operations h2,.office-map .office-operations>p{position:relative;z-index:2;padding-left:6px}
+.office-map .office-operations .office-stations{
+ display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;
+ grid-template-rows:repeat(2,minmax(205px,auto))!important;
+ gap:13px 7px!important;padding:12px 1px 18px!important;
+ position:relative;isolation:isolate;
+ background:
+ radial-gradient(ellipse 23% 52% at 17% 50%,#1ccfff26,transparent 92%),
+ radial-gradient(ellipse 23% 52% at 50% 50%,#9649fe35,transparent 92%),
+ radial-gradient(ellipse 23% 52% at 83% 50%,#fca74c28,transparent 92%);
+}
+.office-map .office-operations .office-stations::before{
+ content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+ background:
+ linear-gradient(90deg,transparent 0 32.6%,#46587855 32.75% 32.95%,transparent 33.1% 65.9%,#79559755 66.05% 66.25%,transparent 66.4%);
+}
+.office-map .office-station{
+ display:flex!important;flex-direction:column;align-items:stretch;
+ justify-content:flex-start!important;
+ border:0!important;box-shadow:none!important;
+ min-height:202px!important;
+ padding:5px 4px 9px!important;
+ background:transparent!important;
+ overflow:visible!important;
+ transition:transform .2s ease;
+}
+.office-map .office-station::before{
+ inset:22px 0 4px!important;z-index:-1!important;
+ opacity:.85!important;filter:blur(16px)!important;
+ border-radius:25px!important;
+ background:linear-gradient(180deg,#18ddf62e,transparent)!important;
+}
+.office-map .office-operations .office-station:nth-child(6n+3)::before,
+.office-map .office-operations .office-station:nth-child(6n+4)::before{
+ background:linear-gradient(180deg,#b45cff46,transparent)!important;
+}
+.office-map .office-operations .office-station:nth-child(6n+5)::before,
+.office-map .office-operations .office-station:nth-child(6n+6)::before{
+ background:linear-gradient(180deg,#ffb45a39,transparent)!important;
+}
+.office-map .office-station:hover{transform:translateY(-3px);z-index:5!important}
+.office-map .office-station .agent-top{
+ background:#090e1be6!important;border:1px solid #556f8a9c!important;
+ box-shadow:0 3px 12px #02061487;
+ border-radius:5px!important;
+ padding:5px!important;
+ min-height:31px;
+}
+.office-map .office-station h3{font-size:10px!important;letter-spacing:0!important}
+.office-map .office-station .agent-top>span{font-size:8px!important}
+.office-map .office-station .office-station-scene{
+ display:block!important;width:100%!important;max-width:none!important;
+ height:93px!important;margin:2px auto 0!important;
+ filter:drop-shadow(0 11px 7px #020716dc) drop-shadow(0 0 7px #2de3fe5b)!important;
+ transform:scale(1.13);
+ transform-origin:center center;
+}
+.office-map .office-operations .office-station:nth-child(6n+3) .office-station-scene,
+.office-map .office-operations .office-station:nth-child(6n+4) .office-station-scene{
+ filter:drop-shadow(0 11px 7px #020716dc) drop-shadow(0 0 7px #a55fff80)!important;
+}
+.office-map .office-operations .office-station:nth-child(6n+5) .office-station-scene,
+.office-map .office-operations .office-station:nth-child(6n+6) .office-station-scene{
+ filter:drop-shadow(0 11px 7px #020716dc) drop-shadow(0 0 7px #ffbd6480)!important;
+}
+.office-map .office-station .office-station-details{
+ position:relative;z-index:2;flex:1;display:flex;flex-direction:column;gap:3px;
+ padding:5px 5px 7px!important;margin-top:2px;
+ background:linear-gradient(180deg,#0b111beb,#0b1119bd)!important;
+ border:1px solid #4e637d7c!important;border-radius:4px!important;
+ box-shadow:0 9px 14px #0204107d;
+}
+.office-map .office-station .price{font-size:12px!important;margin:2px 0!important}
+.office-map .office-station .foot{font-size:9px!important;flex-wrap:wrap!important}
+.office-map .office-station .office-results{margin-top:auto!important;display:flex;flex-wrap:wrap;justify-content:space-between!important;gap:3px!important;border-top:1px solid #5b6d8540!important}
+.office-map .office-station .office-results dt{font-size:8px!important}
+.office-map .office-station .office-results dd{font-size:9px!important}
+.office-map .office-station .office-visit-request{
+ width:auto!important;margin:3px 1px 0!important;
+ padding:4px 2px!important;font-size:9px!important;border:1px solid #546a83!important;
+ border-radius:4px!important;
+ background:#10192cda!important;box-shadow:0 4px 8px #020818a8;
+}
+.office-map .office-leadership{
+ grid-area:leaders;align-self:end;margin:14px 0 0!important;
+ padding:12px 12px 10px!important;
+ background:linear-gradient(90deg,#0a1020a8,#1c1738a6,#0a1020a8)!important;
+ border:1px solid #605a9d60!important;
+ border-radius:8px!important;
+}
+.office-map .office-leadership .office-stations{
+ display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+ gap:16px!important;padding:8px 15px 0!important;
+}
+.office-map .office-leadership .office-station{
+ min-height:190px!important;
+ display:grid!important;grid-template-columns:125px minmax(0,1fr);
+ grid-template-rows:36px 100px 35px!important;
+ column-gap:12px!important;
+ padding:5px!important;
+ border:1px solid #8f72be80!important;border-radius:7px!important;
+ background:linear-gradient(135deg,#171631cc,#20162fbd)!important;
+}
+.office-map .office-leadership .office-station .agent-top{grid-column:1/3;grid-row:1;padding:7px!important}
+.office-map .office-leadership .office-station .office-station-scene{grid-column:1;grid-row:2/4;height:136px!important;max-width:145px!important;transform:none}
+.office-map .office-leadership .office-station .office-station-details{grid-column:2;grid-row:2/3;padding:8px!important;background:transparent!important;border:0!important;box-shadow:none!important}
+.office-map .office-leadership .office-station .office-leader-state{grid-column:2;grid-row:3;margin:3px 0!important;font-size:10px!important;align-self:start}
+.office-map .office-visit-controls{position:relative;z-index:4;padding:8px 16px!important;border-color:#2b365a!important}
+.office-map .office-floor-legend{position:relative;z-index:3;gap:11px!important;padding:14px 18px!important}
+.office-map .office-floor-legend span{font-size:11px!important}
+.office-map .office-floor-legend strong{display:inline!important}
+.office-map .office-room .office-meeting{outline:2px solid #61f8d5!important;outline-offset:4px}
+@media(max-width:1280px){
+ .office-map .office-operations .office-stations{grid-template-columns:repeat(4,minmax(0,1fr))!important;grid-template-rows:auto!important}
+ .office-map .office-operations .office-stations::before{display:none}
+ .office-map .office-operations .office-station:nth-child(n)::before{background:linear-gradient(180deg,#8750c94a,transparent)!important}
+ .office-map .office-rooms{grid-template-columns:minmax(130px,.19fr) minmax(0,.81fr)!important}
+}
+@media(max-width:880px){
+ .office-map .office-rooms{grid-template-columns:1fr!important;grid-template-areas:"lounge" "operations" "leaders"!important}
+ .office-lounge{min-height:105px;padding:10px 142px 10px 12px!important}
+ .office-sofa{width:118px;left:auto;right:8px;bottom:28px;height:35px}
+ .office-map .office-operations .office-stations{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+ .office-map .office-leadership .office-stations{grid-template-columns:1fr!important;gap:8px!important}
+ .office-map .office-leadership .office-station{max-width:none}
+}
+@media(max-width:530px){
+ .office-map .office-operations .office-stations{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+ .office-map .office-leadership .office-station{grid-template-columns:95px minmax(0,1fr)!important}
+ .office-map .office-day-result{top:18px!important}
+ .office-map .office-station .office-station-scene{height:84px!important}
+ .office-map .office-hud-code{display:none}
+}
+@media(prefers-reduced-motion:reduce){.office-map .office-station{transition:none!important}.office-map .office-station:hover{transform:none!important}}
