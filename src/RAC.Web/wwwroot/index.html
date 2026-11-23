@@ -225,6 +225,19 @@
     <div class="metric"><span>Saídas hipotéticas sem cobertura</span><strong id="researchShadowUnresolved">—</strong></div>
     <div class="metric"><span>Agentes rejeitados</span><strong id="researchShadowRejected">—</strong></div>
   </div>
+  <h3>MVP 1.4.7 — Comparação visual de risco (somente pesquisa)</h3>
+  <p>Os gráficos mostram apenas as 12 avaliações de outubro/2026. Não representam evolução histórica de patrimônio ou lucro.</p>
+  <label for="researchShadowChartMetric">Indicador comparativo
+    <select id="researchShadowChartMetric">
+      <option value="unresolvedExits">Saídas hipotéticas sem cobertura</option>
+      <option value="blockedEntryAttempts">Tentativas de compra bloqueadas</option>
+      <option value="partialEntryAttempts">Entradas hipotéticas parciais</option>
+      <option value="hypotheticalClosedTrades">Trades hipotéticos</option>
+      <option value="noTradeDays">Dias sem operação</option>
+    </select>
+  </label>
+  <div id="researchShadowBars" class="research-bars" role="img" aria-label="Comparativo de risco dos 12 agentes">Aguardando relatório validado.</div>
+  <p id="researchShadowChartDisclaimer"><small>Uma barra maior indica mais eventos observados na simulação, não melhor rentabilidade.</small></p>
   <div class="scroll"><table>
     <thead><tr><th>Agente</th><th>Decisão de pesquisa</th><th>Sem operação / dias</th><th>Trades hipotéticos</th><th>Saídas não resolvidas</th><th>Entradas barradas</th><th>Entradas parciais</th><th>Média por janela fictícia</th></tr></thead>
     <tbody id="researchShadowRows"><tr><td colspan="8">Carregando relatório local...</td></tr></tbody>

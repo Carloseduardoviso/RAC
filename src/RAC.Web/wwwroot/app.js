@@ -163,7 +163,37 @@ function showSession(session) {
   $('riskReviewPanel').hidden = true;
 }
 
+// Research-only comparison: a bar is an event count, not profit.
+let validatedShadowRows = [];
+const shadowMetricKeys = new Set(['unresolvedExits', 'blockedEntryAttempts',
+  'partialEntryAttempts', 'hypotheticalClosedTrades', 'noTradeDays']);
+function renderShadowBars() {
+  const metric = $('researchShadowChartMetric').value;
+  if (!shadowMetricKeys.has(metric) || validatedShadowRows.length !== 12) {
+    $('researchShadowBars').textContent = 'Nenhuma comparação SHADOW validada.';
+    return;
+  }
+  const rows = validatedShadowRows;
+  if (rows.some(x => !Number.isSafeInteger(x[metric]) || x[metric] < 0)) {
+    $('researchShadowBars').textContent = 'Contagem inválida para comparação.';
+    return;
+  }
+  const max = Math.max(1, ...rows.map(x => x[metric]));
+  $('researchShadowBars').innerHTML = rows.map(x => {
+    const n = x[metric];
+    const width = Math.min(100, n / max * 100);
+    const risk = metric === 'unresolvedExits' && n > 0;
+    return `<div class="research-bar-row${risk ? ' has-risk' : ''}">` +
+      `<b>${safe(x.symbol)}</b><div class="research-bar-track">` +
+      `<div class="research-bar-fill" style="width:${width.toFixed(2)}%"></div>` +
+      `</div><span class="research-bar-count">${n}</span></div>`;
+  }).join('');
+}
+$('researchShadowChartMetric').onchange = renderShadowBars;
+
 function clearShadowResearch() {
+  validatedShadowRows = [];
+  $('researchShadowBars').textContent = 'Nenhuma comparação SHADOW validada.';
   $('researchShadowStatus').textContent = 'Aguardando relatório';
   $('researchShadowNotice').textContent = 'Sem consulta de pesquisa nesta sessão.';
   for (const id of ['researchShadowDays', 'researchShadowNoTrade',
@@ -194,6 +224,8 @@ async function refreshShadowResearch() {
     $('researchShadowNoTrade').textContent = report.noTradeDays;
     $('researchShadowUnresolved').textContent = report.unresolvedExits;
     $('researchShadowRejected').textContent = report.rejectedAgents + ' / 12';
+    validatedShadowRows = report.rows;
+    renderShadowBars();
     $('researchShadowRows').innerHTML = report.rows.map(a =>
       `<tr><td>${safe(a.symbol)}</td><td>${safe(a.gate)}</td>` +
       `<td>${a.noTradeDays} / ${a.totalDays}</td>` +
