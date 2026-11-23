@@ -1,0 +1,80 @@
+/* RAC Trading Floor — 3D-rendered, photorealistic scene and live HTML overlays.
+   No trading logic or network actions. High specificity resolves style conflicts. */
+#officePhotoreal{padding:0;overflow:hidden;border:1px solid #2e3648;border-radius:12px;background:#0b1019;isolation:isolate}
+#officePhotoreal .office-hud{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0;padding:14px 18px;border-bottom:1px solid #273044;background:#0c1019}
+#officePhotoreal .office-hud-title{display:flex;align-items:center;flex-wrap:wrap;gap:9px}
+#officePhotoreal .office-hud-title strong{font-size:14px}
+#officePhotoreal .office-hud-pill{background:#222a39;border:1px solid #354055;border-radius:5px;color:#cbd4e3;padding:4px 9px;font-size:11px}
+#officePhotoreal .office-hud-code{font-size:10px;letter-spacing:.18em;color:#a8b4c5}
+#officePhotoreal .office-activity-strip{display:flex;align-items:center;gap:13px;flex-wrap:wrap;padding:15px 18px;margin:0;border-bottom:1px solid #2b3042;background:#0a111d}
+#officePhotoreal .office-activity-strip strong{color:#f6d176}
+#officePhotoreal .office-activity-strip span{font-size:11px;color:#b6bfce}
+#officePhotoreal .office-activity-strip b{font-size:10px;color:#64eab9}
+#officePhotoreal .section-head{margin:0;padding:10px 18px;min-height:0;align-items:center;background:#101827;border-bottom:1px solid #293246}
+#officePhotoreal .section-head::before,#officePhotoreal .section-head > div::before{display:none}
+#officePhotoreal .section-head > div{padding:0}
+#officePhotoreal h1{font-size:18px;letter-spacing:.05em;margin:0}
+#officePhotoreal .section-head p{font-size:11px;margin:5px 0;color:#a6b6cb}
+#officePhotoreal > .actions{display:flex;justify-content:flex-end;gap:6px;margin:0;padding:8px 16px;background:#0f1522;border:0;border-radius:0}
+#officePhotoreal > .actions button{font-size:10px;padding:7px 10px;border-radius:5px}
+#officePhotoreal .office-visit-controls{position:absolute;top:2%;left:2%;width:26%;z-index:5;padding:8px 11px;margin:0;background:#0a101bd9;border:1px solid #5b668ba6;border-radius:6px;box-shadow:0 5px 20px #0008}
+#officePhotoreal .office-visit-controls label{color:#b7c3d3}
+#officePhotoreal .office-visit-controls select{max-width:170px;background:#111a2e}
+#officePhotoreal .office-scene-shell{position:relative;isolation:isolate;aspect-ratio:1672/941;min-height:0;margin:0;padding:0;overflow:hidden;background:#171126 url("trading-floor-photoreal.webp") center/100% 100% no-repeat}
+#officePhotoreal .office-scene-shell::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;background:linear-gradient(180deg,#080c180d,#080d1310 60%,#06091753)}
+#officePhotoreal .office-skyline{position:absolute;inset:0;z-index:2;pointer-events:none;background:none;border:0}
+#officePhotoreal .office-skyline::before,#officePhotoreal .office-windows{display:none}
+#officePhotoreal .office-specialist{position:absolute;top:19%;left:10%;width:22%;padding:9px 12px;display:grid;gap:3px;text-align:center;background:#15111aD9;border:1px solid #efbd73c9;box-shadow:0 0 17px #eeb65f53;pointer-events:none}
+#officePhotoreal .office-specialist::before{display:none}
+#officePhotoreal .office-specialist span{font-size:9px;letter-spacing:.12em;color:#f6d294}
+#officePhotoreal .office-specialist strong{font-size:15px;color:#fff3db}
+#officePhotoreal .office-specialist small{font-size:9px;color:#c9b7a7}
+#officePhotoreal .office-day-result{position:absolute;top:6%;right:27%;z-index:3;width:26%;min-height:80px;padding:10px 13px;display:flex;flex-direction:column;gap:5px;background:#080c17dd;border:1px solid #8b759d9e;box-shadow:0 7px 22px #050710bb}
+#officePhotoreal .office-day-result small{font-size:9px;color:#bbb6cb;letter-spacing:.08em}
+#officePhotoreal .office-day-result strong{font-size:clamp(16px,2vw,25px);font-variant-numeric:tabular-nums}
+#officePhotoreal .office-day-result > span{font-size:9px;color:#c1c2cc}
+#officePhotoreal .office-scene-label{display:none}
+#officePhotoreal .office-rooms{position:absolute;inset:0;z-index:3;display:block;margin:0;padding:0;min-height:0;overflow:visible;background:none;border:0;box-shadow:none}
+#officePhotoreal .office-rooms::before,#officePhotoreal .office-rooms::after{display:none}
+#officePhotoreal .office-lounge{position:absolute;top:41%;left:2%;width:24%;min-height:0;padding:9px 12px;background:#090e1dbb;border:1px solid #9b72a4aa;border-radius:6px;box-shadow:0 4px 16px #08071577}
+#officePhotoreal .office-lounge > strong{font-size:10px;color:#d8c5fb}
+#officePhotoreal .office-lounge h2{font-size:12px;color:#f4ecf9;text-transform:uppercase;margin:4px 0}
+#officePhotoreal .office-lounge p{font-size:10px;color:#d6cedc;margin:0}
+#officePhotoreal .office-sofa,#officePhotoreal .office-lounge-light{display:none}
+#officePhotoreal .office-room{min-width:0;padding:0;overflow:visible;border:0;background:none;box-shadow:none}
+#officePhotoreal .office-room::before,#officePhotoreal .office-room::after{display:none}
+#officePhotoreal .office-operations{position:absolute;top:28%;left:34%;width:63%;height:32%;z-index:4}
+#officePhotoreal .office-operations > h2,#officePhotoreal .office-operations > p{position:absolute;clip:rect(0 0 0 0);width:1px;height:1px;overflow:hidden}
+#officePhotoreal .office-operations .office-stations{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr));gap:39% 1%;align-items:start;min-height:0;height:100%;padding:0;margin:0;background:none}
+#officePhotoreal .office-station{padding:0;min-width:0;min-height:0;overflow:visible;border:0;border-radius:0;background:none;box-shadow:none}
+#officePhotoreal .office-station::before{display:none}
+#officePhotoreal .office-station:hover{transform:translateY(-2px);z-index:6}
+#officePhotoreal .office-operations .office-station{position:relative;display:flex;flex-direction:column;gap:4px}
+#officePhotoreal .office-operations .agent-top{min-height:34px;padding:5px 6px;display:flex;flex-direction:column;align-items:start;gap:3px;background:#070c17ee;border:1px solid #5a9ac7aa;border-radius:5px;box-shadow:0 4px 14px #000a}
+#officePhotoreal .office-operations .office-station:nth-child(6n+3) .agent-top,#officePhotoreal .office-operations .office-station:nth-child(6n+4) .agent-top{border-color:#b271ffb8}
+#officePhotoreal .office-operations .office-station:nth-child(6n+5) .agent-top,#officePhotoreal .office-operations .office-station:nth-child(6n+6) .agent-top{border-color:#edba71af}
+#officePhotoreal .office-station h3{font-size:10px;color:#fff;margin:0;letter-spacing:0}
+#officePhotoreal .office-station .agent-top span{font-size:8px;color:#9cdcf2}
+#officePhotoreal .office-station .office-station-scene{display:none}
+#officePhotoreal .office-operations .office-station-details{display:flex;flex-direction:column;gap:3px;padding:4px 5px;margin:0;border:1px solid #334359b0;border-radius:4px;background:#050814cf;box-shadow:0 6px 13px #0009}
+#officePhotoreal .office-operations .price{font-size:11px;line-height:1.2;font-weight:800;margin:0}
+#officePhotoreal .office-operations .foot{font-size:9px;display:flex;flex-wrap:wrap;gap:3px;justify-content:space-between}
+#officePhotoreal .office-operations .office-results{display:none}
+#officePhotoreal .office-operations .office-station:hover .office-results,#officePhotoreal .office-operations .office-station:focus-within .office-results{display:flex;justify-content:space-between;gap:5px;margin:4px 0 0;padding:4px 0 0;border-top:1px solid #52647a}
+#officePhotoreal .office-operations .office-results dt{font-size:8px}
+#officePhotoreal .office-operations .office-results dd{font-size:9px}
+#officePhotoreal .office-operations .office-visit-request{position:absolute;top:100%;left:0;right:0;padding:5px 3px;margin:2px 0 0;background:#17233bea;border:1px solid #577199;border-radius:4px;color:#fff;font-size:9px;opacity:0}
+#officePhotoreal .office-operations .office-station:hover .office-visit-request,#officePhotoreal .office-operations .office-station:focus-within .office-visit-request{opacity:1}
+#officePhotoreal .office-leadership{position:absolute;top:75%;left:33%;width:64%;height:19%;z-index:4}
+#officePhotoreal .office-leadership > h2,#officePhotoreal .office-leadership > p{position:absolute;clip:rect(0 0 0 0);width:1px;height:1px;overflow:hidden}
+#officePhotoreal .office-leadership .office-stations{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7%;padding:0;height:100%;align-items:end}
+#officePhotoreal .office-leadership .office-station{display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+#officePhotoreal .office-leadership .agent-top{width:90%;display:flex;justify-content:space-between;align-items:center;gap:5px;background:#070a14dd;border:1px solid #a18abbc1;border-radius:5px;padding:8px 9px;box-shadow:0 4px 13px #000b}
+#officePhotoreal .office-leadership .agent-top h3{font-size:13px}
+#officePhotoreal .office-leadership .office-station-details{display:none}
+#officePhotoreal .office-leadership .office-leader-state{display:none}
+#officePhotoreal .office-floor-legend{display:flex;flex-wrap:wrap;align-items:center;gap:17px;margin:0;padding:14px 18px;background:#0d1420;border-top:1px solid #344058}
+#officePhotoreal .office-floor-legend span{font-size:11px;display:inline-flex;align-items:center;gap:6px}
+#officePhotoreal .office-floor-legend strong{display:inline;color:#f8fafc;font-variant-numeric:tabular-nums}
+#officePhotoreal .office-count-info{margin-left:auto;color:#9ab0c9}
+#officePhotoreal .office-walker{z-index:7}

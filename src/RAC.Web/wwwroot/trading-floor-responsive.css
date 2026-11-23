@@ -1,0 +1,23 @@
+/* The scene preserves readable photo-real desk tags on narrow displays:
+   the 3D-rendered panorama scrolls horizontally instead of shrinking texts. */
+@media (max-width:1050px){
+  #officePhotoreal{overflow-x:auto;overscroll-behavior-inline:contain}
+  #officePhotoreal .office-scene-shell{min-width:1000px}
+  #officePhotoreal .office-day-result{min-height:72px}
+}
+@media (max-width:720px){
+  #officePhotoreal .office-hud{flex-wrap:wrap;gap:6px;padding:11px}
+  #officePhotoreal .office-activity-strip{padding:10px;gap:8px}
+  #officePhotoreal .office-activity-strip span{font-size:10px}
+  #officePhotoreal .section-head{display:flex;gap:8px;padding:10px}
+  #officePhotoreal .section-head h1{font-size:14px}
+  #officePhotoreal > .actions{justify-content:flex-start;flex-wrap:wrap;padding:7px}
+  #officePhotoreal > .actions button{flex:0 1 auto}
+  #officePhotoreal .office-visit-controls{padding:8px}
+  #officePhotoreal .office-count-info{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){
+  #officePhotoreal .office-station{transition:none}
+  #officePhotoreal .office-station:hover{transform:none}
+  #officePhotoreal .office-walker{animation:none}
+}

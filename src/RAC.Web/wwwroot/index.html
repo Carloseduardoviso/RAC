@@ -4,8 +4,8 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0a0c16"><title>RAC — Simulador de agentes</title>
 <link rel="stylesheet" href="styles.css">
-<link rel="stylesheet" href="trading-floor.css?v=2">
-<link rel="stylesheet" href="trading-floor-v2.css?v=2">
+<link rel="stylesheet" href="trading-floor-photo.css?v=3">
+<link rel="stylesheet" href="trading-floor-responsive.css?v=3">
 </head>
 <body>
 <div class="shell">
@@ -24,7 +24,7 @@
   <span id="sessionUser"></span><button id="logout" type="button">Sair</button>
 </div>
 <main class="layout" style="display:block">
-<section class="panel office-map" aria-labelledby="office-title" aria-describedby="office-legend">
+<section id="officePhotoreal" class="panel office-map" aria-labelledby="office-title" aria-describedby="office-legend">
   <div class="office-hud" aria-label="Resumo do escritório">
     <div class="office-hud-title"><span class="office-live-dot" aria-hidden="true"></span><strong>Escritório operacional</strong><span class="office-hud-pill">12 agentes</span><span class="office-hud-pill">3 líderes</span></div>
     <div class="office-hud-code">TRADING FLOOR 01 · PAPER</div>
@@ -601,4 +601,4 @@
 <section class="panel note"><h2>Sobre este MVP</h2><p><b>As operações e o patrimônio seguem sintéticos.</b> O simulador produz variações aleatórias; os sinais vêm de uma regra de momentum, não de um modelo de IA treinado.</p><p>O resultado inclui taxa ilustrativa de 0,1% por lado e câmbio fictício de R$ 5 por USDT. Não prevê slippage real, spreads variáveis ou outras condições de mercado.</p><p>O RAC consulta cotações públicas reais e, quando o administrador solicita, lê a carteira Spot pela API com permissão exclusivamente de leitura. O histórico real em BRL representa estimativas de mercado, sem conciliação de lucro. A Testnet está disponível para verificações públicas. Não existem endpoints para ordens reais, saques ou pagamentos.</p></section></aside></div>
 </main>
 <footer>RAC • Protótipo educacional • Nenhuma promessa de rentabilidade</footer>
-</div><script src="trading-floor.js?v=2" defer></script><script src="app.js?v=2" defer></script></body></html>
+</div><script src="trading-floor.js?v=3" defer></script><script src="app.js?v=3" defer></script></body></html>
