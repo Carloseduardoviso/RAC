@@ -26,6 +26,7 @@ public sealed class RacWalkForwardService(BinancePublicMarketClient publicMarket
             var results = new List<PaperStrategyWalkForward.Result>();
             var profitabilityDiagnostics = new List<PaperProfitabilityDiagnostics.Result>();
             var entryFilterResearch = new List<PaperEntryFilterResearch.Result>();
+            var tradeHorizonResearch = new List<PaperTradeHorizonResearch.Result>();
             foreach (var symbol in RacMarketSymbols.Supported)
             {
                 ct.ThrowIfCancellationRequested();
@@ -39,6 +40,8 @@ public sealed class RacWalkForwardService(BinancePublicMarketClient publicMarket
                 profitabilityDiagnostics.Add(PaperProfitabilityDiagnostics.Run(
                     symbol, sorted, assessedUtc, walk));
                 entryFilterResearch.Add(PaperEntryFilterResearch.Run(
+                    symbol, sorted, assessedUtc, walk));
+                tradeHorizonResearch.Add(PaperTradeHorizonResearch.Run(
                     symbol, sorted, assessedUtc, walk));
             }
             if (results.Count != RacMarketSymbols.Supported.Length)
@@ -88,6 +91,18 @@ public sealed class RacWalkForwardService(BinancePublicMarketClient publicMarket
                     riskLimitsModified = false,
                     warning = "Signals per candle are NOT trades. One-minute next-candle response is not real or PAPER PnL; small samples, overlapping training windows and hypothetical costs.",
                     agents = entryFilterResearch
+                },
+                tradeHorizonResearch = new {
+                    mode = "FULL_TRADE_HORIZON_SHADOW_ONLY",
+                    method = "TRAIN_ONLY_HORIZON_SELECTION_DISJOINT_120_CANDLE_HOLDOUTS",
+                    initialUsdtPerFold = 100m,
+                    horizonsMinutes = PaperTradeHorizonResearch.Horizons,
+                    count = tradeHorizonResearch.Count,
+                    paperModified = false, historyPersisted = false,
+                    orderPlacementEnabled = false, promotionAllowed = false,
+                    riskLimitsModified = false,
+                    warning = "Historical hypothetical closed trades with holding horizons and ATR stops. Fixed assumed costs and all-in sizing, no order execution or evidence of future profitability.",
+                    agents = tradeHorizonResearch
                 }
             };
             _cached = payload;

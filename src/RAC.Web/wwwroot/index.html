@@ -259,6 +259,10 @@
   <p id="entryFilterStatus" role="status">Execute a analise walk-forward para carregar o comparativo de filtros.</p>
   <p><small>Compara baseline com tres filtros predefinidos: separacao SMA9/SMA21 de pelo menos 0,05%, ATR14 maior ou igual a metade do custo estimado de ida e volta, e ambos. O filtro e escolhido apenas no treino; os sinais no teste posterior NAO sao operacoes executadas. Resultados sem sinais ficam vazios, nunca sao tratados como lucro.</small></p>
   <div class="scroll"><table><thead><tr><th>Agente</th><th>Janelas</th><th>Filtros escolhidos</th><th>Janelas com sinais</th><th>Sinais base / selecionados</th><th>Movimento liquido medio base</th><th>Movimento liquido medio selecionado</th><th>Estado</th></tr></thead><tbody id="entryFilterRows"><tr><td colspan="8">Sem analise.</td></tr></tbody></table></div>
+  <h3>MVP 1.3.3 - Operacoes completas e horizontes (SHADOW)</h3>
+  <p id="tradeHorizonStatus" role="status">Execute a analise walk-forward para comparar operacoes simuladas completas.</p>
+  <p><small>Compra simulada na abertura apos sinal em candle fechado; venda no stop de 2x ATR, no fim do horizonte (1, 5, 15 ou 30 minutos) ou no fechamento da janela. Usa 100 USDT ficticios por periodo, custos estimados, treino cronologico e teste futuro separado. Nao usa dados reais da conta PAPER nem envia ordens.</small></p>
+  <div class="scroll"><table><thead><tr><th>Agente</th><th>Janelas</th><th>Horizontes alternativos selecionados</th><th>Testes positivos</th><th>Operacoes encerradas</th><th>Stops ATR</th><th>Retorno medio base</th><th>Retorno medio selecionado</th><th>Pior drawdown</th><th>Situacao</th></tr></thead><tbody id="tradeHorizonRows"><tr><td colspan="10">Sem analise.</td></tr></tbody></table></div>
   <h3>Revisao de risco PAPER (somente leitura)</h3>
   <p id="strategyRiskReviewStatus" role="status">Execute a validacao para carregar o diagnostico financeiro.</p>
   <p><small>Resultados realizados das vendas ja incluem as taxas de entrada e saida. Nao subtrair as taxas totais novamente. Posicoes abertas nao sao lucro realizado. Este relatorio nao desbloqueia a carteira nem modifica os limites financeiros.</small></p>

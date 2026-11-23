@@ -694,6 +694,8 @@ $('runWalkForward').onclick = async () => {
   $('profitabilityRows').innerHTML = '<tr><td colspan="9">Calculando...</td></tr>';
   $('entryFilterStatus').textContent = 'Comparando filtros somente no modo SHADOW...';
   $('entryFilterRows').innerHTML = '<tr><td colspan="8">Calculando...</td></tr>';
+  $('tradeHorizonStatus').textContent = 'Simulando operacoes completas em modo SHADOW...';
+  $('tradeHorizonRows').innerHTML = '<tr><td colspan="10">Calculando...</td></tr>';
   try {
     const r = await api('strategy/walk-forward');
     if (r.mode !== 'WALK_FORWARD_RESEARCH_ONLY' || r.orderPlacementEnabled ||
@@ -715,6 +717,25 @@ $('runWalkForward').onclick = async () => {
         filters.riskLimitsModified || filters.count !== 12 ||
         !Array.isArray(filters.agents) || filters.agents.length !== 12)
       throw new Error('Filtros de entrada fora do modo exclusivamente experimental.');
+    const trades = r.tradeHorizonResearch;
+    if (!trades || trades.mode !== 'FULL_TRADE_HORIZON_SHADOW_ONLY' ||
+        trades.paperModified || trades.historyPersisted ||
+        trades.orderPlacementEnabled || trades.promotionAllowed ||
+        trades.riskLimitsModified || trades.count !== 12 ||
+        !Array.isArray(trades.agents) || trades.agents.length !== 12)
+      throw new Error('Operacoes completas fora do modo SHADOW seguro.');
+    $('tradeHorizonStatus').textContent = 'Comparacao SHADOW de operacoes completas: horizontes '+
+      (trades.horizonsMinutes || []).map(Number).join(', ')+' minutos. Sem promocao automatica.';
+    $('tradeHorizonRows').innerHTML = trades.agents.map(x =>
+      '<tr><td>'+safe(x.symbol)+'</td><td>'+Number(x.foldCount)+
+      '</td><td>'+Number(x.selectedNonBaselineFolds)+
+      '</td><td>'+Number(x.positiveSelectedHoldouts)+
+      '</td><td>'+Number(x.completedSelectedTrades)+
+      '</td><td>'+Number(x.selectedStops)+
+      '</td><td>'+(x.status === 'COMPLETE' ? pct(x.meanBaselineHoldoutReturnPct) : '-')+
+      '</td><td>'+(x.status === 'COMPLETE' ? pct(x.meanSelectedHoldoutReturnPct) : '-')+
+      '</td><td>'+(x.status === 'COMPLETE' ? pct(x.maxSelectedHoldoutDrawdownPct) : '-')+
+      '</td><td>'+safe(x.status)+'</td></tr>').join('');
     $('entryFilterStatus').textContent = 'Comparativo de filtros em 12 agentes, treino sem acesso ao teste. Movimento de apenas um candle; NAO sao lucros de operacoes.';
     $('entryFilterRows').innerHTML = filters.agents.map(x =>
       '<tr><td>'+safe(x.symbol)+'</td><td>'+Number(x.foldCount)+
@@ -753,6 +774,8 @@ $('runWalkForward').onclick = async () => {
     $('profitabilityRows').innerHTML = '<tr><td colspan="9">Dados indisponiveis.</td></tr>';
     $('entryFilterStatus').textContent = 'Filtros indisponiveis: '+error.message;
     $('entryFilterRows').innerHTML = '<tr><td colspan="8">Dados indisponiveis.</td></tr>';
+    $('tradeHorizonStatus').textContent = 'Horizontes indisponiveis: '+error.message;
+    $('tradeHorizonRows').innerHTML = '<tr><td colspan="10">Dados indisponiveis.</td></tr>';
   } finally { $('runWalkForward').disabled = false; }
 };
 
