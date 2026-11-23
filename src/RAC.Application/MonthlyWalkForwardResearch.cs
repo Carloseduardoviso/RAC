@@ -21,7 +21,9 @@ public static class MonthlyWalkForwardResearch
         int ChosenHorizonMinutes, int TrainingTrades, decimal TrainingReturnPct,
         int TestTrades, int TestWins, int TestLosses, int TestStops,
         decimal BaselineTestReturnPct, decimal SelectedTestReturnPct,
-        decimal SelectedTestDrawdownPct, string SelectedEntryGate = "BASELINE");
+        decimal SelectedTestDrawdownPct, string SelectedEntryGate = "BASELINE",
+        int LiquidityBlockedEntries = 0, int PartialEntryFills = 0,
+        decimal UnfilledNotionalUsdt = 0m);
     public sealed record RegimeSummary(string RetrospectiveRegime,
         int Days, int PositiveTestDays, int ClosedTestTrades,
         decimal MeanSelectedTestReturnPct, decimal WorstTestDrawdownPct);
@@ -35,7 +37,8 @@ public static class MonthlyWalkForwardResearch
         string Interpretation);
 
     public static Result Run(string symbol, int year, int month, Stream archive,
-        decimal costMultiplier = 1m, bool entryGateResearch = false)
+        decimal costMultiplier = 1m, bool entryGateResearch = false,
+        bool liquidityStressResearch = false)
     {
         if (costMultiplier is not (1m or 2m))
             throw new ArgumentOutOfRangeException(nameof(costMultiplier));
@@ -109,9 +112,9 @@ public static class MonthlyWalkForwardResearch
             var gateName = entryGateResearch ? "NO_TRADE" : "BASELINE";
             var choice = entryGateResearch
                 ? PaperTradeHorizonResearch.SimulateSlice(symbol, train, 1,
-                    costMultiplier, "NO_TRADE")
+                    costMultiplier, "NO_TRADE", liquidityStressResearch)
                 : PaperTradeHorizonResearch.SimulateSlice(symbol, train, 1,
-                    costMultiplier);
+                    costMultiplier, "BASELINE", liquidityStressResearch);
             var gates = entryGateResearch
                 ? new[] { "BASELINE", "TREND_STRENGTH", "ATR_COST", "TREND_AND_ATR" }
                 : new[] { "BASELINE" };
@@ -121,7 +124,7 @@ public static class MonthlyWalkForwardResearch
             foreach (var horizon in horizons)
             {
                 var candidate = PaperTradeHorizonResearch.SimulateSlice(symbol, train,
-                    horizon, costMultiplier, gate);
+                    horizon, costMultiplier, gate, liquidityStressResearch);
                 if (candidate.Status != "COMPLETE")
                     throw new InvalidDataException("Training simulation blocked.");
                 if (entryGateResearch && candidate.CompletedTrades < 3) continue;
@@ -132,10 +135,11 @@ public static class MonthlyWalkForwardResearch
                     choice = candidate;
                 }
             }
-            var baseline = PaperTradeHorizonResearch.SimulateSlice(symbol, test, 1, costMultiplier);
+            var baseline = PaperTradeHorizonResearch.SimulateSlice(symbol, test, 1,
+                costMultiplier, "BASELINE", liquidityStressResearch);
             var selected = gateName == "BASELINE" && choice.HorizonMinutes == 1
                 ? baseline : PaperTradeHorizonResearch.SimulateSlice(symbol, test,
-                    choice.HorizonMinutes, costMultiplier, gateName);
+                    choice.HorizonMinutes, costMultiplier, gateName, liquidityStressResearch);
             if (baseline.Status != "COMPLETE" || selected.Status != "COMPLETE")
                 throw new InvalidDataException("Holdout simulation blocked.");
             var regime = validated.Days[days.Count].DescriptiveRegime;
@@ -145,7 +149,8 @@ public static class MonthlyWalkForwardResearch
                 choice.CompletedTrades, choice.ReturnPct, selected.CompletedTrades,
                 selected.WinningTrades, selected.LosingTrades, selected.AtrStopExits,
                 baseline.ReturnPct, selected.ReturnPct, selected.MaxDrawdownPct,
-                gateName));
+                gateName, selected.LiquidityBlockedEntries,
+                selected.PartialEntryFills, selected.TotalUnfilledNotional));
         }
     }
 }

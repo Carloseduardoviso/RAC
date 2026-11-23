@@ -18,7 +18,9 @@ public static class PaperTradeHorizonResearch
     public sealed record Slice(string Status, int Candles, int HorizonMinutes,
         decimal ReturnPct, decimal MaxDrawdownPct, int CompletedTrades,
         int WinningTrades, int LosingTrades, int AtrStopExits,
-        int HorizonExits, int FinalLiquidations, decimal? MeanHoldMinutes);
+        int HorizonExits, int FinalLiquidations, decimal? MeanHoldMinutes,
+        int LiquidityBlockedEntries = 0, int PartialEntryFills = 0,
+        decimal TotalUnfilledNotional = 0m);
     public sealed record Fold(int Number, int SelectedHorizonFromTraining,
         decimal TrainingSelectedReturnPct, int TrainingSelectedTrades,
         decimal HoldoutBaselineReturnPct, decimal HoldoutSelectedReturnPct,
@@ -92,7 +94,8 @@ public static class PaperTradeHorizonResearch
     }
 
     public static Slice SimulateSlice(string symbol, IReadOnlyList<MarketCandlePoint> input,
-        int horizonMinutes, decimal costMultiplier = 1m, string entryGate = "BASELINE")
+        int horizonMinutes, decimal costMultiplier = 1m, string entryGate = "BASELINE",
+        bool liquidityStress = false)
     {
         if (!RacMarketSymbols.IsSupported(symbol))
             throw new ArgumentException("Unsupported market symbol.", nameof(symbol));
@@ -126,6 +129,8 @@ public static class PaperTradeHorizonResearch
         decimal peak = InitialCash, maxDd = 0m;
         int enteredAt = -1, completed = 0, wins = 0, losses = 0;
         int stops = 0, timeExits = 0, liquidations = 0, sumHold = 0;
+        int liquidityBlocked = 0, partialFills = 0;
+        decimal unfilledNotional = 0m;
         for (var i = RacStrategyEvaluator.MinimumCandles - 1; i < candles.Length - 1; i++)
         {
             var nextIndex = i + 1;
@@ -134,7 +139,7 @@ public static class PaperTradeHorizonResearch
             // open if its holding period is already complete. No same-bar fill.
             if (qty > 0m && nextIndex - enteredAt >= horizonMinutes)
             {
-                Exit(next.Open, nextIndex, ref timeExits);
+                Exit(next.Open, nextIndex, ref timeExits, next);
             }
             if (qty == 0m)
             {
@@ -145,11 +150,35 @@ public static class PaperTradeHorizonResearch
                     signal.Sma21 is not null &&
                     EntryGatePasses(signal, candles[i].Close, entryGate, costMultiplier))
                 {
-                    entryCapital = cash;
-                    var buy = PaperExecutionAudit.BuyAll(cash, next.Open, costMultiplier);
-                    var entry = buy.ImpactAdjustedEntryQuote;
-                    qty = buy.FilledQuantity;
-                    cash = 0m;
+                    decimal entry;
+                    if (liquidityStress)
+                    {
+                        // Execution-only OHLCV stress; full next-bar high/low/volume
+                        // are NOT used for trading signals or training decisions.
+                        var quote = PaperLiquidityStressAudit.Assess(next.Open,
+                            next.High, next.Low, next.Volume, next.QuoteVolume,
+                            cash, 0.001m, costMultiplier);
+                        if (quote.FilledNotional < 5m)
+                        {
+                            liquidityBlocked++;
+                            unfilledNotional += cash;
+                            continue;
+                        }
+                        entryCapital = cash;
+                        if (quote.InsufficientLiquidity) partialFills++;
+                        unfilledNotional += quote.UnfilledNotional;
+                        entry = quote.EffectiveBuyPrice;
+                        qty = (quote.FilledNotional - quote.BuyFee) / entry;
+                        cash -= quote.FilledNotional;
+                    }
+                    else
+                    {
+                        entryCapital = cash;
+                        var buy = PaperExecutionAudit.BuyAll(cash, next.Open, costMultiplier);
+                        entry = buy.ImpactAdjustedEntryQuote;
+                        qty = buy.FilledQuantity;
+                        cash = 0m;
+                    }
                     enteredAt = nextIndex;
                     stop = Math.Max(0m, entry - 2m * signal.Atr14.Value);
                 }
@@ -158,30 +187,42 @@ public static class PaperTradeHorizonResearch
             {
                 // A gap below the stop exits at the worse opening quote.
                 Exit(PaperExecutionAudit.ConservativeStopFill(stop, next.Open,
-                    next.Low), nextIndex, ref stops);
+                    next.Low), nextIndex, ref stops, next);
             }
             else if (qty > 0m && nextIndex - enteredAt + 1 >= horizonMinutes)
             {
                 // The current closed candle reaches the holding horizon.
-                Exit(next.Close, nextIndex + 1, ref timeExits);
+                Exit(next.Close, nextIndex + 1, ref timeExits, next);
             }
             var equity = cash + qty * next.Close * (1m - impact) * (1m - fee);
             peak = Math.Max(peak, equity);
             maxDd = Math.Max(maxDd, (peak - equity) / peak * 100m);
         }
-        if (qty > 0m) Exit(candles[^1].Close, candles.Length, ref liquidations);
+        if (qty > 0m) Exit(candles[^1].Close, candles.Length,
+            ref liquidations, candles[^1]);
         peak = Math.Max(peak, cash);
         maxDd = Math.Max(maxDd, (peak - cash) / peak * 100m);
         return new("COMPLETE", candles.Length, horizonMinutes,
             Math.Round((cash / InitialCash - 1m) * 100m, 4),
             Math.Round(maxDd, 4), completed, wins, losses, stops,
             timeExits, liquidations,
-            completed > 0 ? Math.Round((decimal)sumHold / completed, 2) : null);
+            completed > 0 ? Math.Round((decimal)sumHold / completed, 2) : null,
+            liquidityBlocked, partialFills, Math.Round(unfilledNotional, 4));
 
-        void Exit(decimal quotedPrice, int exclusiveExitCandleIndex, ref int reasonCounter)
+        void Exit(decimal quotedPrice, int exclusiveExitCandleIndex,
+            ref int reasonCounter, MarketCandlePoint candle)
         {
-            cash = PaperExecutionAudit.SellAll(qty, quotedPrice,
+            var proceeds = PaperExecutionAudit.SellAll(qty, quotedPrice,
                 costMultiplier).NetCashAfter;
+            if (liquidityStress)
+            {
+                // Extra hypothetical adverse exit cost. Never claims an actual fill;
+                // no exit liquidity guarantee is inferred from candle volume.
+                var rangeImpact = Math.Min(0.02m,
+                    (candle.High - candle.Low) / candle.Open * 0.01m);
+                proceeds *= 1m - rangeImpact;
+            }
+            cash += proceeds;
             qty = 0m;
             completed++;
             if (cash > entryCapital) wins++;
