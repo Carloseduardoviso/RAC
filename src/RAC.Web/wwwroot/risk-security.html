@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RAC — Segurança operacional</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#101827;color:#edf2f8}
+body{max-width:1050px;margin:auto;padding:24px}
+a{color:#8dccff}header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.panel{background:#1d293a;border:1px solid #36465c;border-radius:12px;padding:18px;margin:16px 0}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.metric{padding:14px;background:#111e2d;border-radius:8px}.metric strong{display:block;font-size:1.3rem;margin-top:6px}
+button{background:#2276b7;color:white;border:0;border-radius:8px;padding:10px 16px;cursor:pointer}
+table{width:100%;border-collapse:collapse}th,td{padding:10px;text-align:left;border-bottom:1px solid #40506a}
+.warning{color:#ffd18b}.critical{color:#ffa4a4}.ok{color:#9be6b0}
+small{color:#adbdcb}
+</style></head><body>
+<header><div><h1>RAC — Segurança operacional</h1><small>MVP 1.5.14 • Somente leitura • Nenhuma ordem é enviada</small></div>
+<nav><a href="/">Voltar ao RAC</a></nav></header>
+<div class="panel"><button id="refresh" type="button">Atualizar diagnóstico</button>
+<p id="notice" role="status">Entre no RAC com perfil Administrator ou RiskReviewer para consultar.</p>
+</div>
+<section class="panel" aria-label="Indicadores de segurança">
+<div class="metrics">
+<div class="metric">Estado geral<strong id="status">—</strong></div>
+<div class="metric">PAPER<strong id="paper">—</strong></div>
+<div class="metric">Bloqueio PAPER<strong id="risk">—</strong></div>
+<div class="metric">Testnet<strong id="testnet">—</strong></div>
+<div class="metric">Revisões pendentes<strong id="pending">—</strong></div>
+<div class="metric">Incidentes<strong id="incidents">—</strong></div>
+</div></section>
+<section class="panel"><h2>Diagnósticos e alertas</h2>
+<div style="overflow-x:auto"><table><thead><tr><th>Código</th><th>Gravidade</th><th>Descrição</th></tr></thead>
+<tbody id="alerts"><tr><td colspan="3">Aguardando consulta autenticada.</td></tr></tbody></table></div></section>
+<p><small>Os alertas são diagnósticos sob demanda, não notificações automáticas. Um painel saudável não autoriza negociações reais ou Testnet.</small></p>
+<script src="/risk-security.js" defer></script></body></html>

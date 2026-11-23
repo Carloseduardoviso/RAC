@@ -99,6 +99,19 @@ public sealed class ProductionRiskPolicyHttpHomologationTests
                 baseUrl + "/api/risk/policies", new { });
             Assert.Equal(HttpStatusCode.Forbidden, noCsrf.StatusCode);
 
+            // New read-only operational monitoring endpoint uses the same
+            // reviewer authorization. Never queries the real RAC database.
+            Assert.Equal(HttpStatusCode.Unauthorized,
+                (await anonymous.GetAsync(baseUrl + "/api/risk/safety-monitoring")).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden,
+                (await viewer.Client.GetAsync(baseUrl + "/api/risk/safety-monitoring")).StatusCode);
+            var monitorResponse = await reviewer.Client.GetAsync(
+                baseUrl + "/api/risk/safety-monitoring");
+            Assert.Equal(HttpStatusCode.OK, monitorResponse.StatusCode);
+            var monitorJson = await monitorResponse.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal("READ_ONLY_SAFETY_DIAGNOSTICS",
+                monitorJson.GetProperty("mode").GetString());
+            Assert.False(monitorJson.GetProperty("realOrdersEnabled").GetBoolean());
             Assert.Equal(HttpStatusCode.Forbidden,
                 (await viewer.Client.GetAsync(baseUrl + "/api/risk/policies")).StatusCode);
             Assert.Equal(HttpStatusCode.OK,

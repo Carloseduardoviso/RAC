@@ -34,6 +34,7 @@ builder.Services.AddSingleton<RacExtendedHistoryService>();
 builder.Services.AddSingleton<RacPaperTradingService>();
 builder.Services.AddHostedService<RacPaperTradingWorker>();
 builder.Services.AddSingleton<RacPaperMonitoringService>();
+builder.Services.AddSingleton<RacSafetyMonitoringService>();
 builder.Services.AddHostedService<RacPaperMonitoringWorker>();
 // No mainnet order endpoint can be injected into this hard-pinned Testnet client.
 builder.Services.AddSingleton<BinanceTestnetCredentialStore>();
@@ -341,6 +342,21 @@ app.MapPost("/api/paper/pause", async (RacPaperTradingService paper,
     ClaimsPrincipal user, CancellationToken ct) =>
     await HandlePortfolioAsync(() => paper.SetRunningAsync(false,
         user.Identity?.Name ?? "operator", ct))).RequireAuthorization("RacOperator");
+
+app.MapGet("/api/risk/safety-monitoring", async (
+    RacSafetyMonitoringService monitor, HttpContext http, CancellationToken ct) =>
+{
+    http.Response.Headers.CacheControl = "no-store";
+    try { return Results.Ok(await monitor.SnapshotAsync(ct)); }
+    catch (Exception ex) when (ex is Microsoft.Data.SqlClient.SqlException or
+        Microsoft.EntityFrameworkCore.DbUpdateException)
+    {
+        return Results.Json(new { status = "UNAVAILABLE",
+            mode = "READ_ONLY_SAFETY_DIAGNOSTICS", realOrdersEnabled = false,
+            error = "SQL monitoring unavailable. No order actions permitted." },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+}).RequireAuthorization("RacRiskReviewer");
 
 app.MapGet("/api/paper/monitoring", async (
     RacPaperMonitoringService monitor, CancellationToken ct) =>
