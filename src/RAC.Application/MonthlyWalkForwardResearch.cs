@@ -21,7 +21,7 @@ public static class MonthlyWalkForwardResearch
         int ChosenHorizonMinutes, int TrainingTrades, decimal TrainingReturnPct,
         int TestTrades, int TestWins, int TestLosses, int TestStops,
         decimal BaselineTestReturnPct, decimal SelectedTestReturnPct,
-        decimal SelectedTestDrawdownPct);
+        decimal SelectedTestDrawdownPct, string SelectedEntryGate = "BASELINE");
     public sealed record RegimeSummary(string RetrospectiveRegime,
         int Days, int PositiveTestDays, int ClosedTestTrades,
         decimal MeanSelectedTestReturnPct, decimal WorstTestDrawdownPct);
@@ -35,7 +35,7 @@ public static class MonthlyWalkForwardResearch
         string Interpretation);
 
     public static Result Run(string symbol, int year, int month, Stream archive,
-        decimal costMultiplier = 1m)
+        decimal costMultiplier = 1m, bool entryGateResearch = false)
     {
         if (costMultiplier is not (1m or 2m))
             throw new ArgumentOutOfRangeException(nameof(costMultiplier));
@@ -103,18 +103,39 @@ public static class MonthlyWalkForwardResearch
                 throw new InvalidDataException("Daily time split incomplete.");
             var train = data.Take(TrainMinutes).ToArray();
             var test = data.Skip(TrainMinutes).ToArray();
-            var candidates = PaperTradeHorizonResearch.Horizons
-                .Select(h => PaperTradeHorizonResearch.SimulateSlice(symbol, train, h, costMultiplier)).ToArray();
-            if (candidates.Any(x => x.Status != "COMPLETE"))
-                throw new InvalidDataException("Training simulation blocked.");
-            var choice = candidates[0];
-            foreach (var candidate in candidates.Skip(1))
-                if (candidate.CompletedTrades > 0 && candidate.ReturnPct > choice.ReturnPct)
+            // The opt-in 1.3.8 research starts with the literal no-trade
+            // alternative (0%): a strategy can only replace it with positive
+            // training returns supported by >=3 completed training trades.
+            var gateName = entryGateResearch ? "NO_TRADE" : "BASELINE";
+            var choice = entryGateResearch
+                ? PaperTradeHorizonResearch.SimulateSlice(symbol, train, 1,
+                    costMultiplier, "NO_TRADE")
+                : PaperTradeHorizonResearch.SimulateSlice(symbol, train, 1,
+                    costMultiplier);
+            var gates = entryGateResearch
+                ? new[] { "BASELINE", "TREND_STRENGTH", "ATR_COST", "TREND_AND_ATR" }
+                : new[] { "BASELINE" };
+            var horizons = entryGateResearch ? new[] { 15, 30 }
+                : PaperTradeHorizonResearch.Horizons;
+            foreach (var gate in gates)
+            foreach (var horizon in horizons)
+            {
+                var candidate = PaperTradeHorizonResearch.SimulateSlice(symbol, train,
+                    horizon, costMultiplier, gate);
+                if (candidate.Status != "COMPLETE")
+                    throw new InvalidDataException("Training simulation blocked.");
+                if (entryGateResearch && candidate.CompletedTrades < 3) continue;
+                if ((!entryGateResearch || candidate.ReturnPct > 0m) &&
+                    candidate.ReturnPct > choice.ReturnPct)
+                {
+                    gateName = gate;
                     choice = candidate;
+                }
+            }
             var baseline = PaperTradeHorizonResearch.SimulateSlice(symbol, test, 1, costMultiplier);
-            var selected = choice.HorizonMinutes == 1
+            var selected = gateName == "BASELINE" && choice.HorizonMinutes == 1
                 ? baseline : PaperTradeHorizonResearch.SimulateSlice(symbol, test,
-                    choice.HorizonMinutes, costMultiplier);
+                    choice.HorizonMinutes, costMultiplier, gateName);
             if (baseline.Status != "COMPLETE" || selected.Status != "COMPLETE")
                 throw new InvalidDataException("Holdout simulation blocked.");
             var regime = validated.Days[days.Count].DescriptiveRegime;
@@ -123,7 +144,8 @@ public static class MonthlyWalkForwardResearch
             days.Add(new Day(today, regime, choice.HorizonMinutes,
                 choice.CompletedTrades, choice.ReturnPct, selected.CompletedTrades,
                 selected.WinningTrades, selected.LosingTrades, selected.AtrStopExits,
-                baseline.ReturnPct, selected.ReturnPct, selected.MaxDrawdownPct));
+                baseline.ReturnPct, selected.ReturnPct, selected.MaxDrawdownPct,
+                gateName));
         }
     }
 }

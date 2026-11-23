@@ -94,6 +94,13 @@ public sealed class PaperTradeHorizonResearchTests
             PaperTradeHorizonResearch.SimulateSlice("BTCUSDT", bars, 2));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             PaperTradeHorizonResearch.SimulateSlice("BTCUSDT", bars, 1, 3m));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            PaperTradeHorizonResearch.SimulateSlice("BTCUSDT", bars, 15, 1m, "UNKNOWN"));
+        var inactive = PaperTradeHorizonResearch.SimulateSlice("BTCUSDT", bars, 15, 1m, "NO_TRADE");
+        Assert.Equal("COMPLETE", inactive.Status);
+        Assert.Equal(0, inactive.CompletedTrades);
+        Assert.Equal(0m, inactive.ReturnPct);
+        Assert.Equal(0m, inactive.MaxDrawdownPct);
         var baseCost = PaperTradeHorizonResearch.SimulateSlice("BTCUSDT", bars, 5, 1m);
         var doubleCost = PaperTradeHorizonResearch.SimulateSlice("BTCUSDT", bars, 5, 2m);
         Assert.True(doubleCost.ReturnPct <= baseCost.ReturnPct);

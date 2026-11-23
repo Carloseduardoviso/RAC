@@ -92,7 +92,7 @@ public static class PaperTradeHorizonResearch
     }
 
     public static Slice SimulateSlice(string symbol, IReadOnlyList<MarketCandlePoint> input,
-        int horizonMinutes, decimal costMultiplier = 1m)
+        int horizonMinutes, decimal costMultiplier = 1m, string entryGate = "BASELINE")
     {
         if (!RacMarketSymbols.IsSupported(symbol))
             throw new ArgumentException("Unsupported market symbol.", nameof(symbol));
@@ -100,6 +100,9 @@ public static class PaperTradeHorizonResearch
             throw new ArgumentOutOfRangeException(nameof(horizonMinutes));
         if (costMultiplier is not (1m or 2m))
             throw new ArgumentOutOfRangeException(nameof(costMultiplier));
+        if (entryGate is not ("BASELINE" or "TREND_STRENGTH" or "ATR_COST" or
+            "TREND_AND_ATR" or "NO_TRADE"))
+            throw new ArgumentOutOfRangeException(nameof(entryGate));
         var fee = Fee * costMultiplier;
         var impact = Impact * costMultiplier;
         if (input.Count < RacStrategyEvaluator.MinimumCandles + 10 || input.Count > 2000 ||
@@ -110,6 +113,9 @@ public static class PaperTradeHorizonResearch
             if (input[j].OpenUtc - input[j - 1].OpenUtc != TimeSpan.FromMinutes(1))
                 return Unavailable(input.Count, horizonMinutes);
         var candles = input.ToArray();
+        if (entryGate == "NO_TRADE")
+            return new("COMPLETE", candles.Length, horizonMinutes, 0m, 0m,
+                0, 0, 0, 0, 0, 0, null);
         decimal cash = InitialCash, qty = 0m, stop = 0m, entryCapital = 0m;
         decimal peak = InitialCash, maxDd = 0m;
         int enteredAt = -1, completed = 0, wins = 0, losses = 0;
@@ -129,7 +135,9 @@ public static class PaperTradeHorizonResearch
                 var signal = RacStrategyEvaluator.Evaluate(symbol,
                     candles.Take(i + 1).ToArray(), candles[i].CloseUtc);
                 if (signal.Status == "READY" && signal.Action == "COMPRA_OBSERVACIONAL" &&
-                    signal.Atr14 is > 0m)
+                    signal.Atr14 is > 0m && signal.Sma9 is not null &&
+                    signal.Sma21 is not null &&
+                    EntryGatePasses(signal, candles[i].Close, entryGate, costMultiplier))
                 {
                     entryCapital = cash;
                     var entry = next.Open * (1m + impact);
@@ -173,6 +181,28 @@ public static class PaperTradeHorizonResearch
             reasonCounter++;
             enteredAt = -1;
         }
+    }
+
+    public static bool EntryGatePasses(StrategySignal signal, decimal closedPrice,
+        string entryGate, decimal costMultiplier)
+    {
+        if (closedPrice <= 0m || signal.Sma9 is null || signal.Sma21 is null ||
+            signal.Atr14 is null || signal.Status != "READY") return false;
+        // Predeclared thresholds; only known closed-candle indicators are used.
+        var smaSeparation = (signal.Sma9.Value - signal.Sma21.Value) / closedPrice * 100m;
+        var atrPct = signal.Atr14.Value / closedPrice * 100m;
+        var trend = smaSeparation >= 0.05m;
+        var volatileEnough = atrPct >=
+            PaperProfitabilityDiagnostics.RoundTripCostPct * costMultiplier / 2m;
+        return entryGate switch
+        {
+            "BASELINE" => true,
+            "TREND_STRENGTH" => trend,
+            "ATR_COST" => volatileEnough,
+            "TREND_AND_ATR" => trend && volatileEnough,
+            "NO_TRADE" => false,
+            _ => throw new ArgumentOutOfRangeException(nameof(entryGate))
+        };
     }
 
     private static Slice Unavailable(int n, int horizon) =>
