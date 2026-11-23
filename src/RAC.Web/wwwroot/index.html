@@ -273,6 +273,24 @@
     <tbody id="researchThreeMonthAgents"><tr><td colspan="7">Sem comparação concluída.</td></tr></tbody></table></div>
   <p><small>As médias mensais são aritméticas por agente; não são resultado de uma carteira composta nem PnL realizado. NO_TRADE representa ausência de execução, não ganho. Nenhuma estratégia está aprovada para negociar.</small></p>
 </section>
+<section class="panel" id="overfitScreenPanel" hidden>
+  <div class="section-head"><div>
+    <h2>MVP 1.4.9 — Consistência estatística e risco de overfitting</h2>
+    <p>Triagem exploratória dos 12 agentes nos três meses históricos. Nenhuma aprovação automática.</p>
+  </div><span class="chip" id="overfitScreenStatus">Aguardando validação</span></div>
+  <p id="overfitScreenNotice">Com apenas três meses, não é possível demonstrar significância robusta.</p>
+  <button id="overfitScreenRefresh" type="button">Atualizar diagnóstico estatístico (somente leitura)</button>
+  <div class="metrics" style="margin:16px 0">
+    <div class="metric"><span>Meses disponíveis</span><strong id="overfitMonths">—</strong></div>
+    <div class="metric"><span>Positivos nos três meses</span><strong id="overfitAllPositive">—</strong></div>
+    <div class="metric"><span>Agentes com saída não resolvida</span><strong id="overfitExitRisk">—</strong></div>
+    <div class="metric"><span>Evidência estatística suficiente</span><strong id="overfitSupported">—</strong></div>
+  </div>
+  <div class="scroll"><table><thead><tr>
+    <th>Agente</th><th>Meses positivos / negativos / neutros</th><th>Meses com trades</th><th>Pior média mensal</th><th>Saídas sem cobertura</th><th>p unilateral (exploratório)</th><th>p corrigido (12 testes)</th><th>Diagnóstico</th>
+  </tr></thead><tbody id="overfitScreenRows"><tr><td colspan="8">Aguardando evidência validada.</td></tr></tbody></table></div>
+  <p><small>O p-valor do teste de sinais é uma triagem descritiva de médias mensais não nulas. Não mede probabilidade de lucro futuro e pressupostos de independência não foram demonstrados. Um mínimo exploratório de seis meses não nulos foi exigido; os três disponíveis são insuficientes. Nenhuma estratégia é autorizada para negociar.</small></p>
+</section>
 <section class="panel" id="realStrategiesPanel" hidden>
   <div class="section-head">
     <div>

@@ -104,6 +104,29 @@ app.MapGet("/api/health", async (IDbContextFactory<RacDbContext> factory, Cancel
     };
 });
 
+app.MapGet("/api/research/overfit-screen", () =>
+{
+    try
+    {
+        var monthly = Path.Combine(Environment.GetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData),
+            "RAC", "research", "monthly");
+        var history = RacShadowThreeMonthDashboard.Load(monthly);
+        return Results.Ok(RacShadowOverfitDiagnostics.Assess(history));
+    }
+    catch (Exception e) when (e is IOException or System.Text.Json.JsonException or
+        ArgumentException or InvalidOperationException or KeyNotFoundException or
+        FormatException or OverflowException)
+    {
+        return Results.Ok(new {
+            available = false, mode = "OVERFIT_SCREEN_INVALID",
+            paperModified = false, orderPlacementEnabled = false,
+            promotionAllowed = false,
+            notice = "Evidência estatística indisponível ou inválida. Nenhuma aprovação."
+        });
+    }
+}).RequireAuthorization();
+
 app.MapGet("/api/research/three-month-dashboard", () =>
 {
     try

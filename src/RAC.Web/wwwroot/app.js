@@ -145,6 +145,8 @@ function showSession(session) {
   $('realStrategiesPanel').hidden = !authenticated;
   $('researchShadowPanel').hidden = !authenticated;
   $('researchThreeMonthPanel').hidden = !authenticated;
+  $('overfitScreenPanel').hidden = !authenticated;
+  if (!authenticated) clearOverfitScreen();
   if (!authenticated) clearThreeMonthResearch();
   if (!authenticated) clearShadowResearch();
   $('paperPanel').hidden = !authenticated;
@@ -277,6 +279,61 @@ async function refreshThreeMonthResearch() {
 }
 $('researchThreeMonthRefresh').onclick = refreshThreeMonthResearch;
 
+function clearOverfitScreen() {
+  $('overfitScreenStatus').textContent = 'Aguardando validação';
+  $('overfitScreenNotice').textContent = 'Sem evidência estatística validada nesta sessão.';
+  for (const id of ['overfitMonths', 'overfitAllPositive',
+                    'overfitExitRisk', 'overfitSupported'])
+    $(id).textContent = '—';
+  $('overfitScreenRows').innerHTML = '<tr><td colspan="8">Sem diagnóstico validado.</td></tr>';
+}
+async function refreshOverfitScreen() {
+  if (!authenticated) return;
+  $('overfitScreenRefresh').disabled = true;
+  try {
+    const report = await api('research/overfit-screen');
+    if (!report.available) {
+      clearOverfitScreen();
+      $('overfitScreenStatus').textContent = 'Sem evidência suficiente';
+      $('overfitScreenNotice').textContent = report.notice || 'Histórico incompleto ou inválido.';
+      return;
+    }
+    if (report.mode !== 'THREE_MONTH_OVERFIT_SCREEN_SHADOW_ONLY' ||
+        report.paperModified || report.orderPlacementEnabled || report.promotionAllowed ||
+        report.agents !== 12 || report.monthsObserved !== 3 ||
+        report.multipleComparisons !== 12 || report.minimumNonzeroMonths < 6 ||
+        !Array.isArray(report.rows) || report.rows.length !== 12)
+      throw new Error('Diagnóstico estatístico SHADOW incompatível com as salvaguardas.');
+    if (report.rows.some(a => !Number.isInteger(a.positiveMonths) ||
+        !Number.isInteger(a.negativeMonths) || !Number.isInteger(a.flatMonths) ||
+        a.positiveMonths + a.negativeMonths + a.flatMonths !== 3 ||
+        !Number.isFinite(Number(a.oneSidedSignP)) || !Number.isFinite(Number(a.bonferroniAdjustedP)) ||
+        Number(a.oneSidedSignP) < 0 || Number(a.oneSidedSignP) > 1 ||
+        Number(a.bonferroniAdjustedP) < 0 || Number(a.bonferroniAdjustedP) > 1))
+      throw new Error('Contagens ou p-valores inválidos na pesquisa.');
+    $('overfitScreenStatus').textContent = 'SHADOW · 3 meses · pesquisa';
+    $('overfitScreenNotice').textContent = report.notice;
+    $('overfitMonths').textContent = report.monthsObserved;
+    $('overfitAllPositive').textContent = report.agentsWithPositiveEveryMonth + ' / 12';
+    $('overfitExitRisk').textContent = report.agentsWithUnresolvedExits;
+    $('overfitSupported').textContent = report.agentsStatisticallySupported + ' / 12';
+    $('overfitScreenRows').innerHTML = report.rows.map(a =>
+      `<tr><td>${safe(a.symbol)}</td>` +
+      `<td>${a.positiveMonths} / ${a.negativeMonths} / ${a.flatMonths}</td>` +
+      `<td>${a.activeMonths}</td><td>${pct(a.worstMonthlyMeanPct)}</td>` +
+      `<td>${a.unresolvedExits}</td><td>${Number(a.oneSidedSignP).toFixed(4)}</td>` +
+      `<td>${Number(a.bonferroniAdjustedP).toFixed(4)}</td>` +
+      `<td>${safe(a.evidenceStatus)}</td></tr>`).join('');
+  } catch (error) {
+    clearOverfitScreen();
+    $('overfitScreenStatus').textContent = 'Falha de validação';
+    $('overfitScreenNotice').textContent = error.message;
+  } finally {
+    $('overfitScreenRefresh').disabled = !authenticated;
+  }
+}
+$('overfitScreenRefresh').onclick = refreshOverfitScreen;
+
 function clearShadowResearch() {
   validatedShadowRows = [];
   $('researchShadowBars').textContent = 'Nenhuma comparação SHADOW validada.';
@@ -340,6 +397,7 @@ async function loadSession() {
     await refreshRealStrategies();
     await refreshShadowResearch();
     await refreshThreeMonthResearch();
+    await refreshOverfitScreen();
     await refreshPaper();
     await refreshMonitoring();
     if (canControl) await refreshTestnetExecution();
