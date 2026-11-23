@@ -16,7 +16,7 @@
 #officePhotoreal [data-gender="female"] .rac-motion-sprite{background-position-y:100%}
 #officePhotoreal [data-pose="typing"] .rac-motion-sprite{
  background-image:url('rac-typing-male.webp');background-size:contain;
- background-position:center;
+ background-position:center;animation:rac-type-idle 1.7s ease-in-out infinite;
 }
 #officePhotoreal [data-gender="female"][data-pose="typing"] .rac-motion-sprite{
  background-image:url('rac-typing-female.webp');
@@ -26,6 +26,13 @@
 }
 #officePhotoreal [data-pose="standing"] .rac-motion-sprite{
  animation:rac-breathe 2.3s ease-in-out infinite;
+}
+#officePhotoreal [data-pose="speaking"] .rac-motion-sprite{
+ animation:rac-talk 0.5s ease-in-out 4;
+}
+@keyframes rac-type-idle{
+ 0%,100%{transform:translateY(0) rotate(0)}
+ 50%{transform:translateY(-1px) rotate(-0.35deg)}
 }
 @keyframes rac-walk-steps{
  0%,49%{background-position-x:66.666%}
@@ -73,7 +80,16 @@
 #officePhotoreal[data-rac-motion="on"] .office-walker{display:none}
 @keyframes rac-talk{0%,100%{transform:rotate(0)}50%{transform:rotate(2deg) translateY(-1px)}}
 
+#officePhotoreal .rac-motion-actor[data-pose="walking"] .rac-motion-sprite{
+ transform-origin:50% 92%;
+}
+
 #officePhotoreal .rac-motion-controls button:disabled{opacity:.45;cursor:wait}
 #officePhotoreal[data-rac-demo="on"] .rac-motion-narration{
  color:#ffe4a0;border-color:#a17b42;
+}
+
+@media (prefers-reduced-motion:reduce){
+ #officePhotoreal [data-pose="typing"] .rac-motion-sprite,
+ #officePhotoreal [data-pose="speaking"] .rac-motion-sprite{animation:none}
 }

@@ -58,3 +58,19 @@ test('preview button is optional and clearly labelled as UI-only',()=>{
   assert.match(text,/DEMONSTRAÇÃO VISUAL/);
   assert.match(text,/demoActive/);
 });
+
+test('motion layer exposes stable pose classes for typing, standing, walking and speaking',()=>{
+  const js=fs.readFileSync(path.join(assets,'trading-floor-motion.js'),'utf8');
+  const css=fs.readFileSync(path.join(assets,'trading-floor-motion.css'),'utf8');
+  for(const pose of ['typing','standing','walking','speaking']) {
+    assert.match(js,new RegExp("data-pose.*"+pose+"|pose\\(actor, ['\\\"]"+pose));
+    assert.match(css,new RegExp('data-pose=["\\\']'+pose));
+  }
+});
+
+test('motion layer includes subtle idle micro-movement and reduced-motion fallback',()=>{
+  const css=fs.readFileSync(path.join(assets,'trading-floor-motion.css'),'utf8');
+  assert.match(css,/rac-type|rac-idle|rac-breathe/);
+  assert.match(css,/prefers-reduced-motion:reduce/);
+  assert.match(css,/motion-disabled/);
+});

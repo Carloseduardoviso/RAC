@@ -31,6 +31,7 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
 
     public DbSet<PaperMonitorSample> PaperMonitorSamples => Set<PaperMonitorSample>();
     public DbSet<PaperDecisionAudit> PaperDecisionAudits => Set<PaperDecisionAudit>();
+    public DbSet<PaperChainDecision> PaperChainDecisions => Set<PaperChainDecision>();
     public DbSet<PaperMonitorAlert> PaperMonitorAlerts => Set<PaperMonitorAlert>();
 
     public DbSet<TestnetOrderRecord> TestnetOrders => Set<TestnetOrderRecord>();
@@ -103,6 +104,16 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
             e.Property(x => x.Outcome).HasMaxLength(40).IsRequired();
             e.Property(x => x.Actor).HasMaxLength(24).IsRequired();
             e.Property(x => x.Reason).HasMaxLength(250).IsRequired();
+            e.HasIndex(x => new { x.Symbol, x.CandleClosedUtc }).IsUnique();
+            e.HasIndex(x => x.RecordedUtc);
+        });
+        model.Entity<PaperChainDecision>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Symbol).HasMaxLength(24).IsRequired();
+            e.Property(x => x.FirstBlockedBy).HasMaxLength(40);
+            e.Property(x => x.FirstBlockReason).HasMaxLength(250);
+            e.Property(x => x.ResultsJson).IsRequired();
             e.HasIndex(x => new { x.Symbol, x.CandleClosedUtc }).IsUnique();
             e.HasIndex(x => x.RecordedUtc);
         });

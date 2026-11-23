@@ -31,6 +31,8 @@ builder.Services.AddSingleton<RacMarketDataService>();
 builder.Services.AddSingleton<RacStrategyService>();
 builder.Services.AddSingleton<RacWalkForwardService>();
 builder.Services.AddSingleton<RacExtendedHistoryService>();
+builder.Services.AddSingleton(RacValidationChain.CreateDefault(null,
+    builder.Configuration.GetSection("Rac:ValidationChain").Get<RacValidationOptions>()));
 builder.Services.AddSingleton<RacPaperTradingService>();
 builder.Services.AddHostedService<RacPaperTradingWorker>();
 builder.Services.AddSingleton<RacPaperMonitoringService>();
@@ -333,6 +335,35 @@ app.MapGet("/api/strategy/backtest/{symbol}", async (
 
 app.MapGet("/api/paper/status", async (RacPaperTradingService paper, CancellationToken ct) =>
     Results.Ok(await paper.SnapshotAsync(ct))).RequireAuthorization();
+
+app.MapGet("/api/paper/validation-chain", async (
+    IDbContextFactory<RacDbContext> factory, RacValidationChain chain,
+    HttpContext http, CancellationToken ct, int take = 40) =>
+{
+    http.Response.Headers.CacheControl = "no-store";
+    take = Math.Clamp(take, 1, 200);
+    await using var db = await factory.CreateDbContextAsync(ct);
+    var rows = await db.PaperChainDecisions.AsNoTracking()
+        .OrderByDescending(x => x.Id).Take(take).ToArrayAsync(ct);
+    var total = await db.PaperChainDecisions.AsNoTracking().CountAsync(ct);
+    var approved = await db.PaperChainDecisions.AsNoTracking().CountAsync(x => x.Approved, ct);
+    var byValidator = await db.PaperChainDecisions.AsNoTracking()
+        .Where(x => !x.Approved && x.FirstBlockedBy != null)
+        .GroupBy(x => x.FirstBlockedBy!)
+        .Select(g => new { validator = g.Key, blocked = g.Count() }).ToArrayAsync(ct);
+    return Results.Ok(new
+    {
+        mode = chain.Options.Enforce ? "ENFORCED" : "SHADOW",
+        realOrdersEnabled = false, testnetOrdersEnabled = false,
+        opportunities = total, approved, blocked = total - approved, blockedByValidator = byValidator,
+        recent = rows.Select(x => new
+        {
+            x.Symbol, x.CandleClosedUtc, x.RecordedUtc, x.Approved, x.Enforced,
+            x.FirstBlockedBy, x.FirstBlockReason,
+            results = System.Text.Json.JsonDocument.Parse(x.ResultsJson).RootElement
+        })
+    });
+}).RequireAuthorization();
 
 app.MapPost("/api/paper/start", async (RacPaperTradingService paper,
     ClaimsPrincipal user, CancellationToken ct) =>

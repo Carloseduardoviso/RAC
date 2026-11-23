@@ -314,6 +314,53 @@ namespace RAC.Infrastructure.Migrations
                     b.ToTable("PaperAgentCursors", "rac");
                 });
 
+            modelBuilder.Entity("RAC.Domain.PaperChainDecision", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<bool>("Approved")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("CandleClosedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("Enforced")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("FirstBlockReason")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("FirstBlockedBy")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<DateTimeOffset>("RecordedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ResultsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RecordedUtc");
+
+                    b.HasIndex("Symbol", "CandleClosedUtc")
+                        .IsUnique();
+
+                    b.ToTable("PaperChainDecisions", "rac");
+                });
+
             modelBuilder.Entity("RAC.Domain.PaperDecisionAudit", b =>
                 {
                     b.Property<long>("Id")

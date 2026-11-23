@@ -13,9 +13,15 @@ namespace RAC.Api.Services;
 public sealed class RacPaperTradingService(
     IDbContextFactory<RacDbContext> factory,
     BinancePortfolioPricesClient prices,
-    ILogger<RacPaperTradingService> logger)
+    ILogger<RacPaperTradingService> logger,
+    RacValidationChain? chain = null)
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly RacValidationChain _chain = chain ?? RacValidationChain.CreateDefault();
+    private static readonly System.Text.Json.JsonSerializerOptions ChainJson = new()
+    {
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+    };
     private bool _initialized;
 
     private async Task EnsureInitializedAsync(CancellationToken ct)
@@ -264,6 +270,40 @@ public sealed class RacPaperTradingService(
                 });
                 if (signal.Status != "READY" || signal.Action != "COMPRA_OBSERVACIONAL")
                     continue;
+
+                // Clara: cadeia de validação da oportunidade. Em modo sombra apenas registra;
+                // com Enforce ligado, uma oportunidade bloqueada não vira compra.
+                // As travas originais abaixo continuam valendo nos dois modos.
+                batch.Prices.TryGetValue(symbol, out var chainQuote);
+                var chainResult = _chain.Run(new ValidationContext(symbol,
+                    RacStrategyEvaluator.LatestContiguous(candles), signal, now,
+                    chainQuote > 0m ? chainQuote : null, rate, account.CashBrl, equity,
+                    account.DailyStartEquityBrl, account.PeakEquityBrl, exposure, positions.Count));
+                db.PaperChainDecisions.Add(new PaperChainDecision
+                {
+                    Symbol = symbol,
+                    CandleClosedUtc = signal.LastClosedUtc.Value,
+                    RecordedUtc = now,
+                    Approved = chainResult.Approved,
+                    Enforced = _chain.Options.Enforce,
+                    FirstBlockedBy = chainResult.FirstBlockedBy,
+                    FirstBlockReason = chainResult.FirstBlockReason is { Length: > 250 } longReason
+                        ? longReason[..250] : chainResult.FirstBlockReason,
+                    ResultsJson = System.Text.Json.JsonSerializer.Serialize(chainResult.Results, ChainJson)
+                });
+                if (_chain.Options.Enforce && !chainResult.Approved)
+                {
+                    var blockedAudit = db.PaperDecisionAudits.Local.Last(x => x.Symbol == symbol &&
+                        x.CandleClosedUtc == signal.LastClosedUtc.Value);
+                    blockedAudit.Outcome = "BLOCKED_CHAIN";
+                    blockedAudit.Actor = "Clara";
+                    var blockedText = chainResult.FirstBlockReason is { Length: > 0 } why
+                        ? $"Clara: bloqueada por {chainResult.FirstBlockedBy}. {why}"
+                        : "Clara: bloqueada pela cadeia de validação.";
+                    blockedAudit.Reason = blockedText.Length > 250 ? blockedText[..250] : blockedText;
+                    continue;
+                }
+
                 if (positions.Count >= PaperRisk.MaxOpenPositions) continue;
                 if (!batch.Prices.TryGetValue(symbol, out var quote) || quote <= 0m ||
                     signal.PriceUsdt is null || signal.Atr14 is null)
