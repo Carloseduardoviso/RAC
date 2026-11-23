@@ -6,6 +6,8 @@ using RAC.Application;
 using RAC.Domain;
 
 // Manual invocation only. No API registration, worker, trading state or secrets.
+if (args.Length > 0 && args[0] == "--exit-liquidity-audit")
+    return await ExitLiquidityAuditCli.RunAsync(args);
 if (args.Length > 0 && args[0] == "--liquidity-backtest")
     return await LiquidityBacktestCli.RunAsync(args);
 if (args.Length > 0 && args[0] == "--liquidity-audit")
