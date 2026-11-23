@@ -35,10 +35,26 @@ public sealed class ProductionRiskPolicyStore(IDbContextFactory<RacDbContext> fa
     {
         if (string.IsNullOrWhiteSpace(proposedBy) ||
             string.IsNullOrWhiteSpace(reviewer) ||
-            proposedBy.Equals(reviewer, StringComparison.OrdinalIgnoreCase) ||
-            role != "ADMIN" || string.IsNullOrWhiteSpace(reason) ||
+            proposedBy.Trim().Equals(reviewer.Trim(), StringComparison.OrdinalIgnoreCase) ||
+            role != RacRoles.Administrator || string.IsNullOrWhiteSpace(reason) ||
             reason.Trim().Length is < 20 or > 500)
             throw new InvalidOperationException("Separate administrator review required.");
+    }
+
+    public async Task<object> HistoryAsync(CancellationToken ct = default)
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        var policies = await db.ProductionRiskPolicies.AsNoTracking()
+            .OrderByDescending(x => x.Version).Take(40)
+            .Select(x => new { x.Id, x.Version, x.LimitsJson, x.LimitsSha256,
+                x.Status, x.ProposedBy, x.ProposedUtc, x.ReviewedBy,
+                x.ReviewedUtc, x.ReviewReason }).ToArrayAsync(ct);
+        var audits = await db.ProductionRiskPolicyAudits.AsNoTracking()
+            .OrderByDescending(x => x.Id).Take(80)
+            .Select(x => new { x.Id, x.PolicyId, x.Action, x.Actor, x.Reason,
+                x.LimitsSha256, x.CreatedUtc }).ToArrayAsync(ct);
+        return new { policies, audits, tradingEnabled = false,
+            paperModified = false, mode = "RISK_POLICY_REVIEW_ONLY" };
     }
 
     public async Task<ProductionRiskPolicyRecord> ProposeAsync(

@@ -149,6 +149,10 @@ function showSession(session) {
   $('sixMonthValidationPanel').hidden = !authenticated;
   $('frozenDecisionsPanel').hidden = !authenticated;
   $('robustnessPanel').hidden = !authenticated;
+  $('productionPolicyPanel').hidden = !authenticated || !canReview;
+  $('policyProposalForm').hidden = !authenticated || !canReview;
+  $('policyReviewForm').hidden = !authenticated || !canViewWallet;
+  if (!authenticated || !canReview) clearProductionPolicies();
   if (!authenticated) clearRobustness();
   if (!authenticated) clearFrozenDecisions();
   if (!authenticated) clearSixMonthValidation();
@@ -337,6 +341,101 @@ async function refreshFrozenDecisions() {
   }
 }
 $('frozenDecisionsRefresh').onclick = refreshFrozenDecisions;
+
+function clearProductionPolicies() {
+  $('policyStatus').textContent = 'Aguardando consulta';
+  $('policyNotice').textContent = 'Políticas documentais não habilitam ordens.';
+  $('policyRows').innerHTML = '<tr><td colspan="7">Sem dados disponíveis.</td></tr>';
+  $('policyAuditRows').innerHTML = '<tr><td colspan="6">Sem dados disponíveis.</td></tr>';
+}
+async function refreshProductionPolicies() {
+  if (!authenticated || !canReview) return;
+  $('policyRefresh').disabled = true;
+  try {
+    const report = await api('risk/policies');
+    if (report.mode !== 'RISK_POLICY_REVIEW_ONLY' ||
+        report.tradingEnabled || report.paperModified ||
+        !Array.isArray(report.policies) || !Array.isArray(report.audits))
+      throw new Error('Resposta de auditoria incompatível com modo seguro.');
+    $('policyStatus').textContent = 'Auditoria consultada — ordens desabilitadas';
+    $('policyRows').innerHTML = report.policies.length
+      ? report.policies.map(p =>
+        '<tr><td>' + Number(p.id) + '</td><td>' + Number(p.version) +
+        '</td><td>' + safe(p.status) + '</td><td>' + safe(p.limitsJson) +
+        '</td><td>' + safe(p.proposedBy) +
+        '</td><td>' + safe(p.reviewedBy || 'pendente') +
+        '</td><td>' + safe(formatDate(p.proposedUtc)) + '</td></tr>').join('')
+      : '<tr><td colspan="7">Nenhuma proposta registrada.</td></tr>';
+    $('policyAuditRows').innerHTML = report.audits.length
+      ? report.audits.map(a =>
+        '<tr><td>' + Number(a.id) + '</td><td>' + Number(a.policyId) +
+        '</td><td>' + safe(a.action) + '</td><td>' + safe(a.actor) +
+        '</td><td>' + safe(formatDate(a.createdUtc)) +
+        '</td><td>' + safe(a.reason) + '</td></tr>').join('')
+      : '<tr><td colspan="6">Nenhum evento registrado.</td></tr>';
+  } catch (error) {
+    clearProductionPolicies();
+    $('policyStatus').textContent = 'Falha na consulta';
+    $('policyNotice').textContent = error.message;
+  } finally {
+    $('policyRefresh').disabled = !authenticated || !canReview;
+  }
+}
+$('policyRefresh').onclick = refreshProductionPolicies;
+$('policyProposalForm').onsubmit = async event => {
+  event.preventDefault();
+  if (!authenticated || !canReview) return;
+  const form = event.currentTarget;
+  const data = new FormData(form);
+  const number = key => Number(data.get(key));
+  const request = {
+    maximumCapitalUsdt: number('maximumCapitalUsdt'),
+    maximumOrderUsdt: number('maximumOrderUsdt'),
+    maximumDailyLossPercent: number('maximumDailyLossPercent'),
+    maximumDrawdownPercent: number('maximumDrawdownPercent'),
+    maximumOpenPositions: number('maximumOpenPositions'),
+    maximumOrdersPerHour: number('maximumOrdersPerHour'),
+    maximumOrdersPerDay: number('maximumOrdersPerDay'),
+    allowedSymbols: String(data.get('allowedSymbols')).split(',').map(x => x.trim())
+  };
+  if (request.allowedSymbols.some(s => !/^[A-Z0-9]{6,24}$/.test(s))) {
+    $('policyNotice').textContent = 'Use pares Spot válidos separados por vírgula.';
+    return;
+  }
+  try {
+    const result = await api('risk/policies', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(request)
+    });
+    $('policyNotice').textContent = 'Proposta #' + result.id +
+      ' registrada para revisão independente. Negociação continua bloqueada.';
+    form.reset();
+    await refreshProductionPolicies();
+  } catch (error) {
+    $('policyNotice').textContent = 'Proposta recusada: ' + error.message;
+  }
+};
+$('policyReviewForm').onsubmit = async event => {
+  event.preventDefault();
+  if (!authenticated || !canViewWallet) return;
+  const id = Number($('policyReviewId').value);
+  const reason = $('policyReviewReason').value.trim();
+  if (!Number.isSafeInteger(id) || id <= 0 || reason.length < 20) return;
+  try {
+    const result = await api('risk/policies/' + id + '/review', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        reason, approve: $('policyReviewApprove').value === 'true'
+      })
+    });
+    $('policyNotice').textContent = 'Revisão documental #' + result.id +
+      ': ' + result.status + '. Nenhuma ordem autorizada.';
+    $('policyReviewReason').value = '';
+    await refreshProductionPolicies();
+  } catch (error) {
+    $('policyNotice').textContent = 'Revisão recusada: ' + error.message;
+  }
+};
 
 function clearRobustness() {
   $('robustnessStatus').textContent = 'Aguardando relatório';
@@ -580,6 +679,7 @@ async function loadSession() {
     await refreshSixMonthValidation();
     await refreshFrozenDecisions();
     await refreshRobustness();
+    if (canReview) await refreshProductionPolicies();
     await refreshPaper();
     await refreshMonitoring();
     if (canControl) await refreshTestnetExecution();

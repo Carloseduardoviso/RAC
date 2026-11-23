@@ -1,3 +1,5 @@
+using RAC.Domain;
+
 namespace RAC.Application;
 
 /// <summary>
@@ -14,18 +16,25 @@ public sealed record ProductionRiskLimits(
     int MaximumOrdersPerDay,
     IReadOnlySet<string> AllowedSymbols)
 {
+    public const decimal MaximumConfiguredCapitalUsdt = 1_000_000m;
+    public const int MaximumConfiguredOpenPositions = 100;
+    public const int MaximumConfiguredOrdersPerHour = 10_000;
+    public const int MaximumConfiguredOrdersPerDay = 100_000;
+
     public static ProductionRiskLimits Unapproved => new(
         0m, 0m, 0m, 0m, 0, 0, 0, new HashSet<string>(StringComparer.Ordinal));
 
     public bool IsValid =>
-        MaximumCapitalUsdt > 0 && MaximumOrderUsdt > 0 &&
+        MaximumCapitalUsdt > 0 && MaximumCapitalUsdt <= MaximumConfiguredCapitalUsdt &&
+        MaximumOrderUsdt > 0 &&
         MaximumOrderUsdt <= MaximumCapitalUsdt &&
         MaximumDailyLossPercent > 0 && MaximumDailyLossPercent <= 100 &&
         MaximumDrawdownPercent > 0 && MaximumDrawdownPercent <= 100 &&
-        MaximumOpenPositions > 0 && MaximumOrdersPerHour > 0 &&
-        MaximumOrdersPerDay > 0 && AllowedSymbols is { Count: > 0 } &&
-        AllowedSymbols.All(x => x.Length is >= 6 and <= 24 &&
-            x.All(c => c is >= 'A' and <= 'Z' or >= '0' and <= '9'));
+        MaximumOpenPositions > 0 && MaximumOpenPositions <= MaximumConfiguredOpenPositions &&
+        MaximumOrdersPerHour > 0 && MaximumOrdersPerHour <= MaximumConfiguredOrdersPerHour &&
+        MaximumOrdersPerDay > 0 && MaximumOrdersPerDay <= MaximumConfiguredOrdersPerDay &&
+        AllowedSymbols is { Count: > 0 } &&
+        AllowedSymbols.All(RacMarketSymbols.IsSupported);
 }
 
 /// <summary>Snapshot must originate from reconciled exchange data, not PAPER.</summary>

@@ -17,6 +17,7 @@ if (string.IsNullOrWhiteSpace(racConnection))
 builder.Services.AddDbContextFactory<RacDbContext>(options => options.UseSqlServer(racConnection));
 builder.Services.AddRacAuthentication(builder.Environment.IsDevelopment());
 builder.Services.AddSingleton(builder.Configuration.GetSection("Rac:Risk").Get<RiskPolicy>() ?? new RiskPolicy());
+builder.Services.AddSingleton<ProductionRiskPolicyStore>();
 builder.Services.AddSingleton<RacSimulator>();
 builder.Services.AddSingleton<RacPersistentEngine>();
 builder.Services.AddHostedService<RacWorker>();
@@ -91,6 +92,7 @@ builder.Services.AddHttpClient("binance", client =>
 var app = builder.Build();
 app.UseRacSecurity();
 app.MapRacAuthentication();
+app.MapProductionRiskPolicyEndpoints();
 
 app.MapGet("/api/health", async (IDbContextFactory<RacDbContext> factory, CancellationToken ct) =>
 {

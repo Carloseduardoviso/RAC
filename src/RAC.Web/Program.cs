@@ -37,13 +37,14 @@ var getRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     "/api/research/shadow-dashboard", "/api/research/three-month-dashboard",
     "/api/research/overfit-screen", "/api/research/six-month-validation",
     "/api/research/frozen-decisions", "/api/research/robustness",
+    "/api/risk/policies",
     "/api/market/overview", "/api/strategy/overview", "/api/strategy/validation", "/api/strategy/shadow-comparison", "/api/strategy/walk-forward", "/api/strategy/extended-history", "/api/paper/status", "/api/testnet/execution/status", "/api/paper/monitoring", "/api/binance/testnet/ping",
     "/api/binance/spot/status", "/api/binance/spot/balances",
     "/api/portfolio/history", "/api/portfolio/activity/history"
 };
 var postRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
-    "/api/auth/login", "/api/auth/logout", "/api/risk/review",
+    "/api/auth/login", "/api/auth/logout", "/api/risk/review", "/api/risk/policies",
     "/api/control/start", "/api/control/pause", "/api/control/step", "/api/control/reset",
     "/api/portfolio/snapshot", "/api/portfolio/plan", "/api/portfolio/cashflows",
     "/api/portfolio/activity/import", "/api/paper/start", "/api/paper/pause",
@@ -62,9 +63,14 @@ app.MapMethods("/api/{**path}", ["GET", "POST"], async (HttpContext context, IHt
     var strategyBacktestPath = path.StartsWith("/api/strategy/backtest/", StringComparison.OrdinalIgnoreCase) &&
         path["/api/strategy/backtest/".Length..] is var strategySymbol &&
         strategySymbol.Length is > 0 and <= 12 && strategySymbol.All(char.IsAsciiLetterOrDigit);
+    var policyReviewPath = path.StartsWith("/api/risk/policies/", StringComparison.OrdinalIgnoreCase) &&
+        path.EndsWith("/review", StringComparison.OrdinalIgnoreCase) &&
+        path["/api/risk/policies/".Length..^"/review".Length] is var policyId &&
+        long.TryParse(policyId, out var parsedId) && parsedId > 0 &&
+        policyId.Length <= 18 && policyId.All(char.IsAsciiDigit);
     var permitted = HttpMethods.IsGet(context.Request.Method)
         ? getRoutes.Contains(path) || validSymbolPath || marketCandlePath || strategyBacktestPath
-        : HttpMethods.IsPost(context.Request.Method) && postRoutes.Contains(path);
+        : HttpMethods.IsPost(context.Request.Method) && (postRoutes.Contains(path) || policyReviewPath);
     if (!permitted) return Results.NotFound();
 
     // These routes are a fixed allowlist, not an unrestricted reverse proxy.
