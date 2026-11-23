@@ -3,6 +3,7 @@
     <Project Path="src/RAC.Api/RAC.Api.csproj" />
     <Project Path="src/RAC.Application/RAC.Application.csproj" />
     <Project Path="src/RAC.Domain/RAC.Domain.csproj" />
+    <Project Path="src/RAC.HistoryResearch/RAC.HistoryResearch.csproj" />
     <Project Path="src/RAC.Infrastructure/RAC.Infrastructure.csproj" />
     <Project Path="src/RAC.Web/RAC.Web.csproj" />
   </Folder>
