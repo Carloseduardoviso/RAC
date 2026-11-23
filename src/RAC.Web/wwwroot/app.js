@@ -143,6 +143,8 @@ function showSession(session) {
   $('portfolioPanel').hidden = !authenticated || !canViewWallet;
   $('activityPanel').hidden = !authenticated || !canViewWallet;
   $('realStrategiesPanel').hidden = !authenticated;
+  $('researchShadowPanel').hidden = !authenticated;
+  if (!authenticated) clearShadowResearch();
   $('paperPanel').hidden = !authenticated;
   $('paperMonitoringPanel').hidden = !authenticated;
   $('testnetExecutionPanel').hidden = !authenticated || !canControl;
@@ -161,6 +163,54 @@ function showSession(session) {
   $('riskReviewPanel').hidden = true;
 }
 
+function clearShadowResearch() {
+  $('researchShadowStatus').textContent = 'Aguardando relatório';
+  $('researchShadowNotice').textContent = 'Sem consulta de pesquisa nesta sessão.';
+  for (const id of ['researchShadowDays', 'researchShadowNoTrade',
+                    'researchShadowUnresolved', 'researchShadowRejected'])
+    $(id).textContent = '—';
+  $('researchShadowRows').innerHTML = '<tr><td colspan="8">Sem dados de pesquisa carregados.</td></tr>';
+}
+
+async function refreshShadowResearch() {
+  if (!authenticated) return;
+  $('researchShadowRefresh').disabled = true;
+  try {
+    const report = await api('research/shadow-dashboard');
+    if (!report.available) {
+      clearShadowResearch();
+      $('researchShadowStatus').textContent = 'Indisponível';
+      $('researchShadowNotice').textContent = report.notice || 'Relatório não validado neste computador.';
+      return;
+    }
+    if (report.mode !== 'EXIT_CAPACITY_GATED_SHADOW_ONLY' ||
+        report.paperModified || report.orderPlacementEnabled ||
+        report.promotionAllowed || report.agents !== 12 ||
+        !Array.isArray(report.rows) || report.rows.length !== 12)
+      throw new Error('Evidência SHADOW incompatível com os bloqueios de segurança.');
+    $('researchShadowStatus').textContent = 'SHADOW ' + report.month + ' · somente leitura';
+    $('researchShadowNotice').textContent = report.notice;
+    $('researchShadowDays').textContent = report.totalAgentDays;
+    $('researchShadowNoTrade').textContent = report.noTradeDays;
+    $('researchShadowUnresolved').textContent = report.unresolvedExits;
+    $('researchShadowRejected').textContent = report.rejectedAgents + ' / 12';
+    $('researchShadowRows').innerHTML = report.rows.map(a =>
+      `<tr><td>${safe(a.symbol)}</td><td>${safe(a.gate)}</td>` +
+      `<td>${a.noTradeDays} / ${a.totalDays}</td>` +
+      `<td>${a.hypotheticalClosedTrades}</td><td>${a.unresolvedExits}</td>` +
+      `<td>${a.blockedEntryAttempts}</td><td>${a.partialEntryAttempts}</td>` +
+      `<td>${pct(a.hypotheticalMeanNetPct)}</td></tr>`
+    ).join('');
+  } catch (error) {
+    clearShadowResearch();
+    $('researchShadowStatus').textContent = 'Falha na validação';
+    $('researchShadowNotice').textContent = error.message;
+  } finally {
+    $('researchShadowRefresh').disabled = !authenticated;
+  }
+}
+$('researchShadowRefresh').onclick = refreshShadowResearch;
+
 async function loadSession() {
   try {
     const session = await api('auth/me');
@@ -170,6 +220,7 @@ async function loadSession() {
     await refreshMarketData();
     await refreshMarketCandles();
     await refreshRealStrategies();
+    await refreshShadowResearch();
     await refreshPaper();
     await refreshMonitoring();
     if (canControl) await refreshTestnetExecution();

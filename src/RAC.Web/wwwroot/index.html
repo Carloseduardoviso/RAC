@@ -212,6 +212,25 @@
   <tbody id="paperMonitorHistory"><tr><td colspan="5">Sem amostras.</td></tr></tbody></table></div>
   <p><small>Monitoramento interno ao RAC, sem envio externo de notificações. Contas reais não são consultadas. Resultados são apenas virtuais; não estimam lucros futuros.</small></p>
 </section>
+<section class="panel" id="researchShadowPanel" hidden>
+  <div class="section-head"><div>
+    <h2>MVP 1.4.6 — Auditoria SHADOW dos 12 agentes</h2>
+    <p>Pesquisa histórica de outubro de 2026, isolada da carteira PAPER e da Binance. Nenhuma estratégia é ativada por este painel.</p>
+  </div><span class="chip" id="researchShadowStatus">Aguardando relatório</span></div>
+  <p id="researchShadowNotice">Dados fictícios de pesquisa. Resultados não representam lucro realizado.</p>
+  <button id="researchShadowRefresh" type="button">Atualizar auditoria SHADOW (somente leitura)</button>
+  <div class="metrics" style="margin:16px 0">
+    <div class="metric"><span>Janelas avaliadas</span><strong id="researchShadowDays">—</strong></div>
+    <div class="metric"><span>Janelas sem operar</span><strong id="researchShadowNoTrade">—</strong></div>
+    <div class="metric"><span>Saídas hipotéticas sem cobertura</span><strong id="researchShadowUnresolved">—</strong></div>
+    <div class="metric"><span>Agentes rejeitados</span><strong id="researchShadowRejected">—</strong></div>
+  </div>
+  <div class="scroll"><table>
+    <thead><tr><th>Agente</th><th>Decisão de pesquisa</th><th>Sem operação / dias</th><th>Trades hipotéticos</th><th>Saídas não resolvidas</th><th>Entradas barradas</th><th>Entradas parciais</th><th>Média por janela fictícia</th></tr></thead>
+    <tbody id="researchShadowRows"><tr><td colspan="8">Carregando relatório local...</td></tr></tbody>
+  </table></div>
+  <p><small>Retornos médios não são rentabilidade composta. Volumes OHLCV não representam liquidez executável; saídas cobertas no modelo não garantem execução no mercado. O modo SHADOW não envia ordens.</small></p>
+</section>
 <section class="panel" id="realStrategiesPanel" hidden>
   <div class="section-head">
     <div>

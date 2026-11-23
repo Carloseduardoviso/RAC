@@ -104,6 +104,28 @@ app.MapGet("/api/health", async (IDbContextFactory<RacDbContext> factory, Cancel
     };
 });
 
+app.MapGet("/api/research/shadow-dashboard", () =>
+{
+    try
+    {
+        var monthly = Path.Combine(Environment.GetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData),
+            "RAC", "research", "monthly");
+        return Results.Ok(RacShadowDashboardReport.Load(monthly, "2026-10"));
+    }
+    catch (Exception e) when (e is IOException or System.Text.Json.JsonException or
+        ArgumentException or InvalidOperationException or KeyNotFoundException or
+        FormatException or OverflowException)
+    {
+        return Results.Ok(new {
+            available = false, mode = "REPORT_VALIDATION_FAILED",
+            month = "2026-10", agents = 0,
+            orderPlacementEnabled = false, promotionAllowed = false,
+            notice = "Relatório SHADOW inválido ou indisponível. Nenhum resultado autorizado."
+        });
+    }
+}).RequireAuthorization();
+
 app.MapGet("/api/state", (RacPersistentEngine engine, CancellationToken ct) =>
     engine.SnapshotAsync(ct)).RequireAuthorization();
 
