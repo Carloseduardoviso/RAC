@@ -312,6 +312,23 @@
   <tbody id="sixMonthAgents"><tr><td colspan="8">Sem comparação integral validada.</td></tr></tbody></table></div>
   <p><small>Seis meses não provam ausência de overfitting. Estimativas de liquidez com OHLCV não são execuções reais. Testes de sinais e Bonferroni são triagens exploratórias, não probabilidades de lucro nem autorização para operar.</small></p>
 </section>
+<section class="panel" id="frozenDecisionsPanel" hidden>
+  <div class="section-head"><div>
+    <h2>RAC MVP 1.5.1 — Decisões congeladas antes do teste</h2>
+    <p>Seleção em maio–julho, avaliação posterior em agosto–outubro de 2026; nenhuma operação habilitada.</p>
+  </div><span class="chip" id="frozenDecisionsStatus">Aguardando pesquisa</span></div>
+  <p id="frozenDecisionsNotice">Decisão NO_TRADE congelada significa zero operações e retorno fictício zero, não lucro.</p>
+  <button id="frozenDecisionsRefresh" type="button">Atualizar decisões congeladas (somente leitura)</button>
+  <div class="metrics" style="margin:16px 0">
+    <div class="metric"><span>Janelas de treino</span><strong id="frozenTrainingWindows">—</strong></div>
+    <div class="metric"><span>Janelas posteriores</span><strong id="frozenHoldoutWindows">—</strong></div>
+    <div class="metric"><span>Agentes congelados em NO_TRADE</span><strong id="frozenNoTrade">—</strong></div>
+    <div class="metric"><span>Estratégias para avaliação adicional</span><strong id="frozenReplayRequired">—</strong></div>
+  </div>
+  <div class="scroll"><table><thead><tr><th>Agente</th><th>Decisão congelada</th><th>Votos no treino</th><th>Janelas posteriores</th><th>Trades do modelo congelado</th><th>Retorno hipotético</th><th>Diagnóstico</th></tr></thead>
+    <tbody id="frozenDecisionsRows"><tr><td colspan="7">Aguardando auditoria.</td></tr></tbody></table></div>
+  <p><small>Se uma escolha ativa for a mais frequente, ela exige replay com parâmetros realmente fixos; não é permitido reutilizar os retornos de estratégias recalibradas por janela. NO_TRADE não comprova lucro ou vantagem estatística.</small></p>
+</section>
 <section class="panel" id="realStrategiesPanel" hidden>
   <div class="section-head">
     <div>

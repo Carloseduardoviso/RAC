@@ -147,6 +147,8 @@ function showSession(session) {
   $('researchThreeMonthPanel').hidden = !authenticated;
   $('overfitScreenPanel').hidden = !authenticated;
   $('sixMonthValidationPanel').hidden = !authenticated;
+  $('frozenDecisionsPanel').hidden = !authenticated;
+  if (!authenticated) clearFrozenDecisions();
   if (!authenticated) clearSixMonthValidation();
   if (!authenticated) clearOverfitScreen();
   if (!authenticated) clearThreeMonthResearch();
@@ -280,6 +282,59 @@ async function refreshThreeMonthResearch() {
   }
 }
 $('researchThreeMonthRefresh').onclick = refreshThreeMonthResearch;
+
+function clearFrozenDecisions() {
+  $('frozenDecisionsStatus').textContent = 'Aguardando pesquisa';
+  $('frozenDecisionsNotice').textContent = 'Sem evidência temporal validada nesta sessão.';
+  for (const id of ['frozenTrainingWindows', 'frozenHoldoutWindows',
+                    'frozenNoTrade', 'frozenReplayRequired']) $(id).textContent = '—';
+  $('frozenDecisionsRows').innerHTML = '<tr><td colspan="7">Sem dados validados.</td></tr>';
+}
+async function refreshFrozenDecisions() {
+  if (!authenticated) return;
+  $('frozenDecisionsRefresh').disabled = true;
+  try {
+    const report = await api('research/frozen-decisions');
+    if (!report.available) {
+      clearFrozenDecisions();
+      $('frozenDecisionsStatus').textContent = 'Histórico incompleto';
+      $('frozenDecisionsNotice').textContent = report.notice || 'Pesquisa indisponível.';
+      return;
+    }
+    if (report.mode !== 'PRE_HOLDOUT_FROZEN_DECISION_SHADOW_ONLY' ||
+        report.paperModified || report.orderPlacementEnabled || report.promotionAllowed ||
+        report.agents !== 12 || !Array.isArray(report.rows) || report.rows.length !== 12 ||
+        report.trainingMonths.join(',') !== '2026-05,2026-06,2026-07' ||
+        report.holdoutMonths.join(',') !== '2026-08,2026-09,2026-10')
+      throw new Error('Auditoria congelada incompatível com as salvaguardas.');
+    if (report.rows.some(r => !Number.isSafeInteger(r.trainingWindows) ||
+        r.trainingWindows !== 92 || !Number.isSafeInteger(r.votesForFrozen) ||
+        r.votesForFrozen < 0 || r.votesForFrozen > 92 ||
+        (r.frozenEntryGate === 'NO_TRADE' &&
+         (r.outOfSampleSimulatedTrades !== 0 || Number(r.outOfSampleReturnPct) !== 0))))
+      throw new Error('Contagens inválidas para decisões congeladas.');
+    $('frozenDecisionsStatus').textContent = 'Treino anterior ao teste · SHADOW';
+    $('frozenDecisionsNotice').textContent = report.notice;
+    $('frozenTrainingWindows').textContent = report.trainingWindows;
+    $('frozenHoldoutWindows').textContent = report.holdoutWindows;
+    $('frozenNoTrade').textContent = report.frozenNoTradeAgents + ' / 12';
+    $('frozenReplayRequired').textContent = report.strategiesNeedingReplay;
+    $('frozenDecisionsRows').innerHTML = report.rows.map(r =>
+      `<tr><td>${safe(r.symbol)}</td><td>${safe(r.frozenEntryGate)}</td>` +
+      `<td>${r.votesForFrozen} / ${r.trainingWindows}</td>` +
+      `<td>${r.outOfSampleWindows}</td>` +
+      `<td>${r.outOfSampleSimulatedTrades === null ? 'não avaliado' : r.outOfSampleSimulatedTrades}</td>` +
+      `<td>${r.outOfSampleReturnPct === null ? 'não avaliado' : pct(r.outOfSampleReturnPct)}</td>` +
+      `<td>${safe(r.evaluationStatus)}</td></tr>`).join('');
+  } catch (error) {
+    clearFrozenDecisions();
+    $('frozenDecisionsStatus').textContent = 'Falha de validação';
+    $('frozenDecisionsNotice').textContent = error.message;
+  } finally {
+    $('frozenDecisionsRefresh').disabled = !authenticated;
+  }
+}
+$('frozenDecisionsRefresh').onclick = refreshFrozenDecisions;
 
 function clearSixMonthValidation() {
   $('sixMonthValidationStatus').textContent = 'Aguardando pesquisa';
@@ -463,6 +518,7 @@ async function loadSession() {
     await refreshThreeMonthResearch();
     await refreshOverfitScreen();
     await refreshSixMonthValidation();
+    await refreshFrozenDecisions();
     await refreshPaper();
     await refreshMonitoring();
     if (canControl) await refreshTestnetExecution();

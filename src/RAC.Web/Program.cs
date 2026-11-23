@@ -36,6 +36,7 @@ var getRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
     "/api/health", "/api/state", "/api/history", "/api/auth/me",
     "/api/research/shadow-dashboard", "/api/research/three-month-dashboard",
     "/api/research/overfit-screen", "/api/research/six-month-validation",
+    "/api/research/frozen-decisions",
     "/api/market/overview", "/api/strategy/overview", "/api/strategy/validation", "/api/strategy/shadow-comparison", "/api/strategy/walk-forward", "/api/strategy/extended-history", "/api/paper/status", "/api/testnet/execution/status", "/api/paper/monitoring", "/api/binance/testnet/ping",
     "/api/binance/spot/status", "/api/binance/spot/balances",
     "/api/portfolio/history", "/api/portfolio/activity/history"

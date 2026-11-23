@@ -104,6 +104,24 @@ app.MapGet("/api/health", async (IDbContextFactory<RacDbContext> factory, Cancel
     };
 });
 
+app.MapGet("/api/research/frozen-decisions", () =>
+{
+    try
+    {
+        var monthly = Path.Combine(Environment.GetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData), "RAC", "research", "monthly");
+        return Results.Ok(RacFrozenDecisionAudit.Load(monthly));
+    }
+    catch (Exception e) when (e is IOException or System.Text.Json.JsonException or
+        ArgumentException or InvalidOperationException or KeyNotFoundException or
+        FormatException or OverflowException)
+    {
+        return Results.Ok(new { available = false, mode = "FROZEN_DECISION_INVALID",
+            paperModified = false, orderPlacementEnabled = false,
+            promotionAllowed = false, notice = "Auditoria congelada inválida. Nenhuma estratégia aprovada." });
+    }
+}).RequireAuthorization();
+
 app.MapGet("/api/research/six-month-validation", () =>
 {
     try
