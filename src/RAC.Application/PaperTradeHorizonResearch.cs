@@ -92,12 +92,16 @@ public static class PaperTradeHorizonResearch
     }
 
     public static Slice SimulateSlice(string symbol, IReadOnlyList<MarketCandlePoint> input,
-        int horizonMinutes)
+        int horizonMinutes, decimal costMultiplier = 1m)
     {
         if (!RacMarketSymbols.IsSupported(symbol))
             throw new ArgumentException("Unsupported market symbol.", nameof(symbol));
         if (!Horizons.Contains(horizonMinutes))
             throw new ArgumentOutOfRangeException(nameof(horizonMinutes));
+        if (costMultiplier is not (1m or 2m))
+            throw new ArgumentOutOfRangeException(nameof(costMultiplier));
+        var fee = Fee * costMultiplier;
+        var impact = Impact * costMultiplier;
         if (input.Count < RacStrategyEvaluator.MinimumCandles + 10 || input.Count > 2000 ||
             input.Any(x => x.Symbol != symbol || x.Open <= 0m || x.Close <= 0m ||
                 x.High < x.Low || x.CloseUtc <= x.OpenUtc))
@@ -128,8 +132,8 @@ public static class PaperTradeHorizonResearch
                     signal.Atr14 is > 0m)
                 {
                     entryCapital = cash;
-                    var entry = next.Open * (1m + Impact);
-                    qty = cash * (1m - Fee) / entry;
+                    var entry = next.Open * (1m + impact);
+                    qty = cash * (1m - fee) / entry;
                     cash = 0m;
                     enteredAt = nextIndex;
                     stop = Math.Max(0m, entry - 2m * signal.Atr14.Value);
@@ -145,7 +149,7 @@ public static class PaperTradeHorizonResearch
                 // The current closed candle reaches the holding horizon.
                 Exit(next.Close, nextIndex + 1, ref timeExits);
             }
-            var equity = cash + qty * next.Close * (1m - Impact) * (1m - Fee);
+            var equity = cash + qty * next.Close * (1m - impact) * (1m - fee);
             peak = Math.Max(peak, equity);
             maxDd = Math.Max(maxDd, (peak - equity) / peak * 100m);
         }
@@ -160,7 +164,7 @@ public static class PaperTradeHorizonResearch
 
         void Exit(decimal quotedPrice, int exclusiveExitCandleIndex, ref int reasonCounter)
         {
-            cash = qty * Math.Max(0m, quotedPrice) * (1m - Impact) * (1m - Fee);
+            cash = qty * Math.Max(0m, quotedPrice) * (1m - impact) * (1m - fee);
             qty = 0m;
             completed++;
             if (cash > entryCapital) wins++;

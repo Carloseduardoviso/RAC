@@ -34,8 +34,11 @@ public static class MonthlyWalkForwardResearch
         IReadOnlyList<Day> Days, IReadOnlyList<RegimeSummary> Regimes,
         string Interpretation);
 
-    public static Result Run(string symbol, int year, int month, Stream archive)
+    public static Result Run(string symbol, int year, int month, Stream archive,
+        decimal costMultiplier = 1m)
     {
+        if (costMultiplier is not (1m or 2m))
+            throw new ArgumentOutOfRangeException(nameof(costMultiplier));
         // The same validation is used as during the import. No unverified
         // archive is allowed into any performance analysis, even from cache.
         var validated = MonthlyArchiveResearch.Analyze(symbol, year, month, archive);
@@ -101,16 +104,17 @@ public static class MonthlyWalkForwardResearch
             var train = data.Take(TrainMinutes).ToArray();
             var test = data.Skip(TrainMinutes).ToArray();
             var candidates = PaperTradeHorizonResearch.Horizons
-                .Select(h => PaperTradeHorizonResearch.SimulateSlice(symbol, train, h)).ToArray();
+                .Select(h => PaperTradeHorizonResearch.SimulateSlice(symbol, train, h, costMultiplier)).ToArray();
             if (candidates.Any(x => x.Status != "COMPLETE"))
                 throw new InvalidDataException("Training simulation blocked.");
             var choice = candidates[0];
             foreach (var candidate in candidates.Skip(1))
                 if (candidate.CompletedTrades > 0 && candidate.ReturnPct > choice.ReturnPct)
                     choice = candidate;
-            var baseline = PaperTradeHorizonResearch.SimulateSlice(symbol, test, 1);
+            var baseline = PaperTradeHorizonResearch.SimulateSlice(symbol, test, 1, costMultiplier);
             var selected = choice.HorizonMinutes == 1
-                ? baseline : PaperTradeHorizonResearch.SimulateSlice(symbol, test, choice.HorizonMinutes);
+                ? baseline : PaperTradeHorizonResearch.SimulateSlice(symbol, test,
+                    choice.HorizonMinutes, costMultiplier);
             if (baseline.Status != "COMPLETE" || selected.Status != "COMPLETE")
                 throw new InvalidDataException("Holdout simulation blocked.");
             var regime = validated.Days[days.Count].DescriptiveRegime;

@@ -92,6 +92,11 @@ public sealed class PaperTradeHorizonResearchTests
             "BTCUSDT", Series(20), 1).Status);
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             PaperTradeHorizonResearch.SimulateSlice("BTCUSDT", bars, 2));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            PaperTradeHorizonResearch.SimulateSlice("BTCUSDT", bars, 1, 3m));
+        var baseCost = PaperTradeHorizonResearch.SimulateSlice("BTCUSDT", bars, 5, 1m);
+        var doubleCost = PaperTradeHorizonResearch.SimulateSlice("BTCUSDT", bars, 5, 2m);
+        Assert.True(doubleCost.ReturnPct <= baseCost.ReturnPct);
         Assert.Throws<ArgumentException>(() =>
             PaperTradeHorizonResearch.Run("INVALID", bars, Now, walk));
     }
