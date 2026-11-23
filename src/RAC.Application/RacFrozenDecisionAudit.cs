@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text.Json;
 using RAC.Domain;
 
@@ -46,11 +47,35 @@ public static class RacFrozenDecisionAudit
         return (winner.Key.Gate, winner.Key.Horizon, winner.Count());
     }
 
+    // A second read of a training report must never silently differ from the
+    // monthly projection already verified. This is a consistency check, not
+    // a replacement for validating original archive provenance.
+    public static string InputSha256(string path)
+    {
+        var info = new FileInfo(path);
+        if (!info.Exists || info.Length is < 20 or > 2_000_000)
+            throw new InvalidDataException("Missing or oversized SHADOW input.");
+        using var stream = File.OpenRead(path);
+        return Convert.ToHexString(SHA256.HashData(stream));
+    }
+
+    public static void RequireUnchanged(string path, string expectedSha256)
+    {
+        if (!string.Equals(InputSha256(path), expectedSha256,
+                StringComparison.Ordinal))
+            throw new InvalidDataException("SHADOW report changed during frozen decision audit.");
+    }
+
     public static Result Load(string monthlyRoot)
     {
         // Verify all six independent monthly projections first. Missing data
         // is never substituted with zero return.
         var months = TrainMonths.Concat(HoldoutMonths).ToArray();
+        var initialHashes = months.ToDictionary(m => m, m =>
+        {
+            var path = Path.Combine(monthlyRoot, m, "exit-capacity-gated-backtest.json");
+            return File.Exists(path) ? InputSha256(path) : null;
+        });
         var projections = months.ToDictionary(m => m,
             m => RacShadowDashboardReport.Load(monthlyRoot, m));
         var missing = months.Where(m => !projections[m].Available).ToArray();
@@ -62,6 +87,13 @@ public static class RacFrozenDecisionAudit
         if (projections.Values.Any(p => p.PaperModified ||
             p.OrderPlacementEnabled || p.PromotionAllowed || p.Agents != 12))
             throw new InvalidDataException("Unsafe monthly input.");
+        foreach (var month in months)
+        {
+            var path = Path.Combine(monthlyRoot, month, "exit-capacity-gated-backtest.json");
+            if (initialHashes[month] is not { } digest)
+                throw new InvalidDataException("SHADOW report appeared during audit.");
+            RequireUnchanged(path, digest);
+        }
         var rows = new List<Pick>();
         foreach (var symbol in RacMarketSymbols.Supported)
         {
@@ -111,6 +143,9 @@ public static class RacFrozenDecisionAudit
         }
         if (rows.Select(x => x.Symbol).Distinct(StringComparer.Ordinal).Count() != 12)
             throw new InvalidDataException("Duplicate study agents.");
+        foreach (var month in months)
+            RequireUnchanged(Path.Combine(monthlyRoot, month,
+                "exit-capacity-gated-backtest.json"), initialHashes[month]!);
         return new(true, "PRE_HOLDOUT_FROZEN_DECISION_SHADOW_ONLY",
             TrainMonths, HoldoutMonths, [], rows.Count,
             rows.Sum(x => x.TrainingWindows), rows.Sum(x => x.OutOfSampleWindows),

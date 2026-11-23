@@ -76,6 +76,44 @@ public sealed class RacFrozenDecisionAuditTests
     }
 
     [Fact]
+    public void Audit_detects_modified_research_input_by_sha256()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(path, "{\"mode\":\"SHADOW_ONLY\",\"agent\":\"BTCUSDT\"}");
+            var digest = RacFrozenDecisionAudit.InputSha256(path);
+            RacFrozenDecisionAudit.RequireUnchanged(path, digest);
+            File.WriteAllText(path, "{\"mode\":\"SHADOW_ONLY\",\"agent\":\"ETHUSDT\"}");
+            Assert.Throws<InvalidDataException>(() =>
+                RacFrozenDecisionAudit.RequireUnchanged(path, digest));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void Audit_refuses_missing_and_oversized_input()
+    {
+        var nonexistent = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
+        Assert.Throws<InvalidDataException>(() =>
+            RacFrozenDecisionAudit.InputSha256(nonexistent));
+        var path = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(path, "{}");
+            Assert.Throws<InvalidDataException>(() =>
+                RacFrozenDecisionAudit.InputSha256(path));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void Missing_research_months_do_not_become_zero_return()
     {
         var result = RacFrozenDecisionAudit.Load(Path.Combine(
