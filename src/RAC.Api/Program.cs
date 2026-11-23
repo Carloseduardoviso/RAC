@@ -29,6 +29,7 @@ builder.Services.AddHttpClient<BinancePublicMarketClient>(client =>
 builder.Services.AddSingleton<RacMarketDataService>();
 builder.Services.AddSingleton<RacStrategyService>();
 builder.Services.AddSingleton<RacWalkForwardService>();
+builder.Services.AddSingleton<RacExtendedHistoryService>();
 builder.Services.AddSingleton<RacPaperTradingService>();
 builder.Services.AddHostedService<RacPaperTradingWorker>();
 builder.Services.AddSingleton<RacPaperMonitoringService>();
@@ -175,6 +176,11 @@ app.MapGet("/api/strategy/overview", async (
 
 app.MapGet("/api/strategy/walk-forward", async (
     RacWalkForwardService service, CancellationToken ct) =>
+    Results.Ok(await service.AnalyzeAsync(ct)))
+    .RequireAuthorization();
+
+app.MapGet("/api/strategy/extended-history", async (
+    RacExtendedHistoryService service, CancellationToken ct) =>
     Results.Ok(await service.AnalyzeAsync(ct)))
     .RequireAuthorization();
 

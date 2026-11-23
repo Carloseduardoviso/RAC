@@ -42,6 +42,43 @@ public sealed class BinancePublicMarketClient(HttpClient client)
         return ParseClosedCandles(symbol, document.RootElement, DateTimeOffset.UtcNow);
     }
 
+    /// <summary>
+    /// Separate on-demand 48-hour research snapshot. Exactly three public GETs
+    /// per symbol at most. Never persisted or used by the PAPER collector.
+    /// Fails closed on overlap, missing minutes or inadequate sample size.
+    /// </summary>
+    public async Task<IReadOnlyList<MarketCandlePoint>> GetExtendedClosedOneMinuteCandlesAsync(
+        string symbol, CancellationToken ct)
+    {
+        if (!RacMarketSymbols.IsSupported(symbol))
+            throw new ArgumentOutOfRangeException(nameof(symbol));
+        const int target = 2880; // 48 hours; at most 3 x 1000 public candles.
+        var all = new List<MarketCandlePoint>(3000);
+        long? endTime = null;
+        var now = DateTimeOffset.UtcNow;
+        for (var page = 0; page < 3 && all.Count < target; page++)
+        {
+            ct.ThrowIfCancellationRequested();
+            var path = $"api/v3/klines?symbol={symbol}&interval=1m&limit=1000" +
+                (endTime.HasValue ? $"&endTime={endTime.Value}" : "");
+            using var document = await FetchAsync(path, ct);
+            var batch = ParseClosedCandles(symbol, document.RootElement, now)
+                .OrderBy(x => x.OpenUtc).ToArray();
+            if (batch.Length == 0 || batch.Length > 1000)
+                throw new FormatException("Extended history returned empty or oversized page.");
+            for (var i = 1; i < batch.Length; i++)
+                if (batch[i].OpenUtc - batch[i - 1].OpenUtc != TimeSpan.FromMinutes(1))
+                    throw new FormatException("Missing or duplicate historical minute.");
+            if (all.Count > 0 && batch[^1].OpenUtc.AddMinutes(1) != all[0].OpenUtc)
+                throw new FormatException("Historical page boundary is not contiguous.");
+            all.InsertRange(0, batch);
+            endTime = batch[0].OpenUtc.ToUnixTimeMilliseconds() - 1;
+        }
+        if (all.Count < target)
+            throw new InvalidOperationException("Not enough contiguous closed candles for 48h research.");
+        return all.Skip(all.Count - target).ToArray();
+    }
+
     private async Task<JsonDocument> FetchAsync(string path, CancellationToken ct)
     {
         using var response = await client.GetAsync(path, HttpCompletionOption.ResponseHeadersRead, ct);

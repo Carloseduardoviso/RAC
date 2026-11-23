@@ -685,6 +685,36 @@ async function refreshRealStrategies() {
 }
 
 $('refreshRealStrategies').onclick = refreshRealStrategies;
+$('runExtendedHistory').onclick = async () => {
+  if (!authenticated) return;
+  $('runExtendedHistory').disabled = true;
+  $('extendedHistoryStatus').textContent = 'Consultando ate 48h por par e avaliando janelas SHADOW...';
+  $('extendedHistoryRows').innerHTML = '<tr><td colspan="9">Calculando...</td></tr>';
+  try {
+    const r = await api('strategy/extended-history');
+    if (r.mode !== 'EXTENDED_HISTORY_48H_SHADOW_ONLY' || r.count !== 12 ||
+        r.historyPersisted || r.paperModified || r.riskLimitsModified ||
+        r.orderPlacementEnabled || r.promotionAllowed ||
+        !Array.isArray(r.agents) || r.agents.length !== 12)
+      throw new Error('Historico ampliado fora do modo SHADOW seguro.');
+    const completed = r.agents.filter(x => x.status === 'COMPLETE');
+    const reviewed = completed.filter(x => x.researchGate === 'RESEARCH_REVIEW_ONLY');
+    $('extendedHistoryStatus').textContent = completed.length+'/12 pares com 48h completas; '+
+      reviewed.length+' marcados apenas para revisao de pesquisa. Nenhum par esta autorizado a operar.';
+    $('extendedHistoryRows').innerHTML = r.agents.map(x =>
+      '<tr><td>'+safe(x.symbol)+'</td><td>'+Number(x.coveredUtcDays)+
+      '</td><td>'+Number(x.foldCount)+'</td><td>'+Number(x.selectedTrades)+
+      '</td><td>'+Number(x.positiveHoldouts)+
+      '</td><td>'+(x.status === 'COMPLETE' ? pct(x.averageBaselineReturnPct) : '-')+
+      '</td><td>'+(x.status === 'COMPLETE' ? pct(x.averageSelectedReturnPct) : '-')+
+      '</td><td>'+(x.status === 'COMPLETE' ? pct(x.worstSelectedDrawdownPct) : '-')+
+      '</td><td>'+safe(x.researchGate)+'</td></tr>').join('');
+  } catch(error) {
+    $('extendedHistoryStatus').textContent = 'Pesquisa ampliada indisponivel: '+error.message;
+    $('extendedHistoryRows').innerHTML = '<tr><td colspan="9">Dados indisponiveis.</td></tr>';
+  } finally { $('runExtendedHistory').disabled = false; }
+};
+
 $('runWalkForward').onclick = async () => {
   if (!authenticated) return;
   $('runWalkForward').disabled = true;

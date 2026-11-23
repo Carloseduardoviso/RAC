@@ -16,6 +16,17 @@ builder.Services.AddHttpClient("RAC.Api", client =>
     UseCookies = false, // Never pool browser authentication cookies across users.
     AllowAutoRedirect = false
 });
+// A separate timeout for the manually triggered, 36-request maximum public
+// research route. Normal proxy requests retain their original 45s timeout.
+builder.Services.AddHttpClient("RAC.Api.ExtendedResearch", client =>
+{
+    client.BaseAddress = backend;
+    client.Timeout = TimeSpan.FromSeconds(150);
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+{
+    UseCookies = false,
+    AllowAutoRedirect = false
+});
 var app = builder.Build();
 app.UseDefaultFiles();
 app.UseStaticFiles();
@@ -23,7 +34,7 @@ app.UseStaticFiles();
 var getRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
     "/api/health", "/api/state", "/api/history", "/api/auth/me",
-    "/api/market/overview", "/api/strategy/overview", "/api/strategy/validation", "/api/strategy/shadow-comparison", "/api/strategy/walk-forward", "/api/paper/status", "/api/testnet/execution/status", "/api/paper/monitoring", "/api/binance/testnet/ping",
+    "/api/market/overview", "/api/strategy/overview", "/api/strategy/validation", "/api/strategy/shadow-comparison", "/api/strategy/walk-forward", "/api/strategy/extended-history", "/api/paper/status", "/api/testnet/execution/status", "/api/paper/monitoring", "/api/binance/testnet/ping",
     "/api/binance/spot/status", "/api/binance/spot/balances",
     "/api/portfolio/history", "/api/portfolio/activity/history"
 };
@@ -73,7 +84,9 @@ app.MapMethods("/api/{**path}", ["GET", "POST"], async (HttpContext context, IHt
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
     }
 
-    using var response = await factory.CreateClient("RAC.Api")
+    using var response = await factory.CreateClient(
+            path.Equals("/api/strategy/extended-history", StringComparison.OrdinalIgnoreCase)
+                ? "RAC.Api.ExtendedResearch" : "RAC.Api")
         .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, context.RequestAborted);
     var body = await response.Content.ReadAsByteArrayAsync(context.RequestAborted);
     if (response.Headers.TryGetValues("Set-Cookie", out var setCookies))
