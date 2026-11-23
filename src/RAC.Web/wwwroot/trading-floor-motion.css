@@ -1,0 +1,79 @@
+/* RAC character sprites. Animated movement is visual-only and never places orders. */
+#officePhotoreal .office-scene-shell{isolation:isolate}
+#officePhotoreal .rac-motion-layer{
+ position:absolute;inset:0;z-index:8;pointer-events:none;overflow:hidden;
+}
+#officePhotoreal .rac-motion-actor{
+ position:absolute;width:6.4%;aspect-ratio:1;transform:translate(-50%,-88%);
+ pointer-events:none;filter:drop-shadow(0 6px 3px #050914c9);
+}
+#officePhotoreal .rac-motion-leader{width:8.2%;}
+#officePhotoreal .rac-motion-sprite{
+ width:100%;height:100%;background-image:url('rac-people-poses.webp');
+ background-repeat:no-repeat;background-size:400% 200%;
+ background-position:33.333% 0%;
+}
+#officePhotoreal [data-gender="female"] .rac-motion-sprite{background-position-y:100%}
+#officePhotoreal [data-pose="typing"] .rac-motion-sprite{
+ background-image:url('rac-typing-male.webp');background-size:contain;
+ background-position:center;
+}
+#officePhotoreal [data-gender="female"][data-pose="typing"] .rac-motion-sprite{
+ background-image:url('rac-typing-female.webp');
+}
+#officePhotoreal [data-pose="walking"] .rac-motion-sprite{
+ animation:rac-walk-steps .48s steps(1,end) infinite;
+}
+#officePhotoreal [data-pose="standing"] .rac-motion-sprite{
+ animation:rac-breathe 2.3s ease-in-out infinite;
+}
+@keyframes rac-walk-steps{
+ 0%,49%{background-position-x:66.666%}
+ 50%,100%{background-position-x:100%}
+}
+@keyframes rac-breathe{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+#officePhotoreal .rac-motion-bubble{
+ position:absolute;left:50%;bottom:97%;min-width:104px;max-width:200px;width:max-content;
+ transform:translateX(-50%);padding:7px 9px;border:1px solid #86cef2;
+ border-radius:11px 11px 11px 2px;background:#101724ee;
+ color:#f7fcff;font-size:11px;line-height:1.3;box-shadow:0 6px 16px #010512b3;
+ white-space:normal;text-align:center;
+}
+#officePhotoreal .rac-motion-bubble[hidden]{display:none}
+#officePhotoreal .rac-motion-controls{
+ display:flex;flex-wrap:wrap;align-items:center;gap:9px;padding:7px 18px;
+ background:#101827;border-block:1px solid #243249;
+}
+#officePhotoreal .rac-motion-controls button{
+ padding:6px 11px;color:#b3c5e3;background:#161f33;border:1px solid #49536b;
+ border-radius:6px;font-size:11px;cursor:pointer;
+}
+#officePhotoreal .rac-motion-controls button[aria-pressed="true"]{
+ color:#d5fff1;border-color:#52b99d;background:#133a35;
+}
+#officePhotoreal .rac-motion-disclaimer{font-size:10px;color:#a2b2c9;margin-left:auto}
+#officePhotoreal .rac-motion-narration{
+ background:#0a1320;color:#d7e6f7;font-size:11px;padding:9px 16px;
+ border-top:1px solid #26334b;
+}
+#officePhotoreal .motion-disabled .rac-motion-sprite{animation:none}
+@media (max-width:1000px){
+ #officePhotoreal .rac-motion-bubble{font-size:10px;max-width:160px}
+}
+@media (prefers-reduced-motion:reduce){
+ #officePhotoreal .rac-motion-actor .rac-motion-sprite{animation:none}
+}
+
+#officePhotoreal [data-pose="rising"] .rac-motion-sprite{
+ background-position-x:33.333%;animation:rac-breathe .43s ease-out 1;
+}
+#officePhotoreal .rac-motion-speaking .rac-motion-sprite{
+ animation:rac-talk 0.5s ease-in-out 4;
+}
+#officePhotoreal[data-rac-motion="on"] .office-walker{display:none}
+@keyframes rac-talk{0%,100%{transform:rotate(0)}50%{transform:rotate(2deg) translateY(-1px)}}
+
+#officePhotoreal .rac-motion-controls button:disabled{opacity:.45;cursor:wait}
+#officePhotoreal[data-rac-demo="on"] .rac-motion-narration{
+ color:#ffe4a0;border-color:#a17b42;
+}

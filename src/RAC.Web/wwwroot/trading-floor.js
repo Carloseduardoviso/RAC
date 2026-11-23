@@ -73,4 +73,5 @@ window.updateTradingFloorHud = function updateTradingFloorHud(state) {
   floorUpdateCounts(agents, supervisors);
   floorUpdatePerformance(state);
   floorUpdateRisk(state);
+  window.RacAgentMotion?.update(state);
 };
