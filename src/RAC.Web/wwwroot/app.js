@@ -144,6 +144,8 @@ function showSession(session) {
   $('activityPanel').hidden = !authenticated || !canViewWallet;
   $('realStrategiesPanel').hidden = !authenticated;
   $('researchShadowPanel').hidden = !authenticated;
+  $('researchThreeMonthPanel').hidden = !authenticated;
+  if (!authenticated) clearThreeMonthResearch();
   if (!authenticated) clearShadowResearch();
   $('paperPanel').hidden = !authenticated;
   $('paperMonitoringPanel').hidden = !authenticated;
@@ -190,6 +192,90 @@ function renderShadowBars() {
   }).join('');
 }
 $('researchShadowChartMetric').onchange = renderShadowBars;
+
+let validThreeMonthTimeline = [];
+const threeMonthMetricNames = new Set(['unresolvedExits', 'hypotheticalTrades', 'noTradeDays']);
+function renderThreeMonthBars() {
+  const key = $('researchThreeMonthMetric').value;
+  if (!threeMonthMetricNames.has(key) || validThreeMonthTimeline.length !== 3 ||
+      validThreeMonthTimeline.some(m => !Number.isSafeInteger(m[key]) || m[key] < 0)) {
+    $('researchThreeMonthBars').textContent = 'Comparação indisponível ou inválida.';
+    return;
+  }
+  const max = Math.max(1, ...validThreeMonthTimeline.map(m => m[key]));
+  $('researchThreeMonthBars').innerHTML = validThreeMonthTimeline.map(m => {
+    const value = m[key];
+    const width = Math.min(100, value / max * 100);
+    const atRisk = key === 'unresolvedExits' && value > 0;
+    return `<div class="research-bar-row${atRisk ? ' has-risk' : ''}">` +
+      `<b>${safe(m.monthKey)}</b><div class="research-bar-track">` +
+      `<div class="research-bar-fill" style="width:${width.toFixed(2)}%"></div>` +
+      `</div><span class="research-bar-count">${value}</span></div>`;
+  }).join('');
+}
+$('researchThreeMonthMetric').onchange = renderThreeMonthBars;
+function clearThreeMonthResearch() {
+  validThreeMonthTimeline = [];
+  $('researchThreeMonthBars').textContent = 'Aguardando três relatórios validados.';
+  $('researchThreeMonthStatus').textContent = 'Aguardando relatórios';
+  $('researchThreeMonthNotice').textContent = 'Mês ausente não equivale a retorno zero.';
+  for (const id of ['researchThreeMonthDays', 'researchThreeMonthNoTrade',
+                    'researchThreeMonthUnresolved', 'researchThreeMonthEligible'])
+    $(id).textContent = '—';
+  $('researchThreeMonthMonths').innerHTML = '<tr><td colspan="7">Sem histórico comparável.</td></tr>';
+  $('researchThreeMonthAgents').innerHTML = '<tr><td colspan="7">Sem comparação validada.</td></tr>';
+}
+async function refreshThreeMonthResearch() {
+  if (!authenticated) return;
+  $('researchThreeMonthRefresh').disabled = true;
+  try {
+    const report = await api('research/three-month-dashboard');
+    if (!report.available) {
+      clearThreeMonthResearch();
+      const missing = Array.isArray(report.missingMonths) ? report.missingMonths.join(', ') : '';
+      $('researchThreeMonthStatus').textContent = 'Histórico incompleto';
+      $('researchThreeMonthNotice').textContent = (report.notice || 'Relatórios não disponíveis.') +
+        (missing ? ' Meses pendentes: ' + missing : '');
+      return;
+    }
+    if (report.mode !== 'THREE_MONTH_EXIT_CAPACITY_SHADOW_ONLY' ||
+        report.paperModified || report.orderPlacementEnabled || report.promotionAllowed ||
+        report.agentCount !== 12 || !Array.isArray(report.timeline) ||
+        report.timeline.length !== 3 || !Array.isArray(report.rows) || report.rows.length !== 12 ||
+        report.timeline.map(x => x.monthKey).join(',') !== '2026-08,2026-09,2026-10')
+      throw new Error('Relatório de três meses não satisfaz requisitos de segurança.');
+    $('researchThreeMonthStatus').textContent = '3 meses validados · somente leitura';
+    $('researchThreeMonthNotice').textContent = report.notice;
+    $('researchThreeMonthDays').textContent = report.totalAgentDays;
+    $('researchThreeMonthNoTrade').textContent = report.noTradeDays;
+    $('researchThreeMonthUnresolved').textContent = report.unresolvedExits;
+    $('researchThreeMonthEligible').textContent = report.agentsEligibleForResearchReview + ' / 12';
+    validThreeMonthTimeline = report.timeline;
+    renderThreeMonthBars();
+    $('researchThreeMonthMonths').innerHTML = report.timeline.map(m =>
+      `<tr><td>${safe(m.monthKey)}</td><td>${m.agentDays}</td>` +
+      `<td>${m.noTradeDays}</td><td>${m.hypotheticalTrades}</td>` +
+      `<td>${m.unresolvedExits}</td><td>${m.rejectedAgents}</td>` +
+      `<td>${pct(m.meanHypotheticalReturnPct)}</td></tr>`).join('');
+    $('researchThreeMonthAgents').innerHTML = report.rows.map(a => {
+      const months = a.months;
+      if (!Array.isArray(months) || months.length !== 3 ||
+          months.map(x => x.monthKey).join(',') !== '2026-08,2026-09,2026-10')
+        throw new Error('Histórico de agente incompleto.');
+      return `<tr><td>${safe(a.symbol)}</td>` +
+        months.map(x => `<td>${pct(x.hypotheticalMeanReturnPct)}</td>`).join('') +
+        `<td>${a.hypotheticalTrades}</td><td>${a.unresolvedExits}</td>` +
+        `<td>${a.allMonthsResearchReviewEligible ? 'REVISÃO CIENTÍFICA' : 'REJEITADO'}</td></tr>`;
+    }).join('');
+  } catch (error) {
+    clearThreeMonthResearch();
+    $('researchThreeMonthStatus').textContent = 'Falha de validação';
+    $('researchThreeMonthNotice').textContent = error.message;
+  } finally {
+    $('researchThreeMonthRefresh').disabled = !authenticated;
+  }
+}
+$('researchThreeMonthRefresh').onclick = refreshThreeMonthResearch;
 
 function clearShadowResearch() {
   validatedShadowRows = [];
@@ -253,6 +339,7 @@ async function loadSession() {
     await refreshMarketCandles();
     await refreshRealStrategies();
     await refreshShadowResearch();
+    await refreshThreeMonthResearch();
     await refreshPaper();
     await refreshMonitoring();
     if (canControl) await refreshTestnetExecution();

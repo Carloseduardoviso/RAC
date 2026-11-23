@@ -104,6 +104,27 @@ app.MapGet("/api/health", async (IDbContextFactory<RacDbContext> factory, Cancel
     };
 });
 
+app.MapGet("/api/research/three-month-dashboard", () =>
+{
+    try
+    {
+        var monthly = Path.Combine(Environment.GetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData),
+            "RAC", "research", "monthly");
+        return Results.Ok(RacShadowThreeMonthDashboard.Load(monthly));
+    }
+    catch (Exception e) when (e is IOException or System.Text.Json.JsonException or
+        ArgumentException or InvalidOperationException or KeyNotFoundException or
+        FormatException or OverflowException)
+    {
+        return Results.Ok(new {
+            available = false, mode = "REPORT_VALIDATION_FAILED",
+            orderPlacementEnabled = false, promotionAllowed = false,
+            notice = "Comparação histórica inválida ou incompleta. Nenhuma estratégia autorizada."
+        });
+    }
+}).RequireAuthorization();
+
 app.MapGet("/api/research/shadow-dashboard", () =>
 {
     try

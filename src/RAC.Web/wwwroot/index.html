@@ -244,6 +244,35 @@
   </table></div>
   <p><small>Retornos médios não são rentabilidade composta. Volumes OHLCV não representam liquidez executável; saídas cobertas no modelo não garantem execução no mercado. O modo SHADOW não envia ordens.</small></p>
 </section>
+<section class="panel" id="researchThreeMonthPanel" hidden>
+  <div class="section-head"><div>
+    <h2>MVP 1.4.8 — Histórico comparativo SHADOW (agosto–outubro/2026)</h2>
+    <p>Estudo retrospectivo em três meses completos, sem ordens nem mudança na carteira PAPER.</p>
+  </div><span class="chip" id="researchThreeMonthStatus">Aguardando relatórios</span></div>
+  <p id="researchThreeMonthNotice">Mês ausente não equivale a retorno zero.</p>
+  <button id="researchThreeMonthRefresh" type="button">Atualizar comparação mensal (somente leitura)</button>
+  <div class="metrics" style="margin:16px 0">
+    <div class="metric"><span>Janelas avaliadas</span><strong id="researchThreeMonthDays">—</strong></div>
+    <div class="metric"><span>Dias sem operação</span><strong id="researchThreeMonthNoTrade">—</strong></div>
+    <div class="metric"><span>Saídas simuladas não resolvidas</span><strong id="researchThreeMonthUnresolved">—</strong></div>
+    <div class="metric"><span>Agentes elegíveis para revisão</span><strong id="researchThreeMonthEligible">—</strong></div>
+  </div>
+  <h3>Comparação mensal de risco</h3>
+  <label for="researchThreeMonthMetric">Indicador
+    <select id="researchThreeMonthMetric">
+      <option value="unresolvedExits">Saídas não resolvidas</option>
+      <option value="hypotheticalTrades">Trades hipotéticos</option>
+      <option value="noTradeDays">Dias sem operar</option>
+    </select>
+  </label>
+  <div class="research-bars" id="researchThreeMonthBars" role="img" aria-label="Comparativo dos três meses">Aguardando três relatórios validados.</div>
+  <div class="scroll"><table><thead><tr><th>Mês</th><th>Janelas</th><th>Sem operação</th><th>Trades simulados</th><th>Saídas não resolvidas</th><th>Agentes rejeitados</th><th>Média fictícia por janela (%)</th></tr></thead>
+    <tbody id="researchThreeMonthMonths"><tr><td colspan="7">Sem dados mensais validados.</td></tr></tbody></table></div>
+  <h3>Consistência por agente nos três meses</h3>
+  <div class="scroll"><table><thead><tr><th>Agente</th><th>Agosto (%)</th><th>Setembro (%)</th><th>Outubro (%)</th><th>Trades simulados</th><th>Saídas não resolvidas</th><th>Elegível para revisão</th></tr></thead>
+    <tbody id="researchThreeMonthAgents"><tr><td colspan="7">Sem comparação concluída.</td></tr></tbody></table></div>
+  <p><small>As médias mensais são aritméticas por agente; não são resultado de uma carteira composta nem PnL realizado. NO_TRADE representa ausência de execução, não ganho. Nenhuma estratégia está aprovada para negociar.</small></p>
+</section>
 <section class="panel" id="realStrategiesPanel" hidden>
   <div class="section-head">
     <div>
