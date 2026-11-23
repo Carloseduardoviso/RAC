@@ -15,12 +15,14 @@ public static class PaperTradeHorizonResearch
     private const decimal Impact = (PaperProfitabilityDiagnostics.SlippagePctPerSide +
         PaperProfitabilityDiagnostics.HalfSpreadPctPerSide) / 100m;
 
+    public sealed record ExitIntent(int NextCandleIndex, decimal RequestedQuantity);
     public sealed record Slice(string Status, int Candles, int HorizonMinutes,
         decimal ReturnPct, decimal MaxDrawdownPct, int CompletedTrades,
         int WinningTrades, int LosingTrades, int AtrStopExits,
         int HorizonExits, int FinalLiquidations, decimal? MeanHoldMinutes,
         int LiquidityBlockedEntries = 0, int PartialEntryFills = 0,
-        decimal TotalUnfilledNotional = 0m);
+        decimal TotalUnfilledNotional = 0m,
+        IReadOnlyList<ExitIntent>? ExitIntents = null);
     public sealed record Fold(int Number, int SelectedHorizonFromTraining,
         decimal TrainingSelectedReturnPct, int TrainingSelectedTrades,
         decimal HoldoutBaselineReturnPct, decimal HoldoutSelectedReturnPct,
@@ -95,7 +97,7 @@ public static class PaperTradeHorizonResearch
 
     public static Slice SimulateSlice(string symbol, IReadOnlyList<MarketCandlePoint> input,
         int horizonMinutes, decimal costMultiplier = 1m, string entryGate = "BASELINE",
-        bool liquidityStress = false)
+        bool liquidityStress = false, bool captureExitIntents = false)
     {
         if (!RacMarketSymbols.IsSupported(symbol))
             throw new ArgumentException("Unsupported market symbol.", nameof(symbol));
@@ -131,6 +133,8 @@ public static class PaperTradeHorizonResearch
         int stops = 0, timeExits = 0, liquidations = 0, sumHold = 0;
         int liquidityBlocked = 0, partialFills = 0;
         decimal unfilledNotional = 0m;
+        List<ExitIntent>? exitIntents = captureExitIntents
+            ? new List<ExitIntent>() : null;
         for (var i = RacStrategyEvaluator.MinimumCandles - 1; i < candles.Length - 1; i++)
         {
             var nextIndex = i + 1;
@@ -187,7 +191,7 @@ public static class PaperTradeHorizonResearch
             {
                 // A gap below the stop exits at the worse opening quote.
                 Exit(PaperExecutionAudit.ConservativeStopFill(stop, next.Open,
-                    next.Low), nextIndex, ref stops, next);
+                    next.Low), nextIndex, ref stops, next, stopTriggered: true);
             }
             else if (qty > 0m && nextIndex - enteredAt + 1 >= horizonMinutes)
             {
@@ -207,11 +211,17 @@ public static class PaperTradeHorizonResearch
             Math.Round(maxDd, 4), completed, wins, losses, stops,
             timeExits, liquidations,
             completed > 0 ? Math.Round((decimal)sumHold / completed, 2) : null,
-            liquidityBlocked, partialFills, Math.Round(unfilledNotional, 4));
+            liquidityBlocked, partialFills, Math.Round(unfilledNotional, 4),
+            exitIntents);
 
         void Exit(decimal quotedPrice, int exclusiveExitCandleIndex,
-            ref int reasonCounter, MarketCandlePoint candle)
+            ref int reasonCounter, MarketCandlePoint candle,
+            bool stopTriggered = false)
         {
+            if (qty > 0m)
+                exitIntents?.Add(new ExitIntent(
+                    stopTriggered ? exclusiveExitCandleIndex + 1 :
+                        exclusiveExitCandleIndex, qty));
             var proceeds = PaperExecutionAudit.SellAll(qty, quotedPrice,
                 costMultiplier).NetCashAfter;
             if (liquidityStress)

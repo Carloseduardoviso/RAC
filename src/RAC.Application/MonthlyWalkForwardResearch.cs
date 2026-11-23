@@ -23,7 +23,9 @@ public static class MonthlyWalkForwardResearch
         decimal BaselineTestReturnPct, decimal SelectedTestReturnPct,
         decimal SelectedTestDrawdownPct, string SelectedEntryGate = "BASELINE",
         int LiquidityBlockedEntries = 0, int PartialEntryFills = 0,
-        decimal UnfilledNotionalUsdt = 0m);
+        decimal UnfilledNotionalUsdt = 0m,
+        int ExitIntents = 0, int UnresolvedExitIntents = 0,
+        int MissingExitLookahead = 0, string ExitCapacityStatus = "NOT_AUDITED");
     public sealed record RegimeSummary(string RetrospectiveRegime,
         int Days, int PositiveTestDays, int ClosedTestTrades,
         decimal MeanSelectedTestReturnPct, decimal WorstTestDrawdownPct);
@@ -34,11 +36,12 @@ public static class MonthlyWalkForwardResearch
         decimal MeanSelectedTestReturnPct, decimal WorstSelectedTestDrawdownPct,
         bool PaperModified, bool OrderPlacementEnabled, bool PromotionAllowed,
         IReadOnlyList<Day> Days, IReadOnlyList<RegimeSummary> Regimes,
-        string Interpretation);
+        string Interpretation, int UnresolvedExitIntents = 0,
+        int ExitIntents = 0);
 
     public static Result Run(string symbol, int year, int month, Stream archive,
         decimal costMultiplier = 1m, bool entryGateResearch = false,
-        bool liquidityStressResearch = false)
+        bool liquidityStressResearch = false, bool exitCapacityAudit = false)
     {
         if (costMultiplier is not (1m or 2m))
             throw new ArgumentOutOfRangeException(nameof(costMultiplier));
@@ -83,7 +86,8 @@ public static class MonthlyWalkForwardResearch
         var enough = tradeCount >= MinimumClosedTestTrades;
         var reviewOnly = enough && positive * 10 >= days.Count * 7 &&
             meanSelected > 0m && meanSelected > meanBase &&
-            worst <= MaximumTestDrawdownPct;
+            worst <= MaximumTestDrawdownPct &&
+            (!exitCapacityAudit || days.All(x => x.UnresolvedExitIntents == 0));
         var regimes = days.GroupBy(x => x.RetrospectiveRegime)
             .OrderBy(x => x.Key, StringComparer.Ordinal)
             .Select(g => new RegimeSummary(g.Key, g.Count(),
@@ -92,13 +96,17 @@ public static class MonthlyWalkForwardResearch
                 Math.Round(g.Average(x => x.SelectedTestReturnPct), 4),
                 g.Max(x => x.SelectedTestDrawdownPct))).ToArray();
         return new Result(symbol, year, month, "COMPLETE",
+            exitCapacityAudit && days.Any(x => x.UnresolvedExitIntents > 0)
+                ? "EXIT_UNRESOLVED_REJECTED" :
             !enough ? "INSUFFICIENT_TRADES" :
                 reviewOnly ? "RESEARCH_REVIEW_ONLY" : "REJECTED_NO_EDGE",
             validated.ValidatedCandles, days.Count, positive, tradeCount,
             days.Sum(x => x.TestWins), days.Sum(x => x.TestLosses),
             days.Sum(x => x.TestStops), meanBase, meanSelected, worst,
             false, false, false, days, regimes,
-            "Offline public monthly 1m candles, independent daily 720m training / 720m test. Four predeclared horizons 1/5/15/30m, costs and ATR stops, 100 simulated USDT reset per day. Retrospective daily regime labels may use the full day ONLY for description; never training or selection. No-trade comparator = 0%. Review-only gate requires >=30 trades, >=70% winning days, positive mean better than baseline, worst drawdown <=5%. No strategy promotion or account impact; one month does not prove future profitability.");
+            "Offline monthly holdouts with training-only selection, illustrative costs and optional retrospective 5-candle exit capacity check. Any unresolved or unobservable exit disqualifies research review; hypothetical PnL is NEVER relabeled realized. No-trade comparator 0%. No trading permission.",
+            days.Sum(x => x.UnresolvedExitIntents),
+            days.Sum(x => x.ExitIntents));
 
         void EvaluateDay(DateOnly today, List<MarketCandlePoint> data)
         {
@@ -137,20 +145,29 @@ public static class MonthlyWalkForwardResearch
             }
             var baseline = PaperTradeHorizonResearch.SimulateSlice(symbol, test, 1,
                 costMultiplier, "BASELINE", liquidityStressResearch);
-            var selected = gateName == "BASELINE" && choice.HorizonMinutes == 1
+            var selected = !exitCapacityAudit && gateName == "BASELINE" &&
+                choice.HorizonMinutes == 1
                 ? baseline : PaperTradeHorizonResearch.SimulateSlice(symbol, test,
-                    choice.HorizonMinutes, costMultiplier, gateName, liquidityStressResearch);
+                    choice.HorizonMinutes, costMultiplier, gateName,
+                    liquidityStressResearch, captureExitIntents: exitCapacityAudit);
             if (baseline.Status != "COMPLETE" || selected.Status != "COMPLETE")
                 throw new InvalidDataException("Holdout simulation blocked.");
             var regime = validated.Days[days.Count].DescriptiveRegime;
             if (validated.Days[days.Count].DateUtc != today)
                 throw new InvalidDataException("Regime date mismatch.");
+            var exitCheck = exitCapacityAudit
+                ? PaperExitCapacityGate.Assess(selected, test, costMultiplier)
+                : null;
             days.Add(new Day(today, regime, choice.HorizonMinutes,
                 choice.CompletedTrades, choice.ReturnPct, selected.CompletedTrades,
                 selected.WinningTrades, selected.LosingTrades, selected.AtrStopExits,
                 baseline.ReturnPct, selected.ReturnPct, selected.MaxDrawdownPct,
                 gateName, selected.LiquidityBlockedEntries,
-                selected.PartialEntryFills, selected.TotalUnfilledNotional));
+                selected.PartialEntryFills, selected.TotalUnfilledNotional,
+                exitCheck?.IntendedExits ?? 0,
+                exitCheck?.UnresolvedExits ?? 0,
+                exitCheck?.MissingFutureCandles ?? 0,
+                exitCheck?.Status ?? "NOT_AUDITED"));
         }
     }
 }
