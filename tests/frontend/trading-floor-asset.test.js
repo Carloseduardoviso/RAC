@@ -12,7 +12,7 @@ test('photorealistic 3D render exists as a local optimized WEBP asset', () => {
   assert.equal(buffer.toString('ascii', 0, 4), 'RIFF');
   assert.equal(buffer.toString('ascii', 8, 12), 'WEBP');
   assert.equal(crypto.createHash('sha256').update(buffer).digest('hex'),
-    '6ea0faf03a5b2f69f5002cf62be6693f956dbc2eed342e5fca013d9b16d4674f');
+    '514134ff5e66fa4102b6bcd8b5ab5bff3a5b58ab519e2ed3adede2517fdc71c6');
 });
 
 test('active scene uses one photo stylesheet and a separate responsive stylesheet', () => {
