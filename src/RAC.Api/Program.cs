@@ -35,6 +35,7 @@ builder.Services.AddSingleton<RacPaperTradingService>();
 builder.Services.AddHostedService<RacPaperTradingWorker>();
 builder.Services.AddSingleton<RacPaperMonitoringService>();
 builder.Services.AddSingleton<RacSafetyMonitoringService>();
+builder.Services.AddSingleton<PaperRiskReviewService>();
 builder.Services.AddHostedService<RacPaperMonitoringWorker>();
 // No mainnet order endpoint can be injected into this hard-pinned Testnet client.
 builder.Services.AddSingleton<BinanceTestnetCredentialStore>();
@@ -354,6 +355,24 @@ app.MapGet("/api/risk/safety-monitoring", async (
         return Results.Json(new { status = "UNAVAILABLE",
             mode = "READ_ONLY_SAFETY_DIAGNOSTICS", realOrdersEnabled = false,
             error = "SQL monitoring unavailable. No order actions permitted." },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+}).RequireAuthorization("RacRiskReviewer");
+
+// Separate from /api/risk/review (legacy simulator). Evidence only:
+ // no POST/review/unlock endpoint, and no PAPER state mutation.
+app.MapGet("/api/paper/risk-review", async (
+    PaperRiskReviewService review, HttpContext http, CancellationToken ct) =>
+{
+    http.Response.Headers.CacheControl = "no-store";
+    try { return Results.Ok(await review.SnapshotAsync(ct)); }
+    catch (Exception ex) when (ex is Microsoft.Data.SqlClient.SqlException or
+        Microsoft.EntityFrameworkCore.DbUpdateException)
+    {
+        return Results.Json(new { status = "UNAVAILABLE",
+            mode = "READ_ONLY_PAPER_RISK_REVIEW", reviewApproved = false,
+            unlockPermitted = false, realOrdersEnabled = false,
+            error = "SQL review unavailable; no risk approval." },
             statusCode: StatusCodes.Status503ServiceUnavailable);
     }
 }).RequireAuthorization("RacRiskReviewer");

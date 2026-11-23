@@ -112,6 +112,30 @@ public sealed class ProductionRiskPolicyHttpHomologationTests
             Assert.Equal("READ_ONLY_SAFETY_DIAGNOSTICS",
                 monitorJson.GetProperty("mode").GetString());
             Assert.False(monitorJson.GetProperty("realOrdersEnabled").GetBoolean());
+
+            // MVP 1.5.17 PAPER dossier: authorization is independent of
+            // the legacy /api/risk/review for the unrelated simulator.
+            Assert.Equal(HttpStatusCode.Unauthorized,
+                (await anonymous.GetAsync(baseUrl + "/api/paper/risk-review")).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden,
+                (await viewer.Client.GetAsync(baseUrl + "/api/paper/risk-review")).StatusCode);
+            var dossierResponse = await reviewer.Client.GetAsync(
+                baseUrl + "/api/paper/risk-review");
+            Assert.Equal(HttpStatusCode.OK, dossierResponse.StatusCode);
+            var dossier = await dossierResponse.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal("READ_ONLY_PAPER_RISK_REVIEW",
+                dossier.GetProperty("mode").GetString());
+            Assert.Equal("NO_ACTIVE_PAPER_LOCK", dossier.GetProperty("status").GetString());
+            Assert.False(dossier.GetProperty("reviewApproved").GetBoolean());
+            Assert.False(dossier.GetProperty("unlockPermitted").GetBoolean());
+            Assert.False(dossier.GetProperty("realOrdersEnabled").GetBoolean());
+            Assert.False(dossier.GetProperty("testnetOrdersEnabled").GetBoolean());
+            Assert.Equal(HttpStatusCode.OK,
+                (await admin.Client.GetAsync(baseUrl + "/api/paper/risk-review")).StatusCode);
+            Assert.Equal(HttpStatusCode.MethodNotAllowed,
+                (await admin.Post("/api/paper/risk-review",
+                    new { approve = true, justification = "Should not exist" })).StatusCode);
+
             Assert.Equal(HttpStatusCode.Forbidden,
                 (await viewer.Client.GetAsync(baseUrl + "/api/risk/policies")).StatusCode);
             Assert.Equal(HttpStatusCode.OK,

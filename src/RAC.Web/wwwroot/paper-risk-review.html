@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RAC — Dossiê de risco PAPER</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#101827;color:#eef3fa}
+body{max-width:1120px;margin:0 auto;padding:24px}
+a{color:#91c9ff}
+header{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+section{background:#1c293a;border:1px solid #3b5069;border-radius:12px;padding:18px;margin:18px 0}
+.info{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px}
+.metric{background:#121e2d;border-radius:10px;padding:12px;min-width:0}
+.metric strong{display:block;margin-top:8px;overflow-wrap:anywhere}
+table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #374c63;text-align:left}
+.scroll{overflow-x:auto}
+button{background:#2a73b5;color:white;border:0;border-radius:8px;padding:10px 16px;cursor:pointer}
+small,.muted{color:#abbccc}.danger{color:#ffb4b4}.warning{color:#ffd794}
+</style>
+<script src="/paper-risk-review.js" defer></script>
+</head>
+<body>
+<header>
+<div><h1>Dossiê de risco PAPER</h1><p class="muted">MVP 1.5.17 · Consulta autenticada · Somente leitura</p></div>
+<nav><a href="/risk-security.html">Monitoramento</a> · <a href="/">Voltar ao RAC</a></nav>
+</header>
+<section>
+<p class="danger"><strong>Esta página não autoriza desbloqueio.</strong> A revisão e eventual aprovação exigem ação humana separada. Nenhuma ordem à Binance é emitida.</p>
+<button type="button" id="refresh">Atualizar evidências</button>
+<p id="notice" role="status">Entre no RAC com perfil Administrator ou RiskReviewer.</p>
+</section>
+<section>
+<h2>Estado persistido</h2>
+<div class="info">
+<div class="metric">Revisão<strong id="reviewState">—</strong></div>
+<div class="metric">PAPER<strong id="paperState">—</strong></div>
+<div class="metric">Trava de risco<strong id="lockState">—</strong></div>
+<div class="metric">Autorização de liberação<strong id="approval">—</strong></div>
+<div class="metric">Último ciclo<strong id="cycle">—</strong></div>
+<div class="metric">Valoração<strong id="valuation">—</strong></div>
+<div class="metric">Caixa simulado<strong id="cash">—</strong></div>
+<div class="metric">Patrimônio registrado<strong id="equity">—</strong></div>
+<div class="metric">Perda diária estimada<strong id="daily">—</strong></div>
+<div class="metric">Drawdown registrado<strong id="drawdown">—</strong></div>
+<div class="metric">Fills PAPER<strong id="fills">—</strong></div>
+<div class="metric">Ordens Testnet<strong id="testnet">—</strong></div>
+</div>
+<p><strong>Motivo persistido:</strong> <span id="reason">—</span></p>
+<p class="warning" id="required">Revisão humana obrigatória.</p>
+</section>
+<section><h2>Posições PAPER</h2>
+<p class="muted">Último preço gravado, não cotação atual nem confirmação de saldo Binance.</p>
+<div class="scroll"><table><thead><tr><th>Par</th><th>Quantidade</th><th>Entrada (BRL)</th><th>Último preço (BRL)</th><th>Stop (BRL)</th><th>Valor registrado (BRL)</th></tr></thead><tbody id="positions"></tbody></table></div>
+</section>
+<section><h2>Incidentes de bloqueio registrados</h2>
+<div class="scroll"><table><thead><tr><th>Data UTC</th><th>Evento</th><th>Descrição</th></tr></thead><tbody id="events"></tbody></table></div>
+</section>
+<small>Diagnóstico sob demanda. Dados históricos podem estar obsoletos. A ausência de alerta não libera o PAPER.</small>
+</body></html>
