@@ -1,0 +1,60 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="trading-floor-photo.css"><link rel="stylesheet" href="trading-floor-responsive.css"></head><body class="authenticated"><div class="shell"><main><section id="officePhotoreal" class="panel office-map" aria-labelledby="office-title" aria-describedby="office-legend">
+  <div class="office-hud" aria-label="Resumo do escritório">
+    <div class="office-hud-title"><span class="office-live-dot" aria-hidden="true"></span><strong>Escritório operacional</strong><span class="office-hud-pill">12 agentes</span><span class="office-hud-pill">3 líderes</span></div>
+    <div class="office-hud-code">TRADING FLOOR 01 · PAPER</div>
+  </div>
+  <div class="office-activity-strip" aria-label="Etapas operacionais do escritório"><strong>Observando</strong><span>Avaliando sinais</span><span>Decidindo entradas</span><span>Protegendo risco</span><b id="officeStageState">PAPER</b></div>
+  <div class="section-head office-title-row">
+    <div>
+      <h1 id="office-title">Trading floor dos agentes</h1>
+      <p id="office-legend">O mapa exibe preços simulados e sinais experimentais. Os painéis abaixo incluem a análise de candles reais da Binance.</p>
+    </div>
+    <span id="tick" class="chip office-tick">Tick 0</span>
+  </div>
+  <div class="actions" role="group" aria-label="Controles da simulação">
+    <button id="start" class="primary" type="button">▶ Iniciar</button>
+    <button id="pause" type="button">Ⅱ Pausar</button>
+    <button id="step" type="button">↳ Avançar 1 tick</button>
+    <button id="reset" class="danger" type="button">↻ Reiniciar</button>
+  </div>
+  <div id="error" role="alert" hidden></div>
+  <div class="office-scene-shell">
+  <div class="office-skyline" aria-hidden="true">
+    <div class="office-windows"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="office-specialist"><span>ÁREA ESPECIALISTA</span><strong>TRADING LAB</strong><small>Somente análise · sem ordens reais</small></div>
+  </div>
+  <div class="office-day-result" role="group" aria-label="Resultado do simulador no dia">
+    <small><span class="office-live-dot" aria-hidden="true"></span> RESULTADO PAPER · HOJE</small>
+    <strong id="officeDayResult">R$ 0,00</strong>
+    <span id="officeDayCaption">Resultado virtual · não representa retorno real</span>
+  </div>
+  <div class="office-scene-label" aria-hidden="true">ESCRITÓRIO DIGITAL · 12 ESTAÇÕES · 3 APOIOS</div>
+  <div class="office-rooms">
+    <aside class="office-lounge" aria-label="Sala de descanso">
+      <strong>ANDAR 2</strong>
+      <h2>Sala de descanso</h2>
+      <p id="officeLoungeCount">Status dos agentes atualizado ao consultar o simulador.</p>
+      <div class="office-sofa" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div class="office-lounge-light" aria-hidden="true"></div>
+    </aside>
+    <section class="office-room office-leadership" aria-labelledby="office-leadership-title">
+      <h2 id="office-leadership-title">Sala da liderança</h2>
+      <p>Carlos controla o risco, Ana coordena a operação e Rebeca acompanha notícias (integração pendente).</p>
+      <div class="agent-grid office-stations" id="supervisors"><article class="agent office-station" data-office-key="Ana"><div class="agent-top"><h3>Ana</h3><span>OBSERVANDO</span></div><div class="office-station-details"><div class="price">—</div><div class="foot"><span>0,00%</span><span class="signal">AGUARDAR</span></div><dl class="office-results"><div><dt>Vitórias</dt><dd>0</dd></div><div><dt>Perdas</dt><dd>0</dd></div><div><dt>P/L</dt><dd>—</dd></div></dl></div><p class="office-leader-state">Na estação</p></article><article class="agent office-station" data-office-key="Rebeca"><div class="agent-top"><h3>Rebeca</h3><span>OBSERVANDO</span></div><div class="office-station-details"><div class="price">—</div><div class="foot"><span>0,00%</span><span class="signal">AGUARDAR</span></div><dl class="office-results"><div><dt>Vitórias</dt><dd>0</dd></div><div><dt>Perdas</dt><dd>0</dd></div><div><dt>P/L</dt><dd>—</dd></div></dl></div><p class="office-leader-state">Na estação</p></article><article class="agent office-station" data-office-key="Carlos"><div class="agent-top"><h3>Carlos</h3><span>OBSERVANDO</span></div><div class="office-station-details"><div class="price">—</div><div class="foot"><span>0,00%</span><span class="signal">AGUARDAR</span></div><dl class="office-results"><div><dt>Vitórias</dt><dd>0</dd></div><div><dt>Perdas</dt><dd>0</dd></div><div><dt>P/L</dt><dd>—</dd></div></dl></div><p class="office-leader-state">Na estação</p></article></div>
+    </section>
+    <section class="office-room office-operations" aria-labelledby="office-operations-title">
+      <h2 id="office-operations-title">Salão operacional</h2>
+      <p>12 agentes, um por par de criptomoedas Spot.</p>
+      <div class="agent-grid office-stations" id="agents"><article class="agent office-station" data-office-key="BTCUSDT"><div class="agent-top"><h3>BTCUSDT</h3><span>OBSERVANDO</span></div><div class="office-station-details"><div class="price">—</div><div class="foot"><span>0,00%</span><span class="signal">AGUARDAR</span></div><dl class="office-results"><div><dt>Vitórias</dt><dd>0</dd></div><div><dt>Perdas</dt><dd>0</dd></div><div><dt>P/L</dt><dd>—</dd></div></dl></div><button class="office-visit-request" type="button">Solicitar visita</button></article><article class="agent office-station" data-office-key="ETHUSDT"><div class="agent-top"><h3>ETHUSDT</h3><span>OBSERVANDO</span></div><div class="office-station-details"><div class="price">—</div><div class="foot"><span>0,00%</span><span class="signal">AGUARDAR</span></div><dl class="office-results"><div><dt>Vitórias</dt><dd>0</dd></div><div><dt>Perdas</dt><dd>0</dd></div><div><dt>P/L</dt><dd>—</dd></div></dl></div><button class="office-visit-request" type="button">Solicitar visita</button></article><article class="agent office-station" data-office-key="BNBUSDT"><div class="agent-top"><h3>BNBUSDT</h3><span>OBSERVANDO</span></div><div class="office-station-details"><div class="price">—</div><div class="foot"><span>0,00%</span><span class="signal">AGUARDAR</span></div><dl class="office-results"><div><dt>Vitórias</dt><dd>0</dd></div><div><dt>Perdas</dt><dd>0</dd></div><div><dt>P/L</dt><dd>—</dd></div></dl></div><button class="office-visit-request" type="button">Solicitar visita</button></article><article class="agent office-station" data-office-key="SOLUSDT"><div class="agent-top"><h3>SOLUSDT</h3><span>OBSERVANDO</span></div><div class="office-station-details"><div class="price">—</div><div class="foot"><span>0,00%</span><span class="signal">AGUARDAR</span></div><dl class="office-results"><div><dt>Vitórias</dt><dd>0</dd></div><div><dt>Perdas</dt><dd>0</dd></div><div><dt>P/L</dt><dd>—</dd></div></dl></div><button class="office-visit-request" type="button">Solicitar visita</button></article><article class="agent office-station" data-office-key="XRPUSDT"><div class="agent-top"><h3>XRPUSDT</h3><span>OBSERVANDO</span></div><div class="office-station-details"><div class="price">—</div><div class="foot"><span>0,00%</span><span class="signal">AGUARDAR</span></div><dl class="office-results"><div><dt>Vitórias</dt><dd>0</dd></div><div><dt>Perdas</dt><dd>0</dd></div><div><dt>P/L</dt><dd>—</dd></div></dl></div><button class="office-visit-request" type="button">Solicitar visita</button></article><article class="agent office-station" data-office-key="ADAUSDT"><div class="agent-top"><h3>ADAUSDT</h3><span>OBSERVANDO</span></div><div class="office-station-details"><div class="price">—</div><div class="foot"><span>0,00%</span><span class="signal">AGUARDAR</span></div><dl class="office-results"><div><dt>Vitórias</dt><dd>0</dd></div><div><dt>Perdas</dt><dd>0</dd></div><div><dt>P/L</dt><dd>—</dd></div></dl></div><button class="office-visit-request" type="button">Solicitar visita</button></article><article class="agent office-station" data-office-key="DOGEUSDT"><div class="agent-top"><h3>DOGEUSDT</h3><span>OBSERVANDO</span></div><div class="office-station-details"><div class="price">—</div><div class="foot"><span>0,00%</span><span class="signal">AGUARDAR</span></div><dl class="office-results"><div><dt>Vitórias</dt><dd>0</dd></div><div><dt>Perdas</dt><dd>0</dd></div><div><dt>P/L</dt><dd>—</dd></div></dl></div><button class="office-visit-request" type="button">Solicitar visita</button></article><article class="agent office-station" data-office-key="LINKUSDT"><div class="agent-top"><h3>LINKUSDT</h3><span>OBSERVANDO</span></div><div class="office-station-details"><div class="price">—</div><div class="foot"><span>0,00%</span><span class="signal">AGUARDAR</span></div><dl class="office-results"><div><dt>Vitórias</dt><dd>0</dd></div><div><dt>Perdas</dt><dd>0</dd></div><div><dt>P/L</dt><dd>—</dd></div></dl></div><button class="office-visit-request" type="button">Solicitar visita</button></article><article class="agent office-station" data-office-key="AVAXUSDT"><div class="agent-top"><h3>AVAXUSDT</h3><span>OBSERVANDO</span></div><div class="office-station-details"><div class="price">—</div><div class="foot"><span>0,00%</span><span class="signal">AGUARDAR</span></div><dl class="office-results"><div><dt>Vitórias</dt><dd>0</dd></div><div><dt>Perdas</dt><dd>0</dd></div><div><dt>P/L</dt><dd>—</dd></div></dl></div><button class="office-visit-request" type="button">Solicitar visita</button></article><article class="agent office-station" data-office-key="LTCUSDT"><div class="agent-top"><h3>LTCUSDT</h3><span>OBSERVANDO</span></div><div class="office-station-details"><div class="price">—</div><div class="foot"><span>0,00%</span><span class="signal">AGUARDAR</span></div><dl class="office-results"><div><dt>Vitórias</dt><dd>0</dd></div><div><dt>Perdas</dt><dd>0</dd></div><div><dt>P/L</dt><dd>—</dd></div></dl></div><button class="office-visit-request" type="button">Solicitar visita</button></article><article class="agent office-station" data-office-key="DOTUSDT"><div class="agent-top"><h3>DOTUSDT</h3><span>OBSERVANDO</span></div><div class="office-station-details"><div class="price">—</div><div class="foot"><span>0,00%</span><span class="signal">AGUARDAR</span></div><dl class="office-results"><div><dt>Vitórias</dt><dd>0</dd></div><div><dt>Perdas</dt><dd>0</dd></div><div><dt>P/L</dt><dd>—</dd></div></dl></div><button class="office-visit-request" type="button">Solicitar visita</button></article><article class="agent office-station" data-office-key="TRXUSDT"><div class="agent-top"><h3>TRXUSDT</h3><span>OBSERVANDO</span></div><div class="office-station-details"><div class="price">—</div><div class="foot"><span>0,00%</span><span class="signal">AGUARDAR</span></div><dl class="office-results"><div><dt>Vitórias</dt><dd>0</dd></div><div><dt>Perdas</dt><dd>0</dd></div><div><dt>P/L</dt><dd>—</dd></div></dl></div><button class="office-visit-request" type="button">Solicitar visita</button></article></div>
+    </section>
+  </div>
+  </div>
+  <div class="office-floor-legend" aria-label="Legenda dos estados dos agentes">
+    <span><i class="office-key observing"></i>Analisando <strong id="officeCountAnalyzing">0</strong></span>
+    <span><i class="office-key active"></i>Em operação <strong id="officeCountOperating">0</strong></span>
+    <span><i class="office-key awaiting"></i>Aguardando <strong id="officeCountWaiting">0</strong></span>
+    <span><i class="office-key resting"></i>Pausa / bloqueio <strong id="officeCountPaused">0</strong></span>
+    <span class="office-count-info" id="officeCountInfo">12 agentes monitorados · 3 apoios</span>
+  </div>
+</section>
+</main></div></body></html>
