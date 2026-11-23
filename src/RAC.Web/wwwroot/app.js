@@ -146,6 +146,8 @@ function showSession(session) {
   $('researchShadowPanel').hidden = !authenticated;
   $('researchThreeMonthPanel').hidden = !authenticated;
   $('overfitScreenPanel').hidden = !authenticated;
+  $('sixMonthValidationPanel').hidden = !authenticated;
+  if (!authenticated) clearSixMonthValidation();
   if (!authenticated) clearOverfitScreen();
   if (!authenticated) clearThreeMonthResearch();
   if (!authenticated) clearShadowResearch();
@@ -279,6 +281,68 @@ async function refreshThreeMonthResearch() {
 }
 $('researchThreeMonthRefresh').onclick = refreshThreeMonthResearch;
 
+function clearSixMonthValidation() {
+  $('sixMonthValidationStatus').textContent = 'Aguardando pesquisa';
+  $('sixMonthValidationNotice').textContent = 'Sem comparação de seis meses validada nesta sessão.';
+  for (const id of ['sixMonthAgentDays', 'sixMonthHypotheticalTrades',
+                    'sixMonthUnresolvedExits', 'sixMonthResearchEligible'])
+    $(id).textContent = '—';
+  $('sixMonthTimeline').innerHTML = '<tr><td colspan="6">Sem dados completos validados.</td></tr>';
+  $('sixMonthAgents').innerHTML = '<tr><td colspan="8">Sem comparação concluída.</td></tr>';
+}
+async function refreshSixMonthValidation() {
+  if (!authenticated) return;
+  $('sixMonthValidationRefresh').disabled = true;
+  try {
+    const report = await api('research/six-month-validation');
+    if (!report.available) {
+      clearSixMonthValidation();
+      $('sixMonthValidationStatus').textContent = 'Histórico incompleto';
+      const missing = Array.isArray(report.missingMonths) ? report.missingMonths.join(', ') : '';
+      $('sixMonthValidationNotice').textContent = (report.notice || 'Histórico não validado.') +
+        (missing ? ' Meses pendentes: ' + missing : '');
+      return;
+    }
+    if (report.mode !== 'SIX_MONTH_WALK_FORWARD_RISK_SHADOW_ONLY' ||
+        report.paperModified || report.orderPlacementEnabled || report.promotionAllowed ||
+        report.agents !== 12 || !Array.isArray(report.timeline) || report.timeline.length !== 6 ||
+        !Array.isArray(report.rows) || report.rows.length !== 12 ||
+        report.timeline.map(m => m.monthKey).join(',') !==
+          '2026-05,2026-06,2026-07,2026-08,2026-09,2026-10')
+      throw new Error('Pesquisa longitudinal incompatível com as salvaguardas.');
+    if (report.rows.some(a => !Number.isSafeInteger(a.hypotheticalTrades) ||
+        a.hypotheticalTrades < 0 || !Number.isSafeInteger(a.unresolvedExits) ||
+        a.unresolvedExits < 0 || !Number.isFinite(Number(a.adjustedP)) ||
+        Number(a.adjustedP) < 0 || Number(a.adjustedP) > 1))
+      throw new Error('Contagens ou diagnóstico estatístico inválidos.');
+    $('sixMonthValidationStatus').textContent = '6 meses · SHADOW · somente leitura';
+    $('sixMonthValidationNotice').textContent = report.notice;
+    $('sixMonthAgentDays').textContent = report.agentDays;
+    $('sixMonthHypotheticalTrades').textContent = report.hypotheticalTrades;
+    $('sixMonthUnresolvedExits').textContent = report.unresolvedExits;
+    $('sixMonthResearchEligible').textContent = report.agentsEligibleForResearchReview + ' / 12';
+    $('sixMonthTimeline').innerHTML = report.timeline.map(m =>
+      `<tr><td>${safe(m.monthKey)}</td><td>${m.agentDays}</td>` +
+      `<td>${m.noTradeDays}</td><td>${m.hypotheticalTrades}</td>` +
+      `<td>${m.unresolvedExits}</td><td>${pct(m.meanHypotheticalReturnPct)}</td></tr>`
+    ).join('');
+    $('sixMonthAgents').innerHTML = report.rows.map(a =>
+      `<tr><td>${safe(a.symbol)}</td><td>${a.positiveMonths}</td>` +
+      `<td>${a.negativeMonths}</td><td>${a.flatMonths}</td>` +
+      `<td>${a.hypotheticalTrades}</td><td>${a.unresolvedExits}</td>` +
+      `<td>${Number(a.adjustedP).toFixed(4)}</td>` +
+      `<td>${safe(a.evidenceStatus)}</td></tr>`
+    ).join('');
+  } catch (error) {
+    clearSixMonthValidation();
+    $('sixMonthValidationStatus').textContent = 'Falha de validação';
+    $('sixMonthValidationNotice').textContent = error.message;
+  } finally {
+    $('sixMonthValidationRefresh').disabled = !authenticated;
+  }
+}
+$('sixMonthValidationRefresh').onclick = refreshSixMonthValidation;
+
 function clearOverfitScreen() {
   $('overfitScreenStatus').textContent = 'Aguardando validação';
   $('overfitScreenNotice').textContent = 'Sem evidência estatística validada nesta sessão.';
@@ -398,6 +462,7 @@ async function loadSession() {
     await refreshShadowResearch();
     await refreshThreeMonthResearch();
     await refreshOverfitScreen();
+    await refreshSixMonthValidation();
     await refreshPaper();
     await refreshMonitoring();
     if (canControl) await refreshTestnetExecution();

@@ -104,6 +104,28 @@ app.MapGet("/api/health", async (IDbContextFactory<RacDbContext> factory, Cancel
     };
 });
 
+app.MapGet("/api/research/six-month-validation", () =>
+{
+    try
+    {
+        var monthly = Path.Combine(Environment.GetFolderPath(
+            Environment.SpecialFolder.LocalApplicationData),
+            "RAC", "research", "monthly");
+        return Results.Ok(RacShadowSixMonthValidation.Load(monthly));
+    }
+    catch (Exception e) when (e is IOException or System.Text.Json.JsonException or
+        ArgumentException or InvalidOperationException or KeyNotFoundException or
+        FormatException or OverflowException)
+    {
+        return Results.Ok(new {
+            available = false, mode = "SIX_MONTH_VALIDATION_FAILED",
+            paperModified = false, orderPlacementEnabled = false,
+            promotionAllowed = false,
+            notice = "Pesquisa longitudinal incompleta ou inválida: nenhuma aprovação."
+        });
+    }
+}).RequireAuthorization();
+
 app.MapGet("/api/research/overfit-screen", () =>
 {
     try

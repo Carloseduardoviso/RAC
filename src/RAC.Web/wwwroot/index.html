@@ -291,6 +291,27 @@
   </tr></thead><tbody id="overfitScreenRows"><tr><td colspan="8">Aguardando evidência validada.</td></tr></tbody></table></div>
   <p><small>O p-valor do teste de sinais é uma triagem descritiva de médias mensais não nulas. Não mede probabilidade de lucro futuro e pressupostos de independência não foram demonstrados. Um mínimo exploratório de seis meses não nulos foi exigido; os três disponíveis são insuficientes. Nenhuma estratégia é autorizada para negociar.</small></p>
 </section>
+<section class="panel" id="sixMonthValidationPanel" hidden>
+  <div class="section-head"><div>
+    <h2>RAC MVP 1.5.0 — Validação SHADOW de seis meses</h2>
+    <p>Maio a outubro de 2026. Treino diário antecede o teste de cada dia; dados históricos não autorizam negociação.</p>
+  </div><span class="chip" id="sixMonthValidationStatus">Aguardando pesquisa</span></div>
+  <p id="sixMonthValidationNotice">Relatórios ausentes não são interpretados como resultado zero.</p>
+  <button id="sixMonthValidationRefresh" type="button">Atualizar validação de seis meses (somente leitura)</button>
+  <div class="metrics" style="margin:16px 0">
+    <div class="metric"><span>Janelas pesquisadas</span><strong id="sixMonthAgentDays">—</strong></div>
+    <div class="metric"><span>Operações teóricas</span><strong id="sixMonthHypotheticalTrades">—</strong></div>
+    <div class="metric"><span>Saídas não resolvidas</span><strong id="sixMonthUnresolvedExits">—</strong></div>
+    <div class="metric"><span>Agentes para revisão</span><strong id="sixMonthResearchEligible">—</strong></div>
+  </div>
+  <h3>Meses avaliados (sem composição de retornos)</h3>
+  <div class="scroll"><table><thead><tr><th>Mês</th><th>Janelas</th><th>Sem operação</th><th>Trades teóricos</th><th>Saídas não resolvidas</th><th>Média hipotética (%)</th></tr></thead>
+  <tbody id="sixMonthTimeline"><tr><td colspan="6">Aguardando seis meses validados.</td></tr></tbody></table></div>
+  <h3>Triagem de consistência dos 12 agentes</h3>
+  <div class="scroll"><table><thead><tr><th>Agente</th><th>Positivos</th><th>Negativos</th><th>Neutros</th><th>Trades teóricos</th><th>Saídas não resolvidas</th><th>p corrigido (12 testes)</th><th>Decisão</th></tr></thead>
+  <tbody id="sixMonthAgents"><tr><td colspan="8">Sem comparação integral validada.</td></tr></tbody></table></div>
+  <p><small>Seis meses não provam ausência de overfitting. Estimativas de liquidez com OHLCV não são execuções reais. Testes de sinais e Bonferroni são triagens exploratórias, não probabilidades de lucro nem autorização para operar.</small></p>
+</section>
 <section class="panel" id="realStrategiesPanel" hidden>
   <div class="section-head">
     <div>

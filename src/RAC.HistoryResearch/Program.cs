@@ -6,6 +6,8 @@ using RAC.Application;
 using RAC.Domain;
 
 // Manual invocation only. No API registration, worker, trading state or secrets.
+if (args.Length > 0 && args[0] == "--six-month-validation")
+    return await SixMonthValidationCli.RunAsync(args);
 if (args.Length > 0 && args[0] == "--overfit-screen")
     return await OverfitScreenCli.RunAsync(args);
 if (args.Length > 0 && args[0] == "--exit-constrained-backtest")
