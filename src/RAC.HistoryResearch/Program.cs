@@ -6,7 +6,83 @@ using RAC.Application;
 using RAC.Domain;
 
 // Manual invocation only. No API registration, worker, trading state or secrets.
-// Example: dotnet run --project src/RAC.HistoryResearch -- 2026-10
+// Example: dotnet run --project src/RAC.HistoryResearch -- --backtest 2026-10
+if (args.Length == 2 && args[0] == "--backtest")
+{
+    if (!DateOnly.TryParseExact(args[1] + "-01", "yyyy-MM-dd",
+        CultureInfo.InvariantCulture, DateTimeStyles.None, out var backtestMonth))
+    {
+        Console.Error.WriteLine("Usage: --backtest YYYY-MM (validated downloaded month)");
+        return 2;
+    }
+    var backtestRoot = Path.Combine(Environment.GetFolderPath(
+        Environment.SpecialFolder.LocalApplicationData), "RAC", "research", "monthly",
+        backtestMonth.ToString("yyyy-MM", CultureInfo.InvariantCulture));
+    var manifestPath = Path.Combine(backtestRoot, "manifest.json");
+    if (!File.Exists(manifestPath))
+        throw new FileNotFoundException("Validated archive manifest missing.", manifestPath);
+    using var document = JsonDocument.Parse(await File.ReadAllTextAsync(manifestPath));
+    var manifestRoot = document.RootElement;
+    if (manifestRoot.GetProperty("mode").GetString() != "ISOLATED_MONTHLY_ARCHIVE_RESEARCH_ONLY" ||
+        manifestRoot.GetProperty("month").GetString() != args[1] ||
+        manifestRoot.GetProperty("symbols").GetInt32() != RacMarketSymbols.Supported.Length ||
+        manifestRoot.GetProperty("paperModified").GetBoolean() ||
+        manifestRoot.GetProperty("orderPlacementEnabled").GetBoolean() ||
+        manifestRoot.GetProperty("promotionAllowed").GetBoolean())
+        throw new InvalidDataException("Manifest failed safety validation.");
+    var entries = manifestRoot.GetProperty("reports").EnumerateArray().ToArray();
+    if (entries.Length != RacMarketSymbols.Supported.Length ||
+        entries.Select(x => x.GetProperty("symbol").GetString()).Distinct().Count() != entries.Length)
+        throw new InvalidDataException("Manifest symbols incomplete or duplicate.");
+    var results = new List<MonthlyWalkForwardResearch.Result>();
+    foreach (var symbol in RacMarketSymbols.Supported)
+    {
+        var item = entries.SingleOrDefault(x => x.GetProperty("symbol").GetString() == symbol);
+        if (item.ValueKind == JsonValueKind.Undefined)
+            throw new InvalidDataException("Missing expected archive for agent.");
+        var archiveName = $"{symbol}-1m-{args[1]}.zip";
+        if (item.GetProperty("archiveFile").GetString() != archiveName)
+            throw new InvalidDataException("Unexpected archive name.");
+        var archivePath = Path.Combine(backtestRoot, archiveName);
+        var raw = await File.ReadAllBytesAsync(archivePath);
+        if (raw.Length > MonthlyArchiveResearch.MaximumCompressedBytes || raw.Length == 0 ||
+            !string.Equals(Convert.ToHexString(SHA256.HashData(raw)),
+                item.GetProperty("sha256").GetString(), StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Archive SHA-256 mismatch; refusing backtest.");
+        using var input = new MemoryStream(raw, writable: false);
+        var assessed = MonthlyWalkForwardResearch.Run(symbol,
+            backtestMonth.Year, backtestMonth.Month, input);
+        results.Add(assessed);
+        Console.WriteLine($"MONTHLY_OOS {symbol} days={assessed.TestedDays} "+
+            $"trades={assessed.CompletedTestTrades} positive={assessed.PositiveTestDays} "+
+            $"meanNetPct={assessed.MeanSelectedTestReturnPct} gate={assessed.ResearchGate}");
+    }
+    var report = new {
+        mode = "OFFLINE_MONTHLY_WALK_FORWARD_SHADOW_ONLY",
+        month = args[1], createdUtc = DateTimeOffset.UtcNow,
+        researchOnly = true, historyPersistedInOperationalDatabase = false,
+        paperModified = false, riskLimitsModified = false,
+        orderPlacementEnabled = false, promotionAllowed = false,
+        count = results.Count, trainedMinutesPerDay = MonthlyWalkForwardResearch.TrainMinutes,
+        testedMinutesPerDay = MonthlyWalkForwardResearch.HoldoutMinutes,
+        horizonsMinutes = PaperTradeHorizonResearch.Horizons,
+        noTradingReturnPct = 0m,
+        warning = "Exploratory one-month daily holdouts, retrospective regime labels, simplified fees and stops; no automatic strategy approval or proof of future profit.",
+        agents = results
+    };
+    var output = Path.Combine(backtestRoot, "walk-forward-monthly.json");
+    var tmp = output + ".partial";
+    try
+    {
+        await File.WriteAllTextAsync(tmp, JsonSerializer.Serialize(report,
+            new JsonSerializerOptions { WriteIndented = true }));
+        File.Move(tmp, output, overwrite: true);
+    }
+    finally { if (File.Exists(tmp)) File.Delete(tmp); }
+    Console.WriteLine("MONTHLY_RESEARCH_SAVED=" + output);
+    return 0;
+}
+// Example import: dotnet run --project src/RAC.HistoryResearch -- 2026-10
 if (args.Length != 1 || !DateOnly.TryParseExact(args[0] + "-01", "yyyy-MM-dd",
         CultureInfo.InvariantCulture, DateTimeStyles.None, out var selected))
 {

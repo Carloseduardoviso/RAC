@@ -1,0 +1,125 @@
+using System.Globalization;
+using System.IO.Compression;
+using RAC.Domain;
+
+namespace RAC.Application;
+
+/// <summary>
+/// Offline month-long complete-trade research. Each UTC day is a self-contained
+/// strictly chronological 720m train / 720m holdout, with horizons frozen before
+/// the holdout. Full-day regime tags are RETROSPECTIVE, never selection inputs.
+/// Nothing in this module can interact with accounts, SQL or exchanges.
+/// </summary>
+public static class MonthlyWalkForwardResearch
+{
+    public const int TrainMinutes = 720;
+    public const int HoldoutMinutes = 720;
+    public const int MinimumClosedTestTrades = 30;
+    public const decimal MaximumTestDrawdownPct = 5m;
+
+    public sealed record Day(DateOnly DateUtc, string RetrospectiveRegime,
+        int ChosenHorizonMinutes, int TrainingTrades, decimal TrainingReturnPct,
+        int TestTrades, int TestWins, int TestLosses, int TestStops,
+        decimal BaselineTestReturnPct, decimal SelectedTestReturnPct,
+        decimal SelectedTestDrawdownPct);
+    public sealed record RegimeSummary(string RetrospectiveRegime,
+        int Days, int PositiveTestDays, int ClosedTestTrades,
+        decimal MeanSelectedTestReturnPct, decimal WorstTestDrawdownPct);
+    public sealed record Result(string Symbol, int Year, int Month, string Status,
+        string ResearchGate, int ValidatedCandles, int TestedDays,
+        int PositiveTestDays, int CompletedTestTrades, int WinningTestTrades,
+        int LosingTestTrades, int TestStops, decimal MeanBaselineTestReturnPct,
+        decimal MeanSelectedTestReturnPct, decimal WorstSelectedTestDrawdownPct,
+        bool PaperModified, bool OrderPlacementEnabled, bool PromotionAllowed,
+        IReadOnlyList<Day> Days, IReadOnlyList<RegimeSummary> Regimes,
+        string Interpretation);
+
+    public static Result Run(string symbol, int year, int month, Stream archive)
+    {
+        // The same validation is used as during the import. No unverified
+        // archive is allowed into any performance analysis, even from cache.
+        var validated = MonthlyArchiveResearch.Analyze(symbol, year, month, archive);
+        archive.Position = 0;
+        using var zip = new ZipArchive(archive, ZipArchiveMode.Read, leaveOpen: true);
+        using var reader = new StreamReader(zip.Entries.Single().Open());
+        var culture = CultureInfo.InvariantCulture;
+        var days = new List<Day>(validated.CalendarDays);
+        var candles = new List<MarketCandlePoint>(1440);
+        DateOnly? date = null;
+        string? line;
+        while ((line = reader.ReadLine()) is not null)
+        {
+            var parts = line.Split(','); // Prior full validation guarantees 12 cells.
+            var rawOpen = long.Parse(parts[0], culture);
+            var openUtc = DateTimeOffset.FromUnixTimeMilliseconds(
+                rawOpen > 100_000_000_000_000L ? rawOpen / 1000L : rawOpen);
+            var day = DateOnly.FromDateTime(openUtc.UtcDateTime);
+            if (date.HasValue && day != date)
+            {
+                EvaluateDay(date.Value, candles);
+                candles.Clear();
+            }
+            date = day;
+            decimal Numeric(int i) => decimal.Parse(parts[i], NumberStyles.AllowDecimalPoint, culture);
+            candles.Add(new MarketCandlePoint(symbol, openUtc,
+                openUtc.AddMinutes(1).AddMilliseconds(-1),
+                Numeric(1), Numeric(2), Numeric(3), Numeric(4), Numeric(5),
+                Numeric(7), long.Parse(parts[8], culture)));
+        }
+        if (date.HasValue) EvaluateDay(date.Value, candles);
+        if (days.Count != validated.CalendarDays)
+            throw new InvalidDataException("Research days do not match validated archive.");
+        var meanBase = Math.Round(days.Average(x => x.BaselineTestReturnPct), 4);
+        var meanSelected = Math.Round(days.Average(x => x.SelectedTestReturnPct), 4);
+        var worst = days.Max(x => x.SelectedTestDrawdownPct);
+        var positive = days.Count(x => x.SelectedTestReturnPct > 0m);
+        var tradeCount = days.Sum(x => x.TestTrades);
+        var enough = tradeCount >= MinimumClosedTestTrades;
+        var reviewOnly = enough && positive * 10 >= days.Count * 7 &&
+            meanSelected > 0m && meanSelected > meanBase &&
+            worst <= MaximumTestDrawdownPct;
+        var regimes = days.GroupBy(x => x.RetrospectiveRegime)
+            .OrderBy(x => x.Key, StringComparer.Ordinal)
+            .Select(g => new RegimeSummary(g.Key, g.Count(),
+                g.Count(x => x.SelectedTestReturnPct > 0m),
+                g.Sum(x => x.TestTrades),
+                Math.Round(g.Average(x => x.SelectedTestReturnPct), 4),
+                g.Max(x => x.SelectedTestDrawdownPct))).ToArray();
+        return new Result(symbol, year, month, "COMPLETE",
+            !enough ? "INSUFFICIENT_TRADES" :
+                reviewOnly ? "RESEARCH_REVIEW_ONLY" : "REJECTED_NO_EDGE",
+            validated.ValidatedCandles, days.Count, positive, tradeCount,
+            days.Sum(x => x.TestWins), days.Sum(x => x.TestLosses),
+            days.Sum(x => x.TestStops), meanBase, meanSelected, worst,
+            false, false, false, days, regimes,
+            "Offline public monthly 1m candles, independent daily 720m training / 720m test. Four predeclared horizons 1/5/15/30m, costs and ATR stops, 100 simulated USDT reset per day. Retrospective daily regime labels may use the full day ONLY for description; never training or selection. No-trade comparator = 0%. Review-only gate requires >=30 trades, >=70% winning days, positive mean better than baseline, worst drawdown <=5%. No strategy promotion or account impact; one month does not prove future profitability.");
+
+        void EvaluateDay(DateOnly today, List<MarketCandlePoint> data)
+        {
+            if (data.Count != TrainMinutes + HoldoutMinutes)
+                throw new InvalidDataException("Daily time split incomplete.");
+            var train = data.Take(TrainMinutes).ToArray();
+            var test = data.Skip(TrainMinutes).ToArray();
+            var candidates = PaperTradeHorizonResearch.Horizons
+                .Select(h => PaperTradeHorizonResearch.SimulateSlice(symbol, train, h)).ToArray();
+            if (candidates.Any(x => x.Status != "COMPLETE"))
+                throw new InvalidDataException("Training simulation blocked.");
+            var choice = candidates[0];
+            foreach (var candidate in candidates.Skip(1))
+                if (candidate.CompletedTrades > 0 && candidate.ReturnPct > choice.ReturnPct)
+                    choice = candidate;
+            var baseline = PaperTradeHorizonResearch.SimulateSlice(symbol, test, 1);
+            var selected = choice.HorizonMinutes == 1
+                ? baseline : PaperTradeHorizonResearch.SimulateSlice(symbol, test, choice.HorizonMinutes);
+            if (baseline.Status != "COMPLETE" || selected.Status != "COMPLETE")
+                throw new InvalidDataException("Holdout simulation blocked.");
+            var regime = validated.Days[days.Count].DescriptiveRegime;
+            if (validated.Days[days.Count].DateUtc != today)
+                throw new InvalidDataException("Regime date mismatch.");
+            days.Add(new Day(today, regime, choice.HorizonMinutes,
+                choice.CompletedTrades, choice.ReturnPct, selected.CompletedTrades,
+                selected.WinningTrades, selected.LosingTrades, selected.AtrStopExits,
+                baseline.ReturnPct, selected.ReturnPct, selected.MaxDrawdownPct));
+        }
+    }
+}
