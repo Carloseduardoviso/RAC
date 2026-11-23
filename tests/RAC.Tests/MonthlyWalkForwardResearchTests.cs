@@ -46,6 +46,15 @@ public sealed class MonthlyWalkForwardResearchTests
         Assert.Equal(0, filtered.CompletedTestTrades);
         Assert.Equal(0m, filtered.MeanSelectedTestReturnPct);
         Assert.All(filtered.Days, day => Assert.Equal("NO_TRADE", day.SelectedEntryGate));
+        archive.Position = 0;
+        var stressed = MonthlyWalkForwardResearch.Run("BTCUSDT", 2026, 10,
+            archive, 2m, entryGateResearch: true);
+        Assert.Equal(31, stressed.TestedDays);
+        Assert.Equal(0, stressed.CompletedTestTrades);
+        Assert.Equal(0m, stressed.MeanSelectedTestReturnPct);
+        Assert.All(stressed.Days, day => Assert.Equal("NO_TRADE", day.SelectedEntryGate));
+        Assert.False(stressed.PromotionAllowed);
+        Assert.False(stressed.OrderPlacementEnabled);
         Assert.False(filtered.PaperModified);
         Assert.False(filtered.OrderPlacementEnabled);
         Assert.False(filtered.PromotionAllowed);

@@ -9,7 +9,9 @@ internal static class EntryGateCrossMonthCli
 {
     internal static async Task<int> RunAsync(string[] args)
     {
-        if (args.Length != 4 || args[0] != "--entry-gates-summary" ||
+        var stressed = args.Length > 0 && args[0] == "--entry-gates-stress-summary";
+        if (args.Length != 4 ||
+            args[0] is not ("--entry-gates-summary" or "--entry-gates-stress-summary") ||
             !DateOnly.TryParseExact(args[1] + "-01", "yyyy-MM-dd",
                 CultureInfo.InvariantCulture, DateTimeStyles.None, out var first) ||
             !DateOnly.TryParseExact(args[2] + "-01", "yyyy-MM-dd",
@@ -20,7 +22,7 @@ internal static class EntryGateCrossMonthCli
             third >= new DateOnly(DateTimeOffset.UtcNow.Year,
                 DateTimeOffset.UtcNow.Month, 1))
         {
-            Console.Error.WriteLine("Usage: --entry-gates-summary YYYY-MM YYYY-MM YYYY-MM (three completed consecutive months)");
+            Console.Error.WriteLine("Usage: --entry-gates-summary or --entry-gates-stress-summary YYYY-MM YYYY-MM YYYY-MM (three completed consecutive months)");
             return 2;
         }
         var keys = args.Skip(1).ToArray();
@@ -31,11 +33,15 @@ internal static class EntryGateCrossMonthCli
         foreach (var key in keys)
         {
             var path = Path.Combine(root, "monthly", key,
-                "entry-quality-no-trade.json");
+                stressed ? "entry-quality-no-trade-double-cost.json"
+                    : "entry-quality-no-trade.json");
             var bytes = await File.ReadAllBytesAsync(path);
             using var document = JsonDocument.Parse(bytes);
             var obj = document.RootElement;
-            if (obj.GetProperty("mode").GetString() != "ENTRY_QUALITY_NO_TRADE_SHADOW_ONLY" ||
+            if (obj.GetProperty("mode").GetString() !=
+                    (stressed ? "ENTRY_QUALITY_NO_TRADE_DOUBLE_COST_SHADOW_ONLY"
+                        : "ENTRY_QUALITY_NO_TRADE_SHADOW_ONLY") ||
+                (stressed && obj.GetProperty("costMultiplier").GetDecimal() != 2m) ||
                 obj.GetProperty("month").GetString() != key ||
                 obj.GetProperty("count").GetInt32() != RacMarketSymbols.Supported.Length ||
                 obj.GetProperty("paperModified").GetBoolean() ||
@@ -82,9 +88,13 @@ internal static class EntryGateCrossMonthCli
         var result = EntryGateCrossMonthSummary.Build(keys, all);
         var outputDir = Path.Combine(root, "comparisons");
         Directory.CreateDirectory(outputDir);
-        var output = Path.Combine(outputDir, $"entry-quality-three-month-{keys[0]}-to-{keys[2]}.json");
+        var output = Path.Combine(outputDir,
+            $"entry-quality-three-month-{keys[0]}-to-{keys[2]}{(stressed ? "-double-cost" : "")}.json");
         var temporary = output + ".partial";
-        var payload = new { result.Mode, result.AgentCount, result.Months,
+        var payload = new {
+            Mode = stressed ? "THREE_MONTH_ENTRY_GATES_DOUBLE_COST_SHADOW_ONLY" : result.Mode,
+            CostMultiplier = stressed ? 2m : 1m,
+            result.AgentCount, result.Months,
             result.TotalAgentDays, result.NoTradeDays, result.ActiveDays,
             result.CompletedTrades, result.PositiveDays, result.RejectedAgents,
             result.ReviewOnlyAgents, result.NoTradeBenchmarkPct,
