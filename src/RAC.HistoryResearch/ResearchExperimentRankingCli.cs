@@ -29,6 +29,9 @@ internal static class ResearchExperimentRankingCli
         var reviews=ranking.Select(x=>new {x.Symbol,x.Parameters,Decision=ResearchLeadershipReview.Evaluate(new(x.StressMeanPct,x.StressEvaluationMeanPct,x.PositiveStressMonths,x.Trades,x.MaxDrawdownPct,x.Unresolved))}).ToArray();
         await File.WriteAllTextAsync(Path.Combine(root,"research-leadership-mvp16314241.json"),JsonSerializer.Serialize(new {Mode="RESEARCH_ONLY",TradingAuthorized=false,Rows=reviews},new JsonSerializerOptions{WriteIndented=true}));
         Console.WriteLine($"LEADERSHIP_REVIEWED={reviews.Length} QUEUED={reviews.Count(x=>x.Decision.Ana=="QUEUE_INDEPENDENT_RESEARCH")}");
+        var findings=ResearchFailureDiagnostics.Summarize(reviews.Select(x=>x.Decision));
+        await File.WriteAllTextAsync(Path.Combine(root,"research-diagnostics-mvp16314242.json"),JsonSerializer.Serialize(new {Mode="RESEARCH_ONLY",TradingAuthorized=false,Reviewed=reviews.Length,Findings=findings},new JsonSerializerOptions{WriteIndented=true}));
+        Console.WriteLine("DIAGNOSTICS="+JsonSerializer.Serialize(findings));
         var report=new {Mode="RESEARCH_ONLY",IndependentValidation=false,TradingAuthorized=false,Count=ranking.Length,Rows=ranking};
         await File.WriteAllTextAsync(Path.Combine(root,"research-ranking-mvp16314240.json"),JsonSerializer.Serialize(report,new JsonSerializerOptions{WriteIndented=true}));
         Console.WriteLine($"RANKED={ranking.Length} POSITIVE_STRESS={ranking.Count(x=>x.StressMeanPct>0)} SCREEN_PASS={ranking.Count(x=>x.Unresolved==0&&x.Trades>=30&&x.PositiveStressMonths>=4&&x.StressEvaluationMeanPct>0)}");
