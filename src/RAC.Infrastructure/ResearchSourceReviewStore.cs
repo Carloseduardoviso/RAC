@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 using RAC.Domain;
 using System.Text.Json;
@@ -13,14 +13,16 @@ public sealed class ResearchSourceReviewStore(IDbContextFactory<RacDbContext> fa
         var sources=await db.ResearchSources.AsNoTracking()
             .Where(s=>!db.ResearchSourceReviews.Any(r=>r.Host==s.Host && r.ReviewedUtc>=cutoff))
             .OrderBy(s=>s.DiscoveredUtc).ThenBy(s=>s.Host).Take(100).ToListAsync(ct);
-        var evidence=new ResearchSourceReliability.Evidence(null,null,null,null,null,false);
-        var assessment=ResearchSourceReliability.Evaluate(evidence);
         foreach(var source in sources)
+        {
+            var observation=ResearchDiscoveryEvidence.Inspect(source.Host,source.EvidenceUrl,source.DiscoveredFrom);
+            var assessment=ResearchSourceReliability.Evaluate(observation.Evidence);
             db.ResearchSourceReviews.Add(new ResearchSourceReviewRecord
             {
                 Host=source.Host,ReviewedUtc=now,Score=assessment.Score,Status=assessment.Status,
-                RubricVersion="1",EvidenceJson=JsonSerializer.Serialize(new {source.EvidenceUrl,source.DiscoveredFrom,Evidence=evidence})
+                RubricVersion="1",EvidenceJson=JsonSerializer.Serialize(new {source.EvidenceUrl,source.DiscoveredFrom,Observation=observation})
             });
+        }
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return sources.Count;
