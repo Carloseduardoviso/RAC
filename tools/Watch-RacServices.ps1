@@ -5,7 +5,7 @@
 param(
     [ValidateRange(1,65535)][int]$ApiPort = 5080,
     [ValidateRange(1,65535)][int]$WebPort = 5081,
-    [string]$Release = 'mvp-1.5.25-395a4af',
+    [string]$Release = 'mvp-1.5.26-3b7edea',
     [switch]$DryRun
 )
 $ErrorActionPreference = 'Stop'
