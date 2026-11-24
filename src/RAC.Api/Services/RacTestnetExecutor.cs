@@ -12,7 +12,7 @@ namespace RAC.Api.Services;
 public sealed class RacTestnetExecutor(
     IDbContextFactory<RacDbContext> factory,
     BinanceTestnetOrderClient client,
-    ILogger<RacTestnetExecutor> logger)
+    ILogger<RacTestnetExecutor> logger, IConfiguration? configuration = null)
 {
     private readonly SemaphoreSlim _gate = new(1,1);
     private bool _initialized;
@@ -50,6 +50,8 @@ public sealed class RacTestnetExecutor(
                 endpoint="https://testnet.binance.vision",
                 credentialsConfigured=client.CredentialsConfigured,
                 submissionAuthorized=TestnetExecutionPolicy.SubmissionExplicitlyAllowed,
+                testnetOrdersConfigured=configuration?.GetValue<bool>("TestnetOrdersEnabled") ?? false,
+                realOrdersConfigured=configuration?.GetValue<bool>("RealOrdersEnabled") ?? false,
                 homologationMode="MVP_1_2_1_MOCK_ONLY",
                 enabled=s.Enabled,emergencyStopped=s.EmergencyStopped,
                 circuitLocked=s.CircuitLocked,s.LockReason,s.LastCycleUtc,
