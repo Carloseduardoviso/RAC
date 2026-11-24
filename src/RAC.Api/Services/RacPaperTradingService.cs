@@ -118,7 +118,7 @@ public sealed class RacPaperTradingService(
             var account = await db.PaperAccounts.SingleAsync(x => x.Id == 1, ct);
             if (!account.Running || account.RiskLocked) return;
             // Public data call only; never invoke BinanceSpotCredentialStore.
-            var batch = await prices.GetPricesAsync(ct);
+            var batch = await PublicMarketReadRetry.RunAsync(prices.GetPricesAsync, ct);
             if (!batch.Prices.TryGetValue("USDTBRL", out var rate) ||
                 rate <= 0m || DateTimeOffset.UtcNow - batch.ObservedUtc > TimeSpan.FromMinutes(2))
                 throw new InvalidOperationException("Sem cotação pública atual USDT/BRL.");
