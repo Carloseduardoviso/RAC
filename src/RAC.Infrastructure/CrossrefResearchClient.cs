@@ -20,9 +20,10 @@ public sealed class CrossrefResearchClient(HttpClient http)
     public sealed record Batch(int Added,IReadOnlyList<CrossrefPublicationMetadata.Publication> Publications);
     public async Task<Batch> ReadAsync(ResearchSourceCandidates candidates,CancellationToken ct)
     {
-        using var response=await http.GetAsync(Endpoint,HttpCompletionOption.ResponseHeadersRead,ct);
+        var endpoint=ResearchTopicRotation.EndpointFor(DateTimeOffset.UtcNow);
+        using var response=await http.GetAsync(endpoint,HttpCompletionOption.ResponseHeadersRead,ct);
         response.EnsureSuccessStatusCode();
-        if(response.RequestMessage?.RequestUri!=Endpoint)throw new InvalidDataException("Unexpected origin.");
+        if(response.RequestMessage?.RequestUri!=endpoint)throw new InvalidDataException("Unexpected origin.");
         await using var stream=await response.Content.ReadAsStreamAsync(ct);
         using var reader=new StreamReader(stream);
         var buffer=new char[500001];
