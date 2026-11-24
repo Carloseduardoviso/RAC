@@ -1,4 +1,4 @@
-﻿services:
+services:
   prometheus:
     image: prom/prometheus:v3.5.0
     profiles: ["monitoring"]
@@ -7,6 +7,7 @@
       - "127.0.0.1:19090:9090"
     volumes:
       - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
       - prometheus-data:/prometheus
     networks:
       - isolated
