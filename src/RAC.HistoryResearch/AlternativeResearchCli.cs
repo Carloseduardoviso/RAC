@@ -38,9 +38,10 @@ internal static class AlternativeResearchCli
                 foreach(var interval in new[]{5,15,30,60,120,240})
                 foreach(var strategy in new[]{"TREND","REVERSAL"})
                 foreach(var volumeGate in new[]{false,true})
+                foreach(var volatilityGate in new[]{false,true})
                 foreach(var cost in new[]{0.0015m,0.003m})
                 {
-                    decimal cash=1000,qty=0,peak=1000,dd=0,entry=0,high=0; int trades=0,blocked=0;
+                    decimal cash=1000,qty=0,peak=1000,dd=0,entry=0,high=0; int trades=0,blocked=0,exitBlocked=0; bool pendingExit=false;
                     for(int i=interval*12;i<candles.Count;i++)
                     {
                         var price=candles[i].Open;
@@ -51,6 +52,11 @@ internal static class AlternativeResearchCli
                             var slow=Enumerable.Range(1,12).Average(k=>candles[i-(k-1)*interval-1].Close);
                             enter=strategy=="TREND"?fast>slow*1.002m:fast<slow*.995m;
                             exit=strategy=="TREND"?fast<slow:fast>=slow;
+                            if(volatilityGate)
+                            {
+                                var range=candles.GetRange(i-interval,interval);
+                                enter=enter && range.Max(x=>x.Close)/range.Min(x=>x.Close)<=1.03m;
+                            }
                             if(volumeGate)
                             {
                                 var recent=candles.GetRange(i-interval,interval).Sum(x=>x.QuoteVolume);
@@ -62,7 +68,12 @@ internal static class AlternativeResearchCli
                         {
                             high=Math.Max(high,candles[i-1].Close);
                             exit=exit || price<=entry*.98m || price>=entry*1.04m || (high>=entry*1.02m && price<=high*.985m);
-                            if(exit){cash+=qty*price*(1-cost);qty=0;trades++;}
+                            pendingExit=pendingExit || exit;
+                            if(pendingExit)
+                            {
+                                if(qty*price<=candles[i-1].QuoteVolume*.001m){cash+=qty*price*(1-cost);qty=0;trades++;pendingExit=false;}
+                                else exitBlocked++;
+                            }
                         }
                         else if(enter)
                         {
@@ -75,13 +86,14 @@ internal static class AlternativeResearchCli
                         var equity=cash+qty*price*(1-cost);
                         peak=Math.Max(peak,equity);dd=Math.Max(dd,1-equity/peak);
                     }
-                    if(qty>0){cash+=qty*candles[^1].Close*(1-cost);trades++;}
-                    dd=Math.Max(dd,1-cash/peak);
-                    rows.Add(new {month,symbol,interval,strategy,volumeGate,cost,trades,blocked,netPct=(cash/1000-1)*100,drawdownPct=dd*100,buyHoldPct=(candles[^1].Close/candles[0].Open*(1-cost)*(1-cost)-1)*100});
+                    var unresolved=qty>0;
+                    var finalEquity=cash+qty*candles[^1].Close*(1-cost);
+                    dd=Math.Max(dd,1-finalEquity/peak);
+                    rows.Add(new {month,symbol,interval,strategy,volumeGate,volatilityGate,cost,trades,blocked,exitBlocked,unresolved,netPct=(finalEquity/1000-1)*100,drawdownPct=dd*100,buyHoldPct=(candles[^1].Close/candles[0].Open*(1-cost)*(1-cost)-1)*100});
                 }
             }
         }
-        var output=Path.Combine(root,"alternative-training-mvp162-risk.json");
+        var output=Path.Combine(root,"alternative-training-mvp162-liquidity.json");
         await File.WriteAllTextAsync(output+".partial",JsonSerializer.Serialize(new {mode="TRAINING_ONLY_EXPLORATORY",paperModified=false,orderPlacementEnabled=false,promotionAllowed=false,rows},new JsonSerializerOptions{WriteIndented=true}));
         File.Move(output+".partial",output,true);
         Console.WriteLine($"ALTERNATIVE_TRAINING rows={rows.Count}");
