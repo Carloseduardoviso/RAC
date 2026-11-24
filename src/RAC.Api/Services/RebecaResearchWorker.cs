@@ -1,7 +1,7 @@
 using RAC.Application;
 using RAC.Infrastructure;
 namespace RAC.Api.Services;
-public sealed class RebecaResearchWorker(CrossrefResearchClient client,ResearchSourceCandidates candidates,ResearchSourceStore store,ILogger<RebecaResearchWorker> logger):BackgroundService
+public sealed class RebecaResearchWorker(CrossrefResearchClient client,ResearchSourceCandidates candidates,ResearchSourceStore store,ResearchSourceReviewStore reviews,ILogger<RebecaResearchWorker> logger):BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
@@ -15,6 +15,7 @@ public sealed class RebecaResearchWorker(CrossrefResearchClient client,ResearchS
                 await store.LoadAsync(candidates,deadline.Token);
                 var added=await client.ReadAsync(candidates,deadline.Token);
                 await store.SaveAsync(candidates,deadline.Token);
+                await reviews.RecordPendingAsync(DateTimeOffset.UtcNow,deadline.Token);
                 logger.LogInformation("Rebeca research: {Added} new candidate domains",added);
             }
             catch(OperationCanceledException) when(ct.IsCancellationRequested){return;}
