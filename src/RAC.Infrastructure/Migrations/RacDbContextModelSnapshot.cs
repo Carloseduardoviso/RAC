@@ -829,6 +829,47 @@ namespace RAC.Infrastructure.Migrations
                     b.ToTable("ResearchSources", "rac");
                 });
 
+            modelBuilder.Entity("RAC.Domain.ResearchSourceReviewRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("EvidenceJson")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("Host")
+                        .IsRequired()
+                        .HasMaxLength(253)
+                        .HasColumnType("nvarchar(253)");
+
+                    b.Property<DateTimeOffset>("ReviewedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("RubricVersion")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Host", "ReviewedUtc");
+
+                    b.ToTable("ResearchSourceReviews", "rac");
+                });
+
             modelBuilder.Entity("RAC.Domain.RiskLock", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1331,6 +1372,15 @@ namespace RAC.Infrastructure.Migrations
                     b.HasIndex("CreatedUtc");
 
                     b.ToTable("Orders", "rac");
+                });
+
+            modelBuilder.Entity("RAC.Domain.ResearchSourceReviewRecord", b =>
+                {
+                    b.HasOne("RAC.Domain.ResearchSourceRecord", null)
+                        .WithMany()
+                        .HasForeignKey("Host")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("RAC.Domain.SpotPortfolioHolding", b =>

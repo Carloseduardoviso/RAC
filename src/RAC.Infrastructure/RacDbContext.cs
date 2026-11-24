@@ -40,10 +40,21 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public DbSet<ProductionRiskPolicyAudit> ProductionRiskPolicyAudits => Set<ProductionRiskPolicyAudit>();
 
     public DbSet<ResearchSourceRecord> ResearchSources => Set<ResearchSourceRecord>();
+    public DbSet<ResearchSourceReviewRecord> ResearchSourceReviews => Set<ResearchSourceReviewRecord>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<ResearchSourceReviewRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Host).HasMaxLength(253).IsRequired();
+            e.Property(x => x.EvidenceJson).HasMaxLength(4000).IsRequired();
+            e.Property(x => x.Status).HasMaxLength(40).IsRequired();
+            e.Property(x => x.RubricVersion).HasMaxLength(16).IsRequired();
+            e.HasIndex(x => new { x.Host, x.ReviewedUtc });
+            e.HasOne<ResearchSourceRecord>().WithMany().HasForeignKey(x => x.Host).OnDelete(DeleteBehavior.Restrict);
+        });
         model.Entity<ResearchSourceRecord>(e =>
         {
             e.HasKey(x => x.Host);
