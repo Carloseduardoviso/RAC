@@ -93,3 +93,13 @@
  #officePhotoreal [data-pose="typing"] .rac-motion-sprite,
  #officePhotoreal [data-pose="speaking"] .rac-motion-sprite{animation:none}
 }
+
+/* Rest uses the complete seated cell; no walking animation while idle. */
+#officePhotoreal .rac-motion-actor[data-pose="resting"] > .rac-motion-sprite{
+ background-position:0% 0%;animation:none;
+}
+#officePhotoreal .rac-motion-actor[data-pose="resting"]{width:4.8%}
+#officePhotoreal .rac-motion-actor[data-pose="walking"]{width:5.6%}
+#officePhotoreal .rac-motion-actor[data-gender="female"][data-pose="resting"] > .rac-motion-sprite{
+ background-image:url('rac-typing-female.webp');background-size:contain;background-position:center;
+}

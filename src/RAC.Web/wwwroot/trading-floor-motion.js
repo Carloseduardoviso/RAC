@@ -68,7 +68,7 @@
       setTimeout(() => {
         actor.el.classList.remove('rac-motion-speaking');
         if (actor.zone === 'desk' || actor.zone === 'leader') pose(actor, 'typing');
-        else if (actor.zone) pose(actor, 'standing');
+        else if (actor.zone === 'lounge') pose(actor, 'resting'); else if (actor.zone) pose(actor, 'standing');
       }, 2400);
     }
     if (voice && 'speechSynthesis' in window &&
@@ -120,7 +120,7 @@
     if (!active || reduce || !actor.el.animate) {
       position(actor, destination);
       actor.zone = targetZone;
-      pose(actor, targetZone === 'desk' || targetZone === 'leader' ? 'typing' : 'standing');
+      pose(actor, targetZone === 'desk' || targetZone === 'leader' ? 'typing' : targetZone === 'lounge' ? 'resting' : 'standing');
       callback?.();
       return;
     }
@@ -142,7 +142,7 @@
         movement.cancel();
         position(actor, destination);
         actor.zone = targetZone;
-        pose(actor, targetZone === 'desk' || targetZone === 'leader' ? 'typing' : 'standing');
+        pose(actor, targetZone === 'desk' || targetZone === 'leader' ? 'typing' : targetZone === 'lounge' ? 'resting' : 'standing');
         callback?.();
       }).catch(() => {});
     }, 430);
@@ -153,10 +153,10 @@
       position(actor, targetPoint);
       actor.zone = targetZone;
       actor.goal = targetZone;
-      pose(actor, targetZone === 'desk' ? 'typing' : 'standing');
+      pose(actor, targetZone === 'desk' ? 'typing' : 'resting');
       return;
     }
-    if (targetZone !== actor.zone) {
+    if (targetZone !== actor.zone || actor.goal !== targetZone) {
       announce(targetZone === 'lounge' ?
         actor.el.dataset.key + ' foi para a área de lazer.' :
         actor.el.dataset.key + ' voltou à mesa para observar.', actor);
@@ -259,7 +259,7 @@
       clearTimeout(actor.riseTimer);
       actor.motion = null;
       actor.el.classList.toggle('motion-disabled', !active);
-      if (!active) pose(actor, 'standing');
+      if (!active) pose(actor, actor.zone === 'lounge' ? 'resting' : actor.zone === 'desk' || actor.zone === 'leader' ? 'typing' : 'standing');
     }
     if (active && latest) {
       actors.forEach(actor => { actor.zone = ''; actor.goal = null; });
