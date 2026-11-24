@@ -30,6 +30,7 @@ public sealed class RebecaResearchWorker(CrossrefResearchClient client,ResearchS
                 record.Topic=topic;
                 logger.LogInformation("Research topic selected: {Topic} {Mode}",topic,topic==ResearchTopicRotation.ForDate(started)?"BASELINE":"ADAPTIVE");
                 var batch=await client.ReadAsync(candidates,deadline.Token,topic);
+                logger.LogInformation("Research abstracts available: {Count}",batch.Abstracts.Count);
                 topic=batch.Topic; record.Topic=topic; record.PublicationsFound=batch.Publications.Count; record.CandidateDomains=batch.Added;
                 await store.SaveAsync(candidates,deadline.Token);
                 var saved=await publications.SaveAsync(batch.Publications,DateTimeOffset.UtcNow,deadline.Token);

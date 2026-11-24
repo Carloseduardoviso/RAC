@@ -17,5 +17,5 @@ public static class ResearchTopicRotation
     public static Uri EndpointFor(DateTimeOffset now)=>EndpointForTopic(ForDate(now));
     public static Uri EndpointForTopic(string topic)=>new(
         "https://api.crossref.org/works?query="+Uri.EscapeDataString(Topics.Contains(topic,StringComparer.Ordinal)?topic:throw new ArgumentException("Unknown research topic"))+
-        "&rows=20&select=URL,link,DOI,title,author,published");
+        "&rows=20&select=URL,link,DOI,title,author,published,abstract");
 }
