@@ -1,9 +1,9 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using RAC.Application;
 namespace RAC.Infrastructure;
 public sealed class CrossrefResearchClient(HttpClient http)
 {
-    public static readonly Uri Endpoint=new("https://api.crossref.org/works?query=cryptocurrency%20quantitative%20trading%20risk&rows=20&select=URL,link");
+    public static readonly Uri Endpoint=new("https://api.crossref.org/works?query=cryptocurrency%20quantitative%20trading%20risk&rows=20&select=URL,link,DOI,title,author,published");
     public static int Discover(string json,ResearchSourceCandidates candidates,DateTimeOffset now)
     {
         using var doc=JsonDocument.Parse(json);
@@ -17,7 +17,8 @@ public sealed class CrossrefResearchClient(HttpClient http)
         }
         return added;
     }
-    public async Task<int> ReadAsync(ResearchSourceCandidates candidates,CancellationToken ct)
+    public sealed record Batch(int Added,IReadOnlyList<CrossrefPublicationMetadata.Publication> Publications);
+    public async Task<Batch> ReadAsync(ResearchSourceCandidates candidates,CancellationToken ct)
     {
         using var response=await http.GetAsync(Endpoint,HttpCompletionOption.ResponseHeadersRead,ct);
         response.EnsureSuccessStatusCode();
@@ -27,6 +28,8 @@ public sealed class CrossrefResearchClient(HttpClient http)
         var buffer=new char[500001];
         var count=await reader.ReadBlockAsync(buffer.AsMemory(),ct);
         if(count>500000)throw new InvalidDataException("Research response too large.");
-        return Discover(new string(buffer,0,count),candidates,DateTimeOffset.UtcNow);
+        var json=new string(buffer,0,count);
+        var publications=CrossrefPublicationMetadata.Parse(json);
+        return new(Discover(json,candidates,DateTimeOffset.UtcNow),publications);
     }
 }

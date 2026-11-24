@@ -39,6 +39,7 @@ builder.Services.AddHostedService<RebecaOfficialNewsWorker>();
 builder.Services.AddSingleton<ResearchSourceCandidates>();
 builder.Services.AddSingleton<ResearchSourceStore>();
 builder.Services.AddSingleton<ResearchSourceReviewStore>();
+builder.Services.AddSingleton<ResearchPublicationStore>();
 builder.Services.AddHttpClient<CrossrefResearchClient>(c => c.Timeout = TimeSpan.FromSeconds(20))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false });
 builder.Services.AddHostedService<RebecaResearchWorker>();
