@@ -63,8 +63,13 @@
       actor.bubbleTimer = setTimeout(() => { actor.bubble.hidden = true; }, 4500);
     }
     if (actor) {
+      pose(actor, 'speaking');
       actor.el.classList.add('rac-motion-speaking');
-      setTimeout(() => actor.el.classList.remove('rac-motion-speaking'), 2400);
+      setTimeout(() => {
+        actor.el.classList.remove('rac-motion-speaking');
+        if (actor.zone === 'desk' || actor.zone === 'leader') pose(actor, 'typing');
+        else if (actor.zone) pose(actor, 'standing');
+      }, 2400);
     }
     if (voice && 'speechSynthesis' in window &&
         typeof SpeechSynthesisUtterance === 'function') {
