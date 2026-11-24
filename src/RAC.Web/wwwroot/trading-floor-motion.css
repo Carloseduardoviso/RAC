@@ -10,10 +10,10 @@
 #officePhotoreal .rac-motion-leader{width:8.2%;}
 #officePhotoreal .rac-motion-sprite{
  width:100%;height:100%;background-image:url('rac-people-poses.webp');
- background-repeat:no-repeat;background-size:400% 200%;
- background-position:33.333% 0%;
+ background-repeat:no-repeat;background-size:200% 100%;
+ background-position:100% 0%;
 }
-#officePhotoreal [data-gender="female"] .rac-motion-sprite{background-position-y:100%}
+#officePhotoreal [data-gender="female"] .rac-motion-sprite{background-position-y:0%}
 #officePhotoreal [data-pose="typing"] .rac-motion-sprite{
  background-image:url('rac-typing-male.webp');background-size:contain;
  background-position:center;animation:rac-type-idle 1.7s ease-in-out infinite;
@@ -22,7 +22,7 @@
  background-image:url('rac-typing-female.webp');
 }
 #officePhotoreal [data-pose="walking"] .rac-motion-sprite{
- animation:rac-walk-steps .48s steps(1,end) infinite;
+ animation:rac-walk-steps .48s ease-in-out infinite;
 }
 #officePhotoreal [data-pose="standing"] .rac-motion-sprite{
  animation:rac-breathe 2.3s ease-in-out infinite;
@@ -35,8 +35,8 @@
  50%{transform:translateY(-1px) rotate(-0.35deg)}
 }
 @keyframes rac-walk-steps{
- 0%,49%{background-position-x:66.666%}
- 50%,100%{background-position-x:100%}
+ 0%,100%{transform:translateY(0) rotate(-2deg)}
+ 50%{transform:translateY(-3px) rotate(2deg)}
 }
 @keyframes rac-breathe{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
 #officePhotoreal .rac-motion-bubble{
@@ -72,7 +72,7 @@
 }
 
 #officePhotoreal [data-pose="rising"] .rac-motion-sprite{
- background-position-x:33.333%;animation:rac-breathe .43s ease-out 1;
+ background-position-x:100%;animation:rac-breathe .43s ease-out 1;
 }
 #officePhotoreal .rac-motion-speaking .rac-motion-sprite{
  animation:rac-talk 0.5s ease-in-out 4;

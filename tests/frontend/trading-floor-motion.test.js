@@ -74,3 +74,9 @@ test('motion layer includes subtle idle micro-movement and reduced-motion fallba
   assert.match(css,/prefers-reduced-motion:reduce/);
   assert.match(css,/motion-disabled/);
 });
+
+test('pose atlas uses two complete horizontal cells rather than eight fragments',()=>{
+  const css=fs.readFileSync(path.join(assets,'trading-floor-motion.css'),'utf8');
+  assert.match(css,/background-size:200% 100%/);
+  assert.doesNotMatch(css,/background-size:400% 200%|background-position-x:66\.666%|background-position-x:33\.333%/);
+});
