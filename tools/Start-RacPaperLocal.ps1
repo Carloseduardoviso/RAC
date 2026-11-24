@@ -1,7 +1,7 @@
 # Recuperacao local do RAC em modo PAPER, sem autorizar negociacao.
 # Execucao: powershell -ExecutionPolicy Bypass -File .\tools\Start-RacPaperLocal.ps1
 [CmdletBinding()]
-param([string]$Release = 'mvp-1.5.33-856b5f6')
+param([string]$Release = 'mvp-1.5.34-bff89d8')
 $ErrorActionPreference = 'Stop'
 $stage = Join-Path $env:LOCALAPPDATA ('RAC\staging\' + $Release)
 $api = Join-Path $stage 'api'
