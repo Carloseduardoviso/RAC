@@ -1,10 +1,13 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Domain;
 using RAC.Infrastructure;
 namespace RAC.Tests;
 public class PaperRecoveryRehearsalTests
 {
-    [Fact] public async Task AtomicCloseAndDuplicateRejected()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AtomicCloseAndDuplicateRejected(bool concurrent)
     {
         if(!OperatingSystem.IsWindows())return;
         var name="RAC_RECOVERY_TEST_"+Guid.NewGuid().ToString("N");
@@ -21,7 +24,34 @@ public class PaperRecoveryRehearsalTests
                 db.PaperPositions.Add(pos);await db.SaveChangesAsync();id=pos.Id;
             }
             await using(var db=new RacDbContext(options))
+                await Assert.ThrowsAsync<InvalidOperationException>(()=>PaperRecoveryRehearsal.ApplyAsync(db,id,.6m,6,DateTimeOffset.UtcNow,""));
+            await using(var db=new RacDbContext(options))
+                await Assert.ThrowsAsync<InvalidOperationException>(()=>PaperRecoveryRehearsal.ApplyAsync(db,id,.7m,6,DateTimeOffset.UtcNow,"isolated-test"));
+            await using(var db=new RacDbContext(options))
+            {
+                Assert.Equal(80m,(await db.PaperAccounts.SingleAsync()).CashBrl);
+                Assert.Single(await db.PaperPositions.ToListAsync());
+                Assert.Empty(await db.PaperFills.ToListAsync());
+                Assert.Empty(await db.AuditEvents.ToListAsync());
+            }
+            if(concurrent)
+            {
+                async Task<bool> Attempt()
+                {
+                    await using var db=new RacDbContext(options);
+                    try { await PaperRecoveryRehearsal.ApplyAsync(db,id,.6m,6,DateTimeOffset.UtcNow,"isolated-test"); return true; }
+                    catch(InvalidOperationException) { return false; }
+                    catch(DbUpdateException) { return false; }
+                    catch(Microsoft.Data.SqlClient.SqlException e) when(e.Number==1205) { return false; }
+                }
+                var results=await Task.WhenAll(Attempt(),Attempt());
+                Assert.Single(results,x=>x);
+            }
+            else
+            {
+                await using var db=new RacDbContext(options);
                 await PaperRecoveryRehearsal.ApplyAsync(db,id,.6m,6,DateTimeOffset.UtcNow,"isolated-test");
+            }
             await using(var db=new RacDbContext(options))
                 await Assert.ThrowsAsync<InvalidOperationException>(()=>PaperRecoveryRehearsal.ApplyAsync(db,id,.6m,6,DateTimeOffset.UtcNow,"isolated-test"));
             await using(var db=new RacDbContext(options))
