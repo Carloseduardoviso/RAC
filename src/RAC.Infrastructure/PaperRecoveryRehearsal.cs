@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 using RAC.Domain;
 using System.Data;
@@ -9,7 +9,7 @@ namespace RAC.Infrastructure;
 public static class PaperRecoveryRehearsal
 {
     public static async Task ApplyAsync(RacDbContext db,long positionId,decimal quote,decimal rate,
-        DateTimeOffset observed, string reviewer, CancellationToken ct=default)
+        DateTimeOffset observed, string reviewer, CancellationToken ct=default, PaperRecoveryApproval.Evidence? approval=null, bool authorized=false)
     {
         var connection=db.Database.GetDbConnection();
         if(!connection.Database.StartsWith("RAC_RECOVERY_TEST_",StringComparison.Ordinal) ||
@@ -25,6 +25,9 @@ public static class PaperRecoveryRehearsal
         var p=PaperStopRecovery.Calculate(account.Running,account.RiskLocked,
             new(pos.Id,pos.Symbol,pos.Quantity,pos.EntryPriceBrl,pos.EntryFeeBrl,pos.StopPriceBrl),
             account.CashBrl,quote,rate,observed,now);
+        if(approval is not null)
+            await PaperRecoveryApprovalStore.ConsumeAsync(db,approval,reviewer,authorized,pos.Id,pos.Symbol,
+                Convert.ToBase64String(account.RowVersion),now,ct);
         account.CashBrl=p.EquityAfter;
         account.LastEquityBrl=p.EquityAfter;
         account.UpdatedUtc=now;
