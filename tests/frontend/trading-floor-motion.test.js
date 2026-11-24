@@ -89,3 +89,9 @@ test('avatars retain a stable identity and visible name across poses',()=>{
  assert.match(css,/rac-avatar-name/);
  assert.match(css,/--avatar-hue/);
 });
+test('leader returns home before another visit and agent acknowledges simulated dialogue',()=>{
+ const js=fs.readFileSync(path.join(assets,'trading-floor-motion.js'),'utf8');
+ assert.match(js,/core.leaderCoords\[leader\], 'leader', \(\) => \{ busyVisit = false;/);
+ assert.match(js,/Entendido/);
+ assert.match(js,/if \(!active \|\| busyVisit\) return/);
+});

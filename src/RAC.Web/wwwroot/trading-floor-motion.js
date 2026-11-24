@@ -184,7 +184,7 @@
     }
   }
   function moveLeaderHome(actor, leader) {
-    walk(actor, core.leaderCoords[leader], 'leader');
+    walk(actor, core.leaderCoords[leader], 'leader', () => { busyVisit = false; });
   }
   async function visit(symbol, leader) {
     if (!active || busyVisit) return;
@@ -192,7 +192,7 @@
     const supervisor = actors.get('leader:' + leader);
     if (!target || !supervisor) return;
     busyVisit = true;
-    const dest = {x: Math.max(33, target.point.x - 4), y: target.point.y + 7};
+    const dest = {x: Math.max(4, target.point.x - 4), y: Math.min(94, target.point.y + 5)};
     announce(symbol + ': solicitando apoio de ' + leader + '.', target);
     const conversation = leader === 'Carlos'
       ? 'Vou verificar o bloqueio e os limites de risco.'
@@ -202,10 +202,10 @@
     walk(supervisor, dest, 'visiting', () => {
       pose(supervisor, 'standing');
       announce(leader + ': ' + conversation, supervisor);
+      setTimeout(() => { if (actors.get('agent:' + symbol) === target && !target.motion) announce(symbol + ': Entendido. Vou acompanhar o estado informado.', target); }, 3000);
       setTimeout(() => {
         moveLeaderHome(supervisor, leader);
-        busyVisit = false;
-      }, 4100);
+      }, 6500);
     });
   }
   function update(state) {
@@ -270,6 +270,7 @@
   }, true);
   motionBtn.addEventListener('click', () => {
     active = !active;
+    busyVisit = false;
     motionBtn.setAttribute('aria-pressed', String(active));
     motionBtn.textContent = 'Personagens animados: ' + (active ? 'ligado' : 'desligado');
     floor.dataset.racMotion = active ? 'on' : 'off';
