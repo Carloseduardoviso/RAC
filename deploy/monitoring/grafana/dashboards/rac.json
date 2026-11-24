@@ -1,5 +1,5 @@
 {
-    "version":  2,
+    "version":  3,
     "time":  {
                  "to":  "now",
                  "from":  "now-6h"
@@ -290,6 +290,142 @@
                                       },
                        "type":  "timeseries",
                        "title":  "SQL Server - latencia TCP"
+                   },
+                   {
+                       "id":  9,
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "percent"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  28,
+                                       "w":  12,
+                                       "h":  8,
+                                       "x":  0
+                                   },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "rac-prometheus"
+                                                          },
+                                           "legendFormat":  "{{container}}",
+                                           "expr":  "rac_container_cpu_percent",
+                                           "refId":  "A"
+                                       }
+                                   ],
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "rac-prometheus"
+                                      },
+                       "type":  "timeseries",
+                       "title":  "CPU por container"
+                   },
+                   {
+                       "id":  10,
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "percent"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  28,
+                                       "w":  12,
+                                       "h":  8,
+                                       "x":  12
+                                   },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "rac-prometheus"
+                                                          },
+                                           "legendFormat":  "{{container}}",
+                                           "expr":  "rac_container_memory_percent",
+                                           "refId":  "A"
+                                       }
+                                   ],
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "rac-prometheus"
+                                      },
+                       "type":  "timeseries",
+                       "title":  "Memoria por container"
+                   },
+                   {
+                       "id":  11,
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "short"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  36,
+                                       "w":  12,
+                                       "h":  8,
+                                       "x":  0
+                                   },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "rac-prometheus"
+                                                          },
+                                           "legendFormat":  "{{container}}",
+                                           "expr":  "rac_container_restart_count",
+                                           "refId":  "A"
+                                       }
+                                   ],
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "rac-prometheus"
+                                      },
+                       "type":  "timeseries",
+                       "title":  "Reinicializacoes"
+                   },
+                   {
+                       "id":  12,
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "short"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  36,
+                                       "w":  12,
+                                       "h":  8,
+                                       "x":  12
+                                   },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "rac-prometheus"
+                                                          },
+                                           "legendFormat":  "{{container}}",
+                                           "expr":  "rac_container_running",
+                                           "refId":  "A"
+                                       }
+                                   ],
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "rac-prometheus"
+                                      },
+                       "type":  "timeseries",
+                       "title":  "Estado dos containers"
                    }
                ]
 }
