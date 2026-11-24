@@ -2,7 +2,7 @@ using RAC.Application;
 using RAC.Domain;
 using RAC.Infrastructure;
 namespace RAC.Api.Services;
-public sealed class RebecaResearchWorker(CrossrefResearchClient client,ResearchSourceCandidates candidates,ResearchSourceStore store,ResearchSourceReviewStore reviews,ResearchPublicationStore publications,ResearchExecutionStore history,ILogger<RebecaResearchWorker> logger):BackgroundService
+public sealed class RebecaResearchWorker(CrossrefResearchClient client,ResearchSourceCandidates candidates,ResearchSourceStore store,ResearchSourceReviewStore reviews,ResearchPublicationStore publications,ResearchExecutionStore history,ResearchProductivityReader productivity,ILogger<RebecaResearchWorker> logger):BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
@@ -18,7 +18,18 @@ public sealed class RebecaResearchWorker(CrossrefResearchClient client,ResearchS
                 using var deadline=CancellationTokenSource.CreateLinkedTokenSource(ct);
                 deadline.CancelAfter(TimeSpan.FromSeconds(30));
                 await store.LoadAsync(candidates,deadline.Token);
-                var batch=await client.ReadAsync(candidates,deadline.Token);
+                                try
+                {
+                    using var selectionDeadline=CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
+                    selectionDeadline.CancelAfter(TimeSpan.FromSeconds(3));
+                    var metrics=await productivity.ReadAsync(started,selectionDeadline.Token);
+                    topic=ResearchAdaptiveSelection.Choose(started,metrics);
+                }
+                catch(Exception e) when(!deadline.IsCancellationRequested && (e is Microsoft.Data.SqlClient.SqlException or InvalidOperationException or OperationCanceledException))
+                {logger.LogWarning("Research selection fallback: {Category}",e.GetType().Name);}
+                record.Topic=topic;
+                logger.LogInformation("Research topic selected: {Topic} {Mode}",topic,topic==ResearchTopicRotation.ForDate(started)?"BASELINE":"ADAPTIVE");
+                var batch=await client.ReadAsync(candidates,deadline.Token,topic);
                 topic=batch.Topic; record.Topic=topic; record.PublicationsFound=batch.Publications.Count; record.CandidateDomains=batch.Added;
                 await store.SaveAsync(candidates,deadline.Token);
                 var saved=await publications.SaveAsync(batch.Publications,DateTimeOffset.UtcNow,deadline.Token);

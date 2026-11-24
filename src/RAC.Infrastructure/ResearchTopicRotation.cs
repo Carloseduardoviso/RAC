@@ -1,4 +1,4 @@
-﻿namespace RAC.Infrastructure;
+namespace RAC.Infrastructure;
 public static class ResearchTopicRotation
 {
     private static readonly string[] Topics=[
@@ -14,7 +14,8 @@ public static class ResearchTopicRotation
         var day=now.UtcDateTime.Date.Ticks/TimeSpan.TicksPerDay;
         return Topics[(int)(day%Topics.Length)];
     }
-    public static Uri EndpointFor(DateTimeOffset now)=>new(
-        "https://api.crossref.org/works?query="+Uri.EscapeDataString(ForDate(now))+
+    public static Uri EndpointFor(DateTimeOffset now)=>EndpointForTopic(ForDate(now));
+    public static Uri EndpointForTopic(string topic)=>new(
+        "https://api.crossref.org/works?query="+Uri.EscapeDataString(Topics.Contains(topic,StringComparer.Ordinal)?topic:throw new ArgumentException("Unknown research topic"))+
         "&rows=20&select=URL,link,DOI,title,author,published");
 }
