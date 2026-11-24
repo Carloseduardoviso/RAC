@@ -1,0 +1,19 @@
+﻿{
+    "mode":  "READ_ONLY",
+    "backup":  "RAC-mvp1633-20261124-114337.bak",
+    "backupSha256":  "A1BB909149B8556D795D29CFB96B78B0D219979DA49B56DFBC56524A524AD799",
+    "backupVerifyOnly":  true,
+    "restoreTested":  false,
+    "dotUsdt":  0.648,
+    "usdtBrl":  5.8654,
+    "dotBrl":  3.8007792,
+    "positionValueBrl":  17.9293778624189620368,
+    "estimatedEquityBrl":  97.6168413725029620368,
+    "lossVsPersistedDailyReferencePct":  2.3831586274970379632,
+    "drawdownPct":  2.6455886106654775371078477200,
+    "stopBreached":  true,
+    "dailyReferenceLimitBreached":  true,
+    "riskLocked":  true,
+    "unlockPermitted":  false,
+    "note":  "Indicative public quotes; persisted daily reference is not current day baseline. No ledger changes."
+}
