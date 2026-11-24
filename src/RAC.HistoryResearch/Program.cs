@@ -6,6 +6,12 @@ using RAC.Application;
 using RAC.Domain;
 
 // Manual invocation only. No API registration, worker, trading state or secrets.
+if(args.Length==1 && args[0]=="--research-experiment-plan")
+{
+    var plan=ResearchExperimentPlan.Build();
+    Console.WriteLine(JsonSerializer.Serialize(new {Mode="RESEARCH_ONLY",Executed=false,TradingAuthorized=false,Count=plan.Count,Rows=plan}));
+    return 0;
+}
 if (args.Length == 1 && args[0] == "--alternative-regime-holdout") return await AlternativeResearchCli.RunAsync(holdout: true, regimeResearch: true);
 if (args.Length == 1 && args[0] == "--alternative-regime") return await AlternativeResearchCli.RunAsync(regimeResearch: true);
 if (args.Length == 1 && args[0] == "--alternative-holdout") return await AlternativeResearchCli.RunAsync(true);
