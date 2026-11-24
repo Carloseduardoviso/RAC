@@ -805,6 +805,50 @@ namespace RAC.Infrastructure.Migrations
                     b.ToTable("Users", "rac");
                 });
 
+            modelBuilder.Entity("RAC.Domain.ResearchExecutionRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<int?>("CandidateDomains")
+                        .HasColumnType("int");
+
+                    b.Property<long>("ElapsedMs")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("ErrorCategory")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int?>("PublicationsFound")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("PublicationsSaved")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("StartedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Topic")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Topic", "StartedUtc");
+
+                    b.ToTable("ResearchExecutionHistory", "rac");
+                });
+
             modelBuilder.Entity("RAC.Domain.ResearchPublicationRecord", b =>
                 {
                     b.Property<string>("Doi")

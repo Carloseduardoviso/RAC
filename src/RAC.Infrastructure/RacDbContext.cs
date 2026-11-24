@@ -41,11 +41,20 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
 
     public DbSet<ResearchSourceRecord> ResearchSources => Set<ResearchSourceRecord>();
     public DbSet<ResearchPublicationRecord> ResearchPublications => Set<ResearchPublicationRecord>();
+    public DbSet<ResearchExecutionRecord> ResearchExecutionHistory => Set<ResearchExecutionRecord>();
     public DbSet<ResearchSourceReviewRecord> ResearchSourceReviews => Set<ResearchSourceReviewRecord>();
 
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<ResearchExecutionRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Topic).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Status).HasMaxLength(30).IsRequired();
+            e.Property(x => x.ErrorCategory).HasMaxLength(100);
+            e.HasIndex(x => new { x.Topic, x.StartedUtc });
+        });
         model.Entity<ResearchPublicationRecord>(e =>
         {
             e.HasKey(x => x.Doi);
