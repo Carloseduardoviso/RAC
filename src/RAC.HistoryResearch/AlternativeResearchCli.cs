@@ -1,0 +1,67 @@
+﻿using System.Globalization;
+using System.IO.Compression;
+using System.Security.Cryptography;
+using System.Text.Json;
+using RAC.Application;
+using RAC.Domain;
+
+internal static class AlternativeResearchCli
+{
+    // Exploratory training only; no operational dependencies or promotion.
+    internal static async Task<int> RunAsync()
+    {
+        var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RAC", "research", "monthly");
+        var rows = new List<object>();
+        foreach (var month in new[]{"2026-05","2026-06","2026-07"})
+        {
+            var folder = Path.Combine(root,month);
+            using var doc = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(folder,"manifest.json")));
+            var m = doc.RootElement;
+            if(m.GetProperty("month").GetString()!=month || m.GetProperty("mode").GetString()!="ISOLATED_MONTHLY_ARCHIVE_RESEARCH_ONLY" || m.GetProperty("paperModified").GetBoolean() || m.GetProperty("orderPlacementEnabled").GetBoolean() || m.GetProperty("promotionAllowed").GetBoolean()) throw new InvalidDataException("Unsafe manifest");
+            foreach(var symbol in RacMarketSymbols.Supported)
+            {
+                var name = $"{symbol}-1m-{month}.zip";
+                var item = m.GetProperty("reports").EnumerateArray().Single(x=>x.GetProperty("symbol").GetString()==symbol);
+                using var stream = File.OpenRead(Path.Combine(folder,name));
+                if(stream.Length<=0 || stream.Length>MonthlyArchiveResearch.MaximumCompressedBytes || item.GetProperty("archiveFile").GetString()!=name || !string.Equals(Convert.ToHexString(SHA256.HashData(stream)),item.GetProperty("sha256").GetString(),StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Archive mismatch");
+                stream.Position=0;
+                MonthlyArchiveResearch.Analyze(symbol,2026,int.Parse(month[5..]),stream);
+                stream.Position=0;
+                using var zip = new ZipArchive(stream,ZipArchiveMode.Read,true);
+                using var reader = new StreamReader(zip.Entries.Single().Open());
+                var candles = new List<(decimal Open,decimal Close)>();
+                while(await reader.ReadLineAsync() is {} line)
+                {
+                    var p=line.Split(',');
+                    candles.Add((decimal.Parse(p[1],CultureInfo.InvariantCulture),decimal.Parse(p[4],CultureInfo.InvariantCulture)));
+                }
+                foreach(var interval in new[]{5,15,30,60})
+                foreach(var strategy in new[]{"TREND","REVERSAL"})
+                foreach(var cost in new[]{0.0015m,0.003m})
+                {
+                    decimal cash=1,qty=0,peak=1,dd=0; int trades=0;
+                    for(int i=interval*12;i<candles.Count-1;i+=interval)
+                    {
+                        var fast=Enumerable.Range(1,3).Average(k=>candles[i-k*interval].Close);
+                        var slow=Enumerable.Range(1,12).Average(k=>candles[i-k*interval].Close);
+                        var enter=strategy=="TREND"?fast>slow*1.002m:fast<slow*.995m;
+                        var exit=strategy=="TREND"?fast<slow:fast>=slow;
+                        var price=candles[i].Open;
+                        if(qty==0 && enter){qty=cash*(1-cost)/price;cash=0;}
+                        else if(qty>0 && exit){cash=qty*price*(1-cost);qty=0;trades++;}
+                        var equity=cash+qty*price*(1-cost);
+                        peak=Math.Max(peak,equity);dd=Math.Max(dd,1-equity/peak);
+                    }
+                    if(qty>0){cash=qty*candles[^1].Close*(1-cost);trades++;}
+                    dd=Math.Max(dd,1-cash/peak);
+                    rows.Add(new {month,symbol,interval,strategy,cost,trades,netPct=(cash-1)*100,drawdownPct=dd*100,buyHoldPct=(candles[^1].Close/candles[0].Open*(1-cost)*(1-cost)-1)*100});
+                }
+            }
+        }
+        var output=Path.Combine(root,"alternative-training-mvp162.json");
+        await File.WriteAllTextAsync(output+".partial",JsonSerializer.Serialize(new {mode="TRAINING_ONLY_EXPLORATORY",paperModified=false,orderPlacementEnabled=false,promotionAllowed=false,rows},new JsonSerializerOptions{WriteIndented=true}));
+        File.Move(output+".partial",output,true);
+        Console.WriteLine($"ALTERNATIVE_TRAINING rows={rows.Count}");
+        return 0;
+    }
+}
