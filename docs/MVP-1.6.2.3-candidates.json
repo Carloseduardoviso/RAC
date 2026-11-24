@@ -1,0 +1,59 @@
+﻿{
+    "mode":  "RESEARCH_ONLY_FROZEN_CANDIDATES",
+    "trainingMonths":  [
+                           "2026-05",
+                           "2026-06",
+                           "2026-07"
+                       ],
+    "sourceSha256":  "5A663AAA9E5787127757360B66DD1D9EB82F644D01B86243695EFEAA8A42C70D",
+    "sourceCommit":  "a0c363c",
+    "holdoutStatus":  "NOT_YET_VALIDATED",
+    "promotionAllowed":  false,
+    "orderPlacementEnabled":  false,
+    "candidates":  [
+                       {
+                           "symbol":  "XRPUSDT",
+                           "interval":  240,
+                           "strategy":  "REVERSAL",
+                           "volumeGate":  true,
+                           "volatilityGate":  true,
+                           "mean":  0.35081655491840991,
+                           "worst":  0.067924727186761222,
+                           "drawdown":  0.7620024999806515,
+                           "trades":  16
+                       },
+                       {
+                           "symbol":  "ADAUSDT",
+                           "interval":  30,
+                           "strategy":  "TREND",
+                           "volumeGate":  true,
+                           "volatilityGate":  false,
+                           "mean":  0.23623993175544986,
+                           "worst":  0.030417616146974105,
+                           "drawdown":  0.77508874304723585,
+                           "trades":  54
+                       },
+                       {
+                           "symbol":  "ADAUSDT",
+                           "interval":  30,
+                           "strategy":  "TREND",
+                           "volumeGate":  true,
+                           "volatilityGate":  true,
+                           "mean":  0.23623993175544986,
+                           "worst":  0.030417616146974105,
+                           "drawdown":  0.77508874304723585,
+                           "trades":  54
+                       },
+                       {
+                           "symbol":  "ADAUSDT",
+                           "interval":  120,
+                           "strategy":  "TREND",
+                           "volumeGate":  false,
+                           "volatilityGate":  true,
+                           "mean":  0.26229630765301876,
+                           "worst":  0.0026887486561819238,
+                           "drawdown":  0.42181888875295404,
+                           "trades":  20
+                       }
+                   ]
+}
