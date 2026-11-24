@@ -17,10 +17,11 @@ public sealed class CrossrefResearchClient(HttpClient http)
         }
         return added;
     }
-    public sealed record Batch(int Added,IReadOnlyList<CrossrefPublicationMetadata.Publication> Publications);
+    public sealed record Batch(string Topic,int Added,IReadOnlyList<CrossrefPublicationMetadata.Publication> Publications);
     public async Task<Batch> ReadAsync(ResearchSourceCandidates candidates,CancellationToken ct)
     {
-        var endpoint=ResearchTopicRotation.EndpointFor(DateTimeOffset.UtcNow);
+        var now=DateTimeOffset.UtcNow;
+        var endpoint=ResearchTopicRotation.EndpointFor(now);
         using var response=await http.GetAsync(endpoint,HttpCompletionOption.ResponseHeadersRead,ct);
         response.EnsureSuccessStatusCode();
         if(response.RequestMessage?.RequestUri!=endpoint)throw new InvalidDataException("Unexpected origin.");
@@ -31,6 +32,6 @@ public sealed class CrossrefResearchClient(HttpClient http)
         if(count>500000)throw new InvalidDataException("Research response too large.");
         var json=new string(buffer,0,count);
         var publications=CrossrefPublicationMetadata.Parse(json);
-        return new(Discover(json,candidates,DateTimeOffset.UtcNow),publications);
+        return new(ResearchTopicRotation.ForDate(now),Discover(json,candidates,now),publications);
     }
 }
