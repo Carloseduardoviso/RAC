@@ -29,3 +29,26 @@ groups:
           severity: critical
         annotations:
           summary: "RAC SQL TCP connectivity unavailable"
+      - alert: RacContainerMetricsStale
+        expr: time() - rac_container_collection_timestamp_seconds > 120 or absent(rac_container_collection_timestamp_seconds) or up{job="rac-container-metrics"} == 0 or absent(up{job="rac-container-metrics"})
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "RAC container metrics missing or stale"
+
+      - alert: RacContainerUnavailable
+        expr: rac_container_running == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "RAC container stopped: {{ $labels.container }}"
+
+      - alert: RacContainerHighMemory
+        expr: rac_container_memory_percent > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RAC container memory above 80 percent: {{ $labels.container }}"
