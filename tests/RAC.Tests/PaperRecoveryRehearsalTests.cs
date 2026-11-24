@@ -39,6 +39,10 @@ public class PaperRecoveryRehearsalTests
                 Assert.Empty(await db.AuditEvents.ToListAsync());
                 Assert.Equal(0,await db.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM rac.RecoveryApprovalUses").SingleAsync());
             }
+            await using(var db=new RacDbContext(options))
+                await Assert.ThrowsAsync<InvalidOperationException>(()=>PaperRecoveryRehearsal.ApplyAsync(db,id,.6m,6,DateTimeOffset.UtcNow,"isolated-test"));
+            await using(var db=new RacDbContext(options))
+                await Assert.ThrowsAsync<InvalidOperationException>(()=>PaperRecoveryRehearsal.ApplyAsync(db,id,.6m,6,DateTimeOffset.UtcNow,"isolated-test",approval:approval,authorized:false));
             // Force a database failure during SaveChanges, after recovery mutations are staged.
             await using(var db=new RacDbContext(options))
             {

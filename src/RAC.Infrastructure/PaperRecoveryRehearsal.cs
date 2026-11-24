@@ -25,7 +25,8 @@ public static class PaperRecoveryRehearsal
         var p=PaperStopRecovery.Calculate(account.Running,account.RiskLocked,
             new(pos.Id,pos.Symbol,pos.Quantity,pos.EntryPriceBrl,pos.EntryFeeBrl,pos.StopPriceBrl),
             account.CashBrl,quote,rate,observed,now);
-        if(approval is not null)
+        if(approval is null || !authorized) throw new InvalidOperationException("Recovery approval required.");
+
             await PaperRecoveryApprovalStore.ConsumeAsync(db,approval,reviewer,authorized,pos.Id,pos.Symbol,
                 Convert.ToBase64String(account.RowVersion),now,ct);
         account.CashBrl=p.EquityAfter;
