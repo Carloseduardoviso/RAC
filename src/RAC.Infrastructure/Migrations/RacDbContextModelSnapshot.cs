@@ -805,6 +805,30 @@ namespace RAC.Infrastructure.Migrations
                     b.ToTable("Users", "rac");
                 });
 
+            modelBuilder.Entity("RAC.Domain.ResearchSourceRecord", b =>
+                {
+                    b.Property<string>("Host")
+                        .HasMaxLength(253)
+                        .HasColumnType("nvarchar(253)");
+
+                    b.Property<string>("DiscoveredFrom")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTimeOffset>("DiscoveredUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("EvidenceUrl")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.HasKey("Host");
+
+                    b.ToTable("ResearchSources", "rac");
+                });
+
             modelBuilder.Entity("RAC.Domain.RiskLock", b =>
                 {
                     b.Property<Guid>("Id")
