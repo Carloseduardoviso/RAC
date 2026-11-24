@@ -9,7 +9,7 @@ using RAC.Domain;
 using RAC.Application;
 
 var builder = WebApplication.CreateBuilder(args);
-var racConnection = Environment.GetEnvironmentVariable("RAC_SQLSERVER_CONNECTION")
+var racConnection = RacSqlConnectionSecret.Read()
     ?? builder.Configuration.GetConnectionString("RAC");
 if (string.IsNullOrWhiteSpace(racConnection))
     throw new InvalidOperationException("RAC requer conexão SQL Server configurada; execução bloqueada.");
