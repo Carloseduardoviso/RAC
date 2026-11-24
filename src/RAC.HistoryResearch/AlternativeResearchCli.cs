@@ -48,7 +48,7 @@ internal static class AlternativeResearchCli
                     if(regimeResearch && (!volumeGate || !volatilityGate)) continue;
                     var bars = new List<ResearchMarketRegime.Bar>();
                     string entryStrategy="";
-                    decimal cash=1000,qty=0,peak=1000,dd=0,entry=0,high=0; int trades=0,blocked=0,exitBlocked=0; bool pendingExit=false;
+                    decimal cash=1000,qty=0,peak=1000,dd=0,entry=0,high=0; int trades=0,blocked=0,exitBlocked=0; bool pendingExit=false; decimal entryBudget=0,grossProfit=0,grossLoss=0,estimatedCosts=0; int wins=0,entryMinute=0,totalHoldingMinutes=0;
                     for(int i=interval*12;i<candles.Count;i++)
                     {
                         var price=candles[i].Open;
@@ -90,7 +90,7 @@ internal static class AlternativeResearchCli
                             pendingExit=pendingExit || exit;
                             if(pendingExit)
                             {
-                                if(qty*price<=candles[i-1].QuoteVolume*.001m){cash+=qty*price*(1-cost);qty=0;trades++;pendingExit=false;}
+                                if(qty*price<=candles[i-1].QuoteVolume*.001m){var proceeds=qty*price*(1-cost); var pnl=proceeds-entryBudget; estimatedCosts+=qty*price*cost; if(pnl>0){wins++;grossProfit+=pnl;}else grossLoss-=pnl; totalHoldingMinutes+=i-entryMinute; cash+=proceeds;qty=0;trades++;pendingExit=false;}
                                 else exitBlocked++;
                             }
                         }
@@ -99,7 +99,7 @@ internal static class AlternativeResearchCli
                             var budget=cash*.10m;
                             // Previous minute volume is only a conservative entry proxy, not a fill guarantee.
                             if(budget<=candles[i-1].QuoteVolume*.001m)
-                            {qty=budget*(1-cost)/price;cash-=budget;entry=price;high=price;}
+                            {qty=budget*(1-cost)/price;cash-=budget;entry=price;high=price;entryBudget=budget;entryMinute=i;estimatedCosts+=budget*cost;}
                             else blocked++;
                         }
                         var equity=cash+qty*price*(1-cost);
@@ -108,11 +108,11 @@ internal static class AlternativeResearchCli
                     var unresolved=qty>0;
                     var finalEquity=cash+qty*candles[^1].Close*(1-cost);
                     dd=Math.Max(dd,1-finalEquity/peak);
-                    rows.Add(new {month,symbol,interval,strategy,volumeGate,volatilityGate,cost,trades,blocked,exitBlocked,unresolved,netPct=(finalEquity/1000-1)*100,drawdownPct=dd*100,buyHoldPct=(candles[^1].Close/candles[0].Open*(1-cost)*(1-cost)-1)*100});
+                    rows.Add(new {month,symbol,interval,strategy,volumeGate,volatilityGate,cost,trades,blocked,exitBlocked,unresolved,wins,winRatePct=trades>0?(decimal?)wins*100/trades:null,profitFactor=grossLoss>0?(decimal?)grossProfit/grossLoss:null,grossProfit,grossLoss,realizedNet=grossProfit-grossLoss,averageNet=trades>0?(decimal?)(grossProfit-grossLoss)/trades:null,averageHoldingMinutes=trades>0?(decimal?)totalHoldingMinutes/trades:null,estimatedCosts,netPct=(finalEquity/1000-1)*100,drawdownPct=dd*100,buyHoldPct=(candles[^1].Close/candles[0].Open*(1-cost)*(1-cost)-1)*100});
                 }
             }
         }
-        var output=Path.Combine(root,regimeResearch && holdout ? "alternative-regime-holdout-mvp1628.json" : regimeResearch ? "alternative-regime-mvp1626.json" : holdout ? "alternative-holdout-mvp1624.json" : "alternative-training-mvp162-liquidity.json");
+        var output=Path.Combine(root,regimeResearch && holdout ? "alternative-regime-holdout-mvp1629.json" : regimeResearch ? "alternative-regime-mvp1626.json" : holdout ? "alternative-holdout-mvp1624.json" : "alternative-training-mvp162-liquidity.json");
         await File.WriteAllTextAsync(output+".partial",JsonSerializer.Serialize(new {mode=holdout ? "FIXED_REPLAY_PREVIOUSLY_RESEARCHED_MONTHS" : "TRAINING_ONLY_EXPLORATORY",paperModified=false,orderPlacementEnabled=false,promotionAllowed=false,rows},new JsonSerializerOptions{WriteIndented=true}));
         File.Move(output+".partial",output,true);
         Console.WriteLine($"ALTERNATIVE_TRAINING rows={rows.Count}");
