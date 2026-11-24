@@ -137,11 +137,16 @@
     }
     pose(actor, 'rising');
     actor.sprite.animate?.([{transform:'translateY(8%) scaleY(.78)'},{transform:'translateY(0) scaleY(1)'}],{duration:430,easing:'ease-out'});
-    const frames = core.route(started, destination, targetZone)
-      .map((pt, i, route) => ({left: pt.x + '%', top: pt.y + '%',
-        offset: i / (route.length - 1)}));
-    const distance = Math.hypot(started.x - destination.x, started.y - destination.y);
-    const duration = Math.max(1300, Math.min(5200, distance * 105));
+    const route = core.route(started, destination, targetZone);
+    const lengths = route.map((p,i) => i ? Math.hypot(p.x-route[i-1].x,(p.y-route[i-1].y)*.5625) : 0);
+    const distance = lengths.reduce((a,b)=>a+b,0);
+    let traveled = 0;
+    const frames = route.map((pt,i) => {
+      traveled += lengths[i];
+      return {left:pt.x+'%',top:pt.y+'%',offset:distance ? traveled/distance : 0};
+    });
+    if (frames.length === 1) frames.push({...frames[0],offset:1});
+    const duration = Math.max(1300, Math.min(9000, distance * 90));
     actor.riseTimer = setTimeout(() => {
       if (actor.token !== token) return;
       pose(actor, 'walking');

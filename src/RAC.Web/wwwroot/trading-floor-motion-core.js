@@ -24,12 +24,11 @@
     return 'desk';
   }
   function route(from, to, destZone) {
-    // Keep walkers in the corridor instead of crossing through desk monitors.
-    const corridor = destZone === 'lounge' ? 72 : 69;
-    return [{x: from.x, y: from.y},
-      {x: from.x, y: Math.max(from.y, corridor)},
-      {x: to.x, y: Math.max(to.y, corridor)},
-      {x: to.x, y: to.y}];
+    const exit = p => p.x < 32 ? {x:32,y:p.y} :
+      {x:p.x,y:p.y < 46 ? 44 : p.y < 66 ? 63 : 73};
+    const a = exit(from), b = exit(to);
+    const points = [from,a,{x:32,y:a.y},{x:32,y:b.y},b,to];
+    return points.filter((p,i) => !i || p.x !== points[i-1].x || p.y !== points[i-1].y);
   }
   function requestedLeader(agent) {
     const raw = agent?.supervisorRequest || agent?.requestedSupervisor;

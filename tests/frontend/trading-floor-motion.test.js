@@ -26,9 +26,10 @@ test('12 desks and waiting positions stay in distinct scene coordinates', () => 
   for(const [desk,lounge] of pairs) {
     for(const p of [desk,lounge]) {assert.ok(p.x>=0&&p.x<=100);assert.ok(p.y>=0&&p.y<=100);}
     const path = core.route(desk,lounge,'lounge');
-    assert.equal(path.length,4);
+    assert.ok(path.length >= 2);
     assert.deepEqual(path[0],desk);
-    assert.deepEqual(path[3],lounge);
+    assert.deepEqual(path.at(-1),lounge);
+    for(let i=1;i<path.length;i++) assert.ok(path[i].x===path[i-1].x || path[i].y===path[i-1].y);
   }
 });
 test('only an explicit request or backend assistance flag calls a leader',()=>{
