@@ -4,17 +4,18 @@
   function normalized(value) {
     return String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
   }
-  const deskXs = [37, 45.5, 58, 66.2, 78.2, 87.3];
+  const deskXs = [37.5, 46, 58, 66.5, 79, 89];
   function desk(index) {
     const n = Math.max(0, Math.min(11, Math.trunc(index)));
-    return {x: deskXs[n % 6], y: n < 6 ? 41 : 60};
+    return {x: deskXs[n % 6], y: n < 6 ? 39 : 54};
   }
+  const loungeSeats = [{x:7,y:68},{x:10,y:64},{x:14,y:60},{x:18,y:59},{x:26,y:67},{x:5,y:79},{x:12,y:85},{x:18,y:85},{x:24,y:83},{x:29,y:79},{x:30,y:73},{x:30,y:62}];
   function lounge(index) {
     const n = Math.max(0, Math.min(11, Math.trunc(index)));
-    return {x: 8 + (n % 4) * 6.4, y: 54 + Math.floor(n / 4) * 10};
+    return loungeSeats[n];
   }
   const leaderCoords = Object.freeze({
-    Ana: {x: 40, y: 85}, Rebeca: {x: 61, y: 85}, Carlos: {x: 84, y: 85}
+    Ana: {x: 41, y: 84}, Rebeca: {x: 63, y: 84}, Carlos: {x: 85, y: 84}
   });
   function zoneFor(agent, state) {
     const s = normalized(agent?.status);

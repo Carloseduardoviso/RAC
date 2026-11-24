@@ -86,9 +86,11 @@
     actor.el.style.left = point.x + '%';
     actor.el.style.top = point.y + '%';
     actor.point = {...point};
+    actor.el.style.setProperty('--depth-scale', String(0.72 + point.y / 250));
     actor.el.style.zIndex = String(Math.round(point.y * 10));
   }
   function pose(actor, type) {
+    if (type === 'resting' && actor.point.y >= 83 || type === 'resting' && actor.point.x >= 29) type = 'standing';
     actor.el.dataset.pose = type;
     actor.el.style.zIndex = String(Math.round(actor.point.y * 10));
     actor.sprite.dataset.pose = type;

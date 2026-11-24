@@ -112,3 +112,5 @@
 #officePhotoreal .rac-motion-actor[data-gender="female"]:is([data-pose="standing"],[data-pose="rising"],[data-pose="speaking"]) > .rac-motion-sprite{background-image:url('rac-stand-female.svg')}
 #officePhotoreal .rac-motion-actor[data-pose="typing"] > .rac-motion-sprite{visibility:visible}
 #officePhotoreal .rac-motion-actor[data-pose="resting"] > .rac-motion-sprite{visibility:visible}
+
+#officePhotoreal .rac-motion-actor{transform:translate(-50%,-88%) scale(var(--depth-scale,1));transform-origin:50% 88%}
