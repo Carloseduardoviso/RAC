@@ -9,16 +9,17 @@ const getText = filename => fs.readFileSync(path.join(root, filename), 'utf8');
 
 test('photorealistic 3D render exists as a local optimized WEBP asset', () => {
   const buffer = fs.readFileSync(path.join(root, 'trading-floor-photoreal.webp'));
+  assert.ok(buffer.length <= 200 * 1024);
   assert.equal(buffer.toString('ascii', 0, 4), 'RIFF');
   assert.equal(buffer.toString('ascii', 8, 12), 'WEBP');
   assert.equal(crypto.createHash('sha256').update(buffer).digest('hex'),
-    '514134ff5e66fa4102b6bcd8b5ab5bff3a5b58ab519e2ed3adede2517fdc71c6');
+    '6733c60f8d7a7d75625ef55b8c06821d62b67de5610f06060993756b3c58259f');
 });
 
 test('active scene uses one photo stylesheet and a separate responsive stylesheet', () => {
   const html = getText('index.html');
   assert.match(html, /id="officePhotoreal"/);
-  assert.match(html, /trading-floor-photo\.css\?v=3/);
+  assert.match(html, /trading-floor-photo\.css\?v=26/);
   assert.match(html, /trading-floor-responsive\.css\?v=3/);
   assert.doesNotMatch(html, /trading-floor-v2\.css/);
   assert.ok(html.indexOf('trading-floor.js?v=3') < html.indexOf('app.js?v=3'),
