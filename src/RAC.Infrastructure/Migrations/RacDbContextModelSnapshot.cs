@@ -898,6 +898,45 @@ namespace RAC.Infrastructure.Migrations
                     b.ToTable("ResearchKnowledge", "rac");
                 });
 
+            modelBuilder.Entity("RAC.Domain.ResearchLicenseRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ContentVersion")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Doi")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("EvidenceHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTimeOffset>("ObservedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Doi", "EvidenceHash")
+                        .IsUnique();
+
+                    b.ToTable("ResearchLicenses", "rac");
+                });
+
             modelBuilder.Entity("RAC.Domain.ResearchPublicationRecord", b =>
                 {
                     b.Property<string>("Doi")
@@ -1494,6 +1533,15 @@ namespace RAC.Infrastructure.Migrations
                 });
 
             modelBuilder.Entity("RAC.Domain.ResearchKnowledgeRecord", b =>
+                {
+                    b.HasOne("RAC.Domain.ResearchPublicationRecord", null)
+                        .WithMany()
+                        .HasForeignKey("Doi")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RAC.Domain.ResearchLicenseRecord", b =>
                 {
                     b.HasOne("RAC.Domain.ResearchPublicationRecord", null)
                         .WithMany()

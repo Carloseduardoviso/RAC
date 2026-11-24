@@ -43,6 +43,7 @@ builder.Services.AddSingleton<ResearchPublicationStore>();
 builder.Services.AddSingleton<ResearchExecutionStore>();
 builder.Services.AddSingleton<ResearchProductivityReader>();
 builder.Services.AddSingleton<ResearchKnowledgeStore>();
+builder.Services.AddSingleton<ResearchLicenseStore>();
 builder.Services.AddHttpClient<CrossrefResearchClient>(c => c.Timeout = TimeSpan.FromSeconds(20))
     .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false });
 builder.Services.AddHostedService<RebecaResearchWorker>();

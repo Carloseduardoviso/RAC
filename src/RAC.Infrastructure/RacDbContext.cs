@@ -45,9 +45,19 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public DbSet<ResearchSourceReviewRecord> ResearchSourceReviews => Set<ResearchSourceReviewRecord>();
 
     public DbSet<ResearchKnowledgeRecord> ResearchKnowledge => Set<ResearchKnowledgeRecord>();
+    public DbSet<ResearchLicenseRecord> ResearchLicenses => Set<ResearchLicenseRecord>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<ResearchLicenseRecord>(e=>{
+            e.HasKey(x=>x.Id);
+            e.Property(x=>x.Doi).HasMaxLength(255).IsRequired();
+            e.Property(x=>x.Url).HasMaxLength(2048).IsRequired();
+            e.Property(x=>x.ContentVersion).HasMaxLength(100).IsRequired();
+            e.Property(x=>x.EvidenceHash).HasMaxLength(64).IsRequired();
+            e.HasIndex(x=>new{x.Doi,x.EvidenceHash}).IsUnique();
+            e.HasOne<ResearchPublicationRecord>().WithMany().HasForeignKey(x=>x.Doi).OnDelete(DeleteBehavior.Restrict);
+        });
         model.Entity<ResearchKnowledgeRecord>(e=>{
             e.HasKey(x=>x.Id);
             e.Property(x=>x.Doi).HasMaxLength(255).IsRequired();

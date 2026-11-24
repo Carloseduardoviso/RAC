@@ -2,7 +2,7 @@ using RAC.Application;
 using RAC.Domain;
 using RAC.Infrastructure;
 namespace RAC.Api.Services;
-public sealed class RebecaResearchWorker(CrossrefResearchClient client,ResearchSourceCandidates candidates,ResearchSourceStore store,ResearchSourceReviewStore reviews,ResearchPublicationStore publications,ResearchExecutionStore history,ResearchProductivityReader productivity,ResearchKnowledgeStore knowledge,ILogger<RebecaResearchWorker> logger):BackgroundService
+public sealed class RebecaResearchWorker(CrossrefResearchClient client,ResearchSourceCandidates candidates,ResearchSourceStore store,ResearchSourceReviewStore reviews,ResearchPublicationStore publications,ResearchExecutionStore history,ResearchProductivityReader productivity,ResearchKnowledgeStore knowledge,ResearchLicenseStore licenses,ILogger<RebecaResearchWorker> logger):BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
@@ -37,6 +37,8 @@ public sealed class RebecaResearchWorker(CrossrefResearchClient client,ResearchS
                 await store.SaveAsync(candidates,deadline.Token);
                 var saved=await publications.SaveAsync(batch.Publications,DateTimeOffset.UtcNow,deadline.Token);
                 record.PublicationsSaved=saved;
+                var licenseCount=await licenses.SaveAsync(batch.Licenses,DateTimeOffset.UtcNow,deadline.Token);
+                logger.LogInformation("Research license observations stored: {Count}",licenseCount);
                 var extracted=await knowledge.ExtractAsync(DateTimeOffset.UtcNow,deadline.Token);
                 logger.LogInformation("Research title mentions stored: {Count}",extracted);
                 await reviews.RecordPendingAsync(DateTimeOffset.UtcNow,deadline.Token);
