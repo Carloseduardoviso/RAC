@@ -33,6 +33,9 @@ builder.Services.AddSingleton<RacWalkForwardService>();
 builder.Services.AddSingleton<RacExtendedHistoryService>();
 builder.Services.AddSingleton<RebecaNewsCalendar>();
 builder.Services.AddHostedService<RebecaFeedWorker>();
+builder.Services.AddHttpClient<FederalReserveNewsClient>(c => c.Timeout = TimeSpan.FromSeconds(15))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false });
+builder.Services.AddHostedService<RebecaOfficialNewsWorker>();
 builder.Services.AddSingleton(sp => RacValidationChain.CreateDefault(sp.GetRequiredService<RebecaNewsCalendar>(),
     builder.Configuration.GetSection("Rac:ValidationChain").Get<RacValidationOptions>()));
 builder.Services.AddSingleton<RacPaperTradingService>();
