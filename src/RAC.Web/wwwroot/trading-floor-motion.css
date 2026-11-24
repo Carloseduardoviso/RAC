@@ -106,3 +106,10 @@
 /* Articulated walking fallback; original seated artwork remains unchanged. */
 #officePhotoreal .rac-motion-actor[data-pose="walking"] > .rac-motion-sprite{background-image:url('rac-walk-male.svg');background-size:contain;background-position:center;animation:none}
 #officePhotoreal .rac-motion-actor[data-gender="female"][data-pose="walking"] > .rac-motion-sprite{background-image:url('rac-walk-female.svg')}
+
+/* Complete silhouettes for transitional poses; baked desk occupants remain visible. */
+#officePhotoreal .rac-motion-actor:is([data-pose="standing"],[data-pose="rising"],[data-pose="speaking"]) > .rac-motion-sprite{background-image:url('rac-stand-male.svg');background-size:contain;background-position:center}
+#officePhotoreal .rac-motion-actor[data-gender="female"]:is([data-pose="standing"],[data-pose="rising"],[data-pose="speaking"]) > .rac-motion-sprite{background-image:url('rac-stand-female.svg')}
+#officePhotoreal .rac-motion-actor[data-pose="typing"] > .rac-motion-sprite{visibility:hidden}
+#officePhotoreal .rac-motion-actor[data-pose="resting"] > .rac-motion-sprite{visibility:hidden}
+#officePhotoreal .rac-motion-actor[data-pose="resting"]::after{content:"";position:absolute;left:45%;bottom:8%;width:10%;aspect-ratio:1;border-radius:50%;background:#8ab7d4;box-shadow:0 0 5px #8ab7d4}
