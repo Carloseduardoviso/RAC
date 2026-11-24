@@ -37,7 +37,7 @@ builder.Services.AddSingleton<RacPaperTradingService>();
 builder.Services.AddHostedService<RacPaperTradingWorker>();
 builder.Services.AddSingleton<RacPaperMonitoringService>();
 builder.Services.AddSingleton<RacSafetyMonitoringService>();
-builder.Services.AddSingleton<PaperRiskReviewService>();
+builder.Services.AddScoped<PaperRiskReviewService>();
 builder.Services.AddHostedService<RacPaperMonitoringWorker>();
 // No mainnet order endpoint can be injected into this hard-pinned Testnet client.
 builder.Services.AddSingleton<BinanceTestnetCredentialStore>();

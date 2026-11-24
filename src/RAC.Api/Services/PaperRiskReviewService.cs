@@ -9,7 +9,7 @@ namespace RAC.Api.Services;
 /// restart, close positions, or submit any order. Values are persisted snapshots,
 /// not live executable quotes. Never inject an order client here.
 /// </summary>
-public sealed class PaperRiskReviewService(IDbContextFactory<RacDbContext> factory)
+public sealed class PaperRiskReviewService(IDbContextFactory<RacDbContext> factory, BinancePortfolioPricesClient? prices = null)
 {
     public sealed record PositionEvidence(string Symbol, decimal Quantity,
         decimal EntryPriceBrl, decimal LastPriceBrl, decimal StopPriceBrl,
@@ -26,7 +26,7 @@ public sealed class PaperRiskReviewService(IDbContextFactory<RacDbContext> facto
         int TestnetOrders, bool TestnetEnabled,
         IReadOnlyList<PositionEvidence> Positions,
         IReadOnlyList<IncidentEvidence> Incidents,
-        string RequiredNextStep);
+        string RequiredNextStep, PaperStopRecovery.Preview? RecoveryPreview = null);
 
     public async Task<ReviewDossier> SnapshotAsync(CancellationToken ct)
     {
@@ -52,6 +52,27 @@ public sealed class PaperRiskReviewService(IDbContextFactory<RacDbContext> facto
         var sellFills = fills.Where(x => x.Side == "SELL").Sum(x => x.Count);
         var stale = account?.LastCycleUtc is not { } last ||
             last > now || now - last > TimeSpan.FromMinutes(5);
+        PaperStopRecovery.Preview? preview = null;
+        if (prices is not null && account is { Running: false, RiskLocked: true } &&
+            positions.Length == 1 && testnetOrders == 0 && testnet?.Enabled != true)
+        {
+            try
+            {
+                var batch = await prices.GetPricesAsync(ct);
+                var p = positions[0];
+                if (batch.Prices.TryGetValue(p.Symbol, out var quote) &&
+                    batch.Prices.TryGetValue("USDTBRL", out var rate))
+                    preview = PaperStopRecovery.Calculate(false, true,
+                        new(p.Id,p.Symbol,p.Quantity,p.EntryPriceBrl,p.EntryFeeBrl,p.StopPriceBrl),
+                        account.CashBrl,quote,rate,batch.ObservedUtc,DateTimeOffset.UtcNow);
+            }
+            catch (Exception e) when (!ct.IsCancellationRequested &&
+                e is HttpRequestException or InvalidOperationException or FormatException or
+                    System.Text.Json.JsonException or OperationCanceledException or OverflowException)
+            {
+                // No preview on invalid or unavailable market evidence.
+            }
+        }
         return new ReviewDossier(
             Mode: "READ_ONLY_PAPER_RISK_REVIEW",
             Status: account is null ? "ACCOUNT_MISSING" :
@@ -79,6 +100,6 @@ public sealed class PaperRiskReviewService(IDbContextFactory<RacDbContext> facto
                 x.Symbol, x.Quantity, x.EntryPriceBrl, x.LastPriceBrl,
                 x.StopPriceBrl, x.OpenedUtc, x.Quantity * x.LastPriceBrl)).ToArray(),
             Incidents: alerts,
-            RequiredNextStep: "Investigar incidente e posição; revisão humana com justificativa. Esta rota não desbloqueia PAPER.");
+            RequiredNextStep: "Investigar incidente e posição; revisão humana com justificativa. Esta rota não desbloqueia PAPER.", RecoveryPreview: preview);
     }
 }
