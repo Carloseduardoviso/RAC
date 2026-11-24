@@ -37,8 +37,8 @@ function floorUpdateCounts(agents, supervisors, state) {
   }
   byId('officeCountInfo').textContent =
     `${agents.length} agentes monitorados · ${supervisors.length} apoios`;
-  const lounge = agents.filter(a => window.RacMotionCore ? window.RacMotionCore.zoneFor(a,state)==='lounge' : state.riskLocked || state.running===false || ['paused','waiting'].includes(floorBucketFor(a.status))).length;
-  byId('officeLoungeCount').textContent = lounge + ' agente(s) na area de descanso (estado operacional).';
+  const lounge = agents.filter(a => window.RacMotionCore ? window.RacMotionCore.zoneFor(a,state)==='lounge' : ['COMPRA','VENDA'].includes(a.signal) ? false : a.signal === 'AGUARDAR' || state.riskLocked || state.running===false || ['paused','waiting'].includes(floorBucketFor(a.status))).length;
+  byId('officeLoungeCount').textContent = lounge + ' agente(s) na area de descanso (sinal visual).';
 }
 
 function floorUpdatePerformance(state) {

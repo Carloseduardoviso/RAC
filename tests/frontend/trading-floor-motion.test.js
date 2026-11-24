@@ -95,3 +95,9 @@ test('leader returns home before another visit and agent acknowledges simulated 
  assert.match(js,/Entendido/);
  assert.match(js,/if \(!active \|\| busyVisit\) return/);
 });
+test('visual signal takes precedence over global pause without changing risk state',()=>{
+ for(const state of [{running:false,riskLocked:true},{running:true,riskLocked:false}]){
+  for(const signal of ['COMPRA','VENDA']) assert.equal(core.zoneFor({signal,status:'OBSERVANDO'},state),'desk');
+  assert.equal(core.zoneFor({signal:'AGUARDAR',status:'OBSERVANDO'},state),'lounge');
+ }
+});
