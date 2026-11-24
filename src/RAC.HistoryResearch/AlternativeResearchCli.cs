@@ -20,7 +20,8 @@ internal static class AlternativeResearchCli
             if(m.GetProperty("month").GetString()!=month || m.GetProperty("mode").GetString()!="ISOLATED_MONTHLY_ARCHIVE_RESEARCH_ONLY" || m.GetProperty("paperModified").GetBoolean() || m.GetProperty("orderPlacementEnabled").GetBoolean() || m.GetProperty("promotionAllowed").GetBoolean()) throw new InvalidDataException("Unsafe manifest");
             foreach(var symbol in RacMarketSymbols.Supported)
             {
-                if(holdout && symbol is not ("XRPUSDT" or "ADAUSDT")) continue;
+                if(holdout && regimeResearch && symbol!="XRPUSDT") continue;
+                if(holdout && !regimeResearch && symbol is not ("XRPUSDT" or "ADAUSDT")) continue;
                 var name = $"{symbol}-1m-{month}.zip";
                 var item = m.GetProperty("reports").EnumerateArray().Single(x=>x.GetProperty("symbol").GetString()==symbol);
                 using var stream = File.OpenRead(Path.Combine(folder,name));
@@ -42,7 +43,8 @@ internal static class AlternativeResearchCli
                 foreach(var volatilityGate in new[]{false,true})
                 foreach(var cost in new[]{0.0015m,0.003m})
                 {
-                    if(holdout && !(symbol=="XRPUSDT" && interval==240 && strategy=="REVERSAL" && volumeGate && volatilityGate || symbol=="ADAUSDT" && strategy=="TREND" && (interval==30 && volumeGate || interval==120 && !volumeGate && volatilityGate))) continue;
+                    if(holdout && regimeResearch && interval!=120) continue;
+                    if(holdout && !regimeResearch && !(symbol=="XRPUSDT" && interval==240 && strategy=="REVERSAL" && volumeGate && volatilityGate || symbol=="ADAUSDT" && strategy=="TREND" && (interval==30 && volumeGate || interval==120 && !volumeGate && volatilityGate))) continue;
                     if(regimeResearch && (!volumeGate || !volatilityGate)) continue;
                     var bars = new List<ResearchMarketRegime.Bar>();
                     string entryStrategy="";
@@ -110,7 +112,7 @@ internal static class AlternativeResearchCli
                 }
             }
         }
-        var output=Path.Combine(root,regimeResearch ? "alternative-regime-mvp1626.json" : holdout ? "alternative-holdout-mvp1624.json" : "alternative-training-mvp162-liquidity.json");
+        var output=Path.Combine(root,regimeResearch && holdout ? "alternative-regime-holdout-mvp1628.json" : regimeResearch ? "alternative-regime-mvp1626.json" : holdout ? "alternative-holdout-mvp1624.json" : "alternative-training-mvp162-liquidity.json");
         await File.WriteAllTextAsync(output+".partial",JsonSerializer.Serialize(new {mode=holdout ? "FIXED_REPLAY_PREVIOUSLY_RESEARCHED_MONTHS" : "TRAINING_ONLY_EXPLORATORY",paperModified=false,orderPlacementEnabled=false,promotionAllowed=false,rows},new JsonSerializerOptions{WriteIndented=true}));
         File.Move(output+".partial",output,true);
         Console.WriteLine($"ALTERNATIVE_TRAINING rows={rows.Count}");
