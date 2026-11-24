@@ -849,6 +849,55 @@ namespace RAC.Infrastructure.Migrations
                     b.ToTable("ResearchExecutionHistory", "rac");
                 });
 
+            modelBuilder.Entity("RAC.Domain.ResearchKnowledgeRecord", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("Doi")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("Evidence")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("EvidenceLevel")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<DateTimeOffset>("ExtractedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ExtractorVersion")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("Term")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Doi", "Category", "Term", "ExtractorVersion")
+                        .IsUnique();
+
+                    b.ToTable("ResearchKnowledge", "rac");
+                });
+
             modelBuilder.Entity("RAC.Domain.ResearchPublicationRecord", b =>
                 {
                     b.Property<string>("Doi")
@@ -1442,6 +1491,15 @@ namespace RAC.Infrastructure.Migrations
                     b.HasIndex("CreatedUtc");
 
                     b.ToTable("Orders", "rac");
+                });
+
+            modelBuilder.Entity("RAC.Domain.ResearchKnowledgeRecord", b =>
+                {
+                    b.HasOne("RAC.Domain.ResearchPublicationRecord", null)
+                        .WithMany()
+                        .HasForeignKey("Doi")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("RAC.Domain.ResearchSourceReviewRecord", b =>
