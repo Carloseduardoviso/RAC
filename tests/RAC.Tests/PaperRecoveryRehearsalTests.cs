@@ -34,6 +34,20 @@ public class PaperRecoveryRehearsalTests
                 Assert.Empty(await db.PaperFills.ToListAsync());
                 Assert.Empty(await db.AuditEvents.ToListAsync());
             }
+            // Force a database failure during SaveChanges, after recovery mutations are staged.
+            await using(var db=new RacDbContext(options))
+            {
+                await db.Database.ExecuteSqlRawAsync("ALTER TABLE rac.AuditEvents ADD CONSTRAINT CK_RecoveryTest_Reject CHECK (EventType <> 'PAPER_RECOVERY_REHEARSAL')");
+                await Assert.ThrowsAsync<DbUpdateException>(()=>PaperRecoveryRehearsal.ApplyAsync(db,id,.6m,6,DateTimeOffset.UtcNow,"isolated-test"));
+            }
+            await using(var db=new RacDbContext(options))
+            {
+                Assert.Equal(80m,(await db.PaperAccounts.SingleAsync()).CashBrl);
+                Assert.Single(await db.PaperPositions.ToListAsync());
+                Assert.Empty(await db.PaperFills.ToListAsync());
+                Assert.Empty(await db.AuditEvents.ToListAsync());
+                await db.Database.ExecuteSqlRawAsync("ALTER TABLE rac.AuditEvents DROP CONSTRAINT CK_RecoveryTest_Reject");
+            }
             if(concurrent)
             {
                 async Task<bool> Attempt()
