@@ -101,6 +101,11 @@
     el.dataset.gender = gender;
     el.dataset.pose = 'typing';
     el.dataset.key = key;
+    const identity = Array.from(key).reduce((h,c) => (Math.imul(h,31)+c.charCodeAt(0))>>>0,0);
+    el.style.setProperty("--avatar-hue", String((identity % 9 - 4) * 9)+"deg");
+    const name = document.createElement("span");
+    name.className = "rac-avatar-name";
+    name.textContent = label;
     el.setAttribute('aria-label', label + ' — avatar ilustrativo');
     const sprite = document.createElement('div');
     sprite.className = 'rac-motion-sprite';
@@ -108,7 +113,7 @@
     const bubble = document.createElement('span');
     bubble.className = 'rac-motion-bubble';
     bubble.hidden = true;
-    el.append(sprite, bubble);
+    el.append(sprite, name, bubble);
     layer.append(el);
     const actor = {el, sprite, bubble, point, goal: null, zone: '',
       motion: null, token: 0, bubbleTimer: null, leader};

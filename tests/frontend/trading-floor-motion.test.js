@@ -80,3 +80,11 @@ test('pose atlas uses two complete horizontal cells rather than eight fragments'
   assert.match(css,/background-size:200% 100%/);
   assert.doesNotMatch(css,/background-size:400% 200%|background-position-x:66\.666%|background-position-x:33\.333%/);
 });
+test('avatars retain a stable identity and visible name across poses',()=>{
+ const js=fs.readFileSync(path.join(assets,'trading-floor-motion.js'),'utf8');
+ const css=fs.readFileSync(path.join(assets,'trading-floor-motion.css'),'utf8');
+ assert.match(js,/Array.from\(key\)/);
+ assert.match(js,/name.textContent = label/);
+ assert.match(css,/rac-avatar-name/);
+ assert.match(css,/--avatar-hue/);
+});
