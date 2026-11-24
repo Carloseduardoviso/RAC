@@ -1181,7 +1181,9 @@ async function refreshTestnetExecution() {
     const configured = value => value === true ? 'habilitada na configuracao' : value === false ? 'desabilitada na configuracao' : 'configuracao indisponivel';
     $('testnetExecutionHomologation').textContent += ' | Ordens reais: '+configured(s.realOrdersConfigured)+
       ' | Ordens Testnet: '+configured(s.testnetOrdersConfigured)+
-      ' | Envio efetivo: '+(s.submissionAuthorized ? 'autorizado' : 'bloqueado');
+      ' | Envio efetivo: '+(s.submissionAuthorized ? 'autorizado' : 'bloqueado')+
+      (s.releaseGateBlocked ? ' | Bloqueio de release ativo' : '')+
+      (s.activationBlockReason ? ' | PAPER: '+s.activationBlockReason : '');
     const counts = s.summary || {};
     $('testnetCountAll').textContent = counts.total ?? 0;
     $('testnetCountFilled').textContent = counts.filled ?? 0;

@@ -50,6 +50,8 @@ public sealed class RacTestnetExecutor(
                 endpoint="https://testnet.binance.vision",
                 credentialsConfigured=client.CredentialsConfigured,
                 submissionAuthorized=TestnetExecutionPolicy.SubmissionExplicitlyAllowed,
+                activationBlockReason=TestnetExecutionPolicy.PaperSafetyReason(paper,DateTimeOffset.UtcNow),
+                releaseGateBlocked=!TestnetExecutionPolicy.SubmissionExplicitlyAllowed,
                 testnetOrdersConfigured=configuration?.GetValue<bool>("TestnetOrdersEnabled") ?? false,
                 realOrdersConfigured=configuration?.GetValue<bool>("RealOrdersEnabled") ?? false,
                 homologationMode="MVP_1_2_1_MOCK_ONLY",
