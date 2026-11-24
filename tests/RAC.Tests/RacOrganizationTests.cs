@@ -1,4 +1,4 @@
-﻿using RAC.Application;
+using RAC.Application;
 using Xunit;
 
 public class RacOrganizationTests
@@ -11,7 +11,7 @@ public class RacOrganizationTests
         Assert.Equal(12, RacOrganization.InitialTradingAgents.Count);
         Assert.Equal(21, RacOrganization.All.Count);
         Assert.Equal(21, RacOrganization.All.Select(x => x.Id).Distinct().Count());
-        Assert.Single(RacOrganization.All.Where(x => x.ReportsTo is null));
+        Assert.Single(RacOrganization.All, x => x.ReportsTo is null);
         foreach (var agent in RacOrganization.All.Where(x => x.ReportsTo is not null))
             Assert.Contains(RacOrganization.Leaders, x => x.Id == agent.ReportsTo);
     }
