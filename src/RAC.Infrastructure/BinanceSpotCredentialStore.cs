@@ -15,15 +15,13 @@ public sealed class BinanceSpotCredentialStore
 
     public BinanceSpotCredentialStore(string? directory = null)
     {
-        if (!OperatingSystem.IsWindows())
-            throw new PlatformNotSupportedException("Binance Spot local credentials require Windows DPAPI.");
 
         var root = directory ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RAC");
         _path = Path.Combine(root, "binance-spot-readonly.dpapi");
     }
 
-    public bool IsConfigured => File.Exists(_path);
+    public bool IsConfigured => OperatingSystem.IsWindows() && File.Exists(_path);
 
     public void Save(string apiKey, string apiSecret)
     {
@@ -79,6 +77,7 @@ public sealed class BinanceSpotCredentialStore
 
     public void Delete()
     {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
         if (File.Exists(_path)) File.Delete(_path);
     }
 

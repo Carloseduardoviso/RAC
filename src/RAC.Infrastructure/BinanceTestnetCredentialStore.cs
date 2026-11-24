@@ -15,13 +15,12 @@ public sealed class BinanceTestnetCredentialStore
 
     public BinanceTestnetCredentialStore(string? directory = null)
     {
-        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Windows DPAPI required.");
         var folder = directory ?? Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RAC");
         _path = Path.Combine(folder, "binance-spot-testnet-only.dpapi");
     }
 
-    public bool IsConfigured => File.Exists(_path);
+    public bool IsConfigured => OperatingSystem.IsWindows() && File.Exists(_path);
 
     public void Save(string key, string secret)
     {
