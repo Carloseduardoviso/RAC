@@ -6,6 +6,7 @@ using RAC.Application;
 using RAC.Domain;
 
 // Manual invocation only. No API registration, worker, trading state or secrets.
+if(args.Length==1 && args[0]=="--research-agent-filter-selection") return await ResearchAgentFilterSelectionCli.RunAsync();
 if(args.Length==1 && args[0]=="--research-filter-ablation")
 {
     foreach(var filter in new[]{ResearchEntryFilter.Volume,ResearchEntryFilter.Volatility,ResearchEntryFilter.Trend,ResearchEntryFilter.Cost})
