@@ -34,10 +34,13 @@ services:
       - "127.0.0.1:15081:8080"
     networks:
       - isolated
+      - frontend
     depends_on:
       - api
 networks:
   isolated:
     internal: true
+  frontend:
+    driver: bridge
 volumes:
   isolated-sql:
