@@ -1,0 +1,33 @@
+﻿{
+    "mode":  "RESEARCH_ONLY",
+    "sourceCommit":  "55591f8",
+    "sourceSha256":  "5C2630A26C1037FCDA5260101827A73F92A64D33472A19A0DB3D9593A02D0CBB",
+    "baselineSha256":  "5A663AAA9E5787127757360B66DD1D9EB82F644D01B86243695EFEAA8A42C70D",
+    "dynamic":  {
+                    "rows":  432,
+                    "positive":  65,
+                    "mean":  -0.24124773351533349,
+                    "unresolved":  2,
+                    "trades":  2304
+                },
+    "staticBothGates":  {
+                            "rows":  864,
+                            "positive":  161,
+                            "mean":  -0.51596173771714227,
+                            "unresolved":  54,
+                            "trades":  10588
+                        },
+    "candidates":  [
+                       {
+                           "symbol":  "XRPUSDT",
+                           "interval":  120,
+                           "mean":  0.13949196569926503,
+                           "worst":  0.0036214095698738989,
+                           "drawdown":  0.3321615389756763,
+                           "trades":  10
+                       }
+                   ],
+    "comparisonLimitation":  "Different warmup periods and strategy counts; descriptive only",
+    "promotionAllowed":  false,
+    "orderPlacementEnabled":  false
+}
