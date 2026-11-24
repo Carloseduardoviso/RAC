@@ -1,0 +1,43 @@
+name: rac-isolated
+services:
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: "${RAC_ISOLATED_SQL_PASSWORD:?Set an isolated SQL password}"
+    volumes:
+      - isolated-sql:/var/opt/mssql
+    networks:
+      - isolated
+  api:
+    profiles: ["initialized"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      RAC_SQLSERVER_CONNECTION: "Server=sql;Database=RAC_Isolated;User Id=sa;Password=${RAC_ISOLATED_SQL_PASSWORD:?Set an isolated SQL password};Encrypt=True;TrustServerCertificate=True"
+    networks:
+      - isolated
+    depends_on:
+      - sql
+  web:
+    profiles: ["initialized"]
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      RacApi__BaseUrl: http://api:8080
+    ports:
+      - "127.0.0.1:15081:8080"
+    networks:
+      - isolated
+    depends_on:
+      - api
+networks:
+  isolated:
+    internal: true
+volumes:
+  isolated-sql:
