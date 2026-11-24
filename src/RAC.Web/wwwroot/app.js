@@ -1178,6 +1178,10 @@ async function refreshTestnetExecution() {
     $('testnetExecutionHomologation').textContent = s.submissionAuthorized ?
       'Envio Testnet explicitamente autorizado por configuração. Verifique a revisão operacional antes de operar.' :
       'MVP 1.2.1: somente testes simulados. Envio Testnet bloqueado até autorização separada.';
+    const configured = value => value === true ? 'habilitada na configuracao' : value === false ? 'desabilitada na configuracao' : 'configuracao indisponivel';
+    $('testnetExecutionHomologation').textContent += ' | Ordens reais: '+configured(s.realOrdersConfigured)+
+      ' | Ordens Testnet: '+configured(s.testnetOrdersConfigured)+
+      ' | Envio efetivo: '+(s.submissionAuthorized ? 'autorizado' : 'bloqueado');
     const counts = s.summary || {};
     $('testnetCountAll').textContent = counts.total ?? 0;
     $('testnetCountFilled').textContent = counts.filled ?? 0;
