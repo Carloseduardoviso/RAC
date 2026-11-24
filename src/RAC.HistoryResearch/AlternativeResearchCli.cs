@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -29,23 +29,30 @@ internal static class AlternativeResearchCli
                 stream.Position=0;
                 using var zip = new ZipArchive(stream,ZipArchiveMode.Read,true);
                 using var reader = new StreamReader(zip.Entries.Single().Open());
-                var candles = new List<(decimal Open,decimal Close)>();
+                var candles = new List<(decimal Open,decimal Close,decimal QuoteVolume)>();
                 while(await reader.ReadLineAsync() is {} line)
                 {
                     var p=line.Split(',');
-                    candles.Add((decimal.Parse(p[1],CultureInfo.InvariantCulture),decimal.Parse(p[4],CultureInfo.InvariantCulture)));
+                    candles.Add((decimal.Parse(p[1],CultureInfo.InvariantCulture),decimal.Parse(p[4],CultureInfo.InvariantCulture),decimal.Parse(p[7],CultureInfo.InvariantCulture)));
                 }
-                foreach(var interval in new[]{5,15,30,60})
+                foreach(var interval in new[]{5,15,30,60,120,240})
                 foreach(var strategy in new[]{"TREND","REVERSAL"})
+                foreach(var volumeGate in new[]{false,true})
                 foreach(var cost in new[]{0.0015m,0.003m})
                 {
                     decimal cash=1,qty=0,peak=1,dd=0; int trades=0;
                     for(int i=interval*12;i<candles.Count-1;i+=interval)
                     {
-                        var fast=Enumerable.Range(1,3).Average(k=>candles[i-k*interval].Close);
-                        var slow=Enumerable.Range(1,12).Average(k=>candles[i-k*interval].Close);
+                        var fast=Enumerable.Range(1,3).Average(k=>candles[i-(k-1)*interval-1].Close);
+                        var slow=Enumerable.Range(1,12).Average(k=>candles[i-(k-1)*interval-1].Close);
                         var enter=strategy=="TREND"?fast>slow*1.002m:fast<slow*.995m;
                         var exit=strategy=="TREND"?fast<slow:fast>=slow;
+                        if(volumeGate)
+                        {
+                            var recent=candles.GetRange(i-interval,interval).Sum(x=>x.QuoteVolume);
+                            var prior=candles.GetRange(i-12*interval,11*interval).Sum(x=>x.QuoteVolume)/11m;
+                            enter=enter && prior>0 && recent>=prior*1.5m;
+                        }
                         var price=candles[i].Open;
                         if(qty==0 && enter){qty=cash*(1-cost)/price;cash=0;}
                         else if(qty>0 && exit){cash=qty*price*(1-cost);qty=0;trades++;}
@@ -54,11 +61,11 @@ internal static class AlternativeResearchCli
                     }
                     if(qty>0){cash=qty*candles[^1].Close*(1-cost);trades++;}
                     dd=Math.Max(dd,1-cash/peak);
-                    rows.Add(new {month,symbol,interval,strategy,cost,trades,netPct=(cash-1)*100,drawdownPct=dd*100,buyHoldPct=(candles[^1].Close/candles[0].Open*(1-cost)*(1-cost)-1)*100});
+                    rows.Add(new {month,symbol,interval,strategy,volumeGate,cost,trades,netPct=(cash-1)*100,drawdownPct=dd*100,buyHoldPct=(candles[^1].Close/candles[0].Open*(1-cost)*(1-cost)-1)*100});
                 }
             }
         }
-        var output=Path.Combine(root,"alternative-training-mvp162.json");
+        var output=Path.Combine(root,"alternative-training-mvp162-volume.json");
         await File.WriteAllTextAsync(output+".partial",JsonSerializer.Serialize(new {mode="TRAINING_ONLY_EXPLORATORY",paperModified=false,orderPlacementEnabled=false,promotionAllowed=false,rows},new JsonSerializerOptions{WriteIndented=true}));
         File.Move(output+".partial",output,true);
         Console.WriteLine($"ALTERNATIVE_TRAINING rows={rows.Count}");
