@@ -1,0 +1,13 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+COPY src/RAC.Web/RAC.Web.csproj src/RAC.Web/
+RUN dotnet restore src/RAC.Web/RAC.Web.csproj
+COPY src/RAC.Web/ src/RAC.Web/
+RUN dotnet publish src/RAC.Web/RAC.Web.csproj -c Release -o /app/publish --no-restore
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
+WORKDIR /app
+COPY --from=build /app/publish .
+ENV ASPNETCORE_URLS=http://+:8080
+EXPOSE 8080
+USER $APP_UID
+ENTRYPOINT ["dotnet", "RAC.Web.dll"]
