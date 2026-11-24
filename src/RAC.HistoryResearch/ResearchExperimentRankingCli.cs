@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using RAC.Application;
 using RAC.Infrastructure;
 internal static class ResearchExperimentRankingCli
@@ -26,6 +26,9 @@ internal static class ResearchExperimentRankingCli
             var unresolved=g.Count(x=>x.Result.Unresolved);
             return new {g.Key.Symbol,Parameters=g.Key.Base,NormalMeanPct=normal.Average(x=>x.Result.NetPct),StressMeanPct=stress.Average(x=>x.Result.NetPct),StressEvaluationMeanPct=evaluation.Average(x=>x.Result.NetPct),PositiveStressMonths=positive,WorstStressMonthPct=stress.Min(x=>x.Result.NetPct),MaxDrawdownPct=g.Max(x=>x.Result.DrawdownPct),Trades=trades,WinRatePct=trades>0?(decimal?)wins*100/trades:null,StressCosts=stress.Sum(x=>x.Result.Costs),MonthlyStressProfitFactors=stress.OrderBy(x=>x.Month).Select(x=>x.Result.ProfitFactor).ToArray(),Unresolved=unresolved,Status="EXPLORATORY_ONLY",TradingAuthorized=false};
         }).OrderByDescending(x=>x.Unresolved==0&&x.Trades>=30&&x.PositiveStressMonths>=4&&x.StressEvaluationMeanPct>0).ThenByDescending(x=>x.StressEvaluationMeanPct).ThenBy(x=>x.MaxDrawdownPct).ThenBy(x=>x.Symbol,StringComparer.Ordinal).ToArray();
+        var reviews=ranking.Select(x=>new {x.Symbol,x.Parameters,Decision=ResearchLeadershipReview.Evaluate(new(x.StressMeanPct,x.StressEvaluationMeanPct,x.PositiveStressMonths,x.Trades,x.MaxDrawdownPct,x.Unresolved))}).ToArray();
+        await File.WriteAllTextAsync(Path.Combine(root,"research-leadership-mvp16314241.json"),JsonSerializer.Serialize(new {Mode="RESEARCH_ONLY",TradingAuthorized=false,Rows=reviews},new JsonSerializerOptions{WriteIndented=true}));
+        Console.WriteLine($"LEADERSHIP_REVIEWED={reviews.Length} QUEUED={reviews.Count(x=>x.Decision.Ana=="QUEUE_INDEPENDENT_RESEARCH")}");
         var report=new {Mode="RESEARCH_ONLY",IndependentValidation=false,TradingAuthorized=false,Count=ranking.Length,Rows=ranking};
         await File.WriteAllTextAsync(Path.Combine(root,"research-ranking-mvp16314240.json"),JsonSerializer.Serialize(report,new JsonSerializerOptions{WriteIndented=true}));
         Console.WriteLine($"RANKED={ranking.Length} POSITIVE_STRESS={ranking.Count(x=>x.StressMeanPct>0)} SCREEN_PASS={ranking.Count(x=>x.Unresolved==0&&x.Trades>=30&&x.PositiveStressMonths>=4&&x.StressEvaluationMeanPct>0)}");
