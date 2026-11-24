@@ -11,7 +11,7 @@
   }
   function lounge(index) {
     const n = Math.max(0, Math.min(11, Math.trunc(index)));
-    return {x: 10 + (n % 4) * 5.7, y: 50 + Math.floor(n / 4) * 11};
+    return {x: 8 + (n % 4) * 6.4, y: 54 + Math.floor(n / 4) * 10};
   }
   const leaderCoords = Object.freeze({
     Ana: {x: 40, y: 85}, Rebeca: {x: 61, y: 85}, Carlos: {x: 84, y: 85}

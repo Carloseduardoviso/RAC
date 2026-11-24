@@ -65,8 +65,10 @@
     if (actor) {
       pose(actor, 'speaking');
       actor.el.classList.add('rac-motion-speaking');
+      const speechToken = actor.token;
       setTimeout(() => {
         actor.el.classList.remove('rac-motion-speaking');
+        if (actor.token !== speechToken || actor.motion) return;
         if (actor.zone === 'desk' || actor.zone === 'leader') pose(actor, 'typing');
         else if (actor.zone === 'lounge') pose(actor, 'resting'); else if (actor.zone) pose(actor, 'standing');
       }, 2400);
@@ -84,9 +86,11 @@
     actor.el.style.left = point.x + '%';
     actor.el.style.top = point.y + '%';
     actor.point = {...point};
+    actor.el.style.zIndex = String(Math.round(point.y * 10));
   }
   function pose(actor, type) {
     actor.el.dataset.pose = type;
+    actor.el.style.zIndex = String(Math.round(actor.point.y * 10));
     actor.sprite.dataset.pose = type;
   }
   function createActor(key, gender, point, label, leader) {
@@ -158,8 +162,8 @@
     }
     if (targetZone !== actor.zone || actor.goal !== targetZone) {
       announce(targetZone === 'lounge' ?
-        actor.el.dataset.key + ' foi para a área de lazer.' :
-        actor.el.dataset.key + ' voltou à mesa para observar.', actor);
+        actor.el.dataset.key.replace(/^agent:/, '') + ' foi para a área de lazer.' :
+        actor.el.dataset.key.replace(/^agent:/, '') + ' voltou à mesa para observar.', actor);
       walk(actor, targetPoint, targetZone);
     }
   }
