@@ -1,0 +1,19 @@
+services:
+  proxy:
+    image: caddy:2-alpine
+    profiles: ["initialized"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:15443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - proxy-data:/data
+      - proxy-config:/config
+    networks:
+      - frontend
+    depends_on:
+      web:
+        condition: service_healthy
+volumes:
+  proxy-data:
+  proxy-config:
