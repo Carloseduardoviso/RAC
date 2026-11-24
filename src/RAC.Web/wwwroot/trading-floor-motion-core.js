@@ -20,7 +20,7 @@
   function zoneFor(agent, state) {
     const s = normalized(agent?.status);
     if (state?.riskLocked || state?.running === false) return 'lounge';
-    if (/AGUARD|ESPER|DESCANS|PAUS|INATIV|BLOQUE|SEM_SINAL/.test(s)) return 'lounge';
+    if (/AGUARD|ARMAD|ESPER|DESCANS|PAUS|INATIV|BLOQUE|SEM_SINAL/.test(s)) return 'lounge';
     return 'desk';
   }
   function route(from, to, destZone) {

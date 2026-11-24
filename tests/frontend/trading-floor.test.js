@@ -36,3 +36,13 @@ test('locked paper is labeled blocked',()=>{
  assert.equal(el('officeCountPaused').textContent,1);
  assert.equal(el('floor')['data-paper-running'],'false');
 });
+
+test('global pause and risk lock override stale operational counters',()=>{
+ for(const state of [{running:false,riskLocked:false},{running:true,riskLocked:true}]){
+  const {render,el}=setup();
+  render({...state,agents:[{status:'OBSERVANDO'},{status:'EXECUTANDO'}],supervisors:[]});
+  assert.equal(el('officeCountPaused').textContent,2);
+  assert.equal(el('officeCountOperating').textContent,0);
+  assert.match(el('officeLoungeCount').textContent,/^2 /);
+ }
+});

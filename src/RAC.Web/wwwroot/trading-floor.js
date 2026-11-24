@@ -29,17 +29,16 @@ function floorCountAgents(agents) {
   return counts;
 }
 
-function floorUpdateCounts(agents, supervisors) {
+function floorUpdateCounts(agents, supervisors, state) {
   const byId = id => document.getElementById(id);
-  const counts = floorCountAgents(agents);
+  const counts = state.riskLocked || state.running === false ? {analyzing:0,operating:0,waiting:0,paused:agents.length} : floorCountAgents(agents);
   for (const [bucket, id] of Object.entries(FLOOR_COUNTER_IDS)) {
     byId(id).textContent = counts[bucket];
   }
   byId('officeCountInfo').textContent =
     `${agents.length} agentes monitorados · ${supervisors.length} apoios`;
-  byId('officeLoungeCount').textContent = counts.paused > 0
-    ? `${counts.paused} agente(s) em pausa ou bloqueio.`
-    : 'Nenhum agente sinalizou pausa ou bloqueio.';
+  const lounge = agents.filter(a => window.RacMotionCore ? window.RacMotionCore.zoneFor(a,state)==='lounge' : state.riskLocked || state.running===false || ['paused','waiting'].includes(floorBucketFor(a.status))).length;
+  byId('officeLoungeCount').textContent = lounge + ' agente(s) na area de descanso (estado operacional).';
 }
 
 function floorUpdatePerformance(state) {
@@ -70,7 +69,7 @@ window.updateTradingFloorHud = function updateTradingFloorHud(state) {
   if (!state || typeof state !== 'object') return;
   const agents = Array.isArray(state.agents) ? state.agents : [];
   const supervisors = Array.isArray(state.supervisors) ? state.supervisors : [];
-  floorUpdateCounts(agents, supervisors);
+  floorUpdateCounts(agents, supervisors, state);
   floorUpdatePerformance(state);
   floorUpdateRisk(state);
   window.RacAgentMotion?.update(state);
