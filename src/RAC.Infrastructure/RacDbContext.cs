@@ -46,9 +46,18 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
 
     public DbSet<ResearchKnowledgeRecord> ResearchKnowledge => Set<ResearchKnowledgeRecord>();
     public DbSet<ResearchLicenseRecord> ResearchLicenses => Set<ResearchLicenseRecord>();
+    public DbSet<ResearchStrategyCatalogRecord> ResearchStrategyCatalogs => Set<ResearchStrategyCatalogRecord>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<ResearchStrategyCatalogRecord>(e=>{
+            e.HasKey(x=>x.ContentSha256);
+            e.Property(x=>x.ContentSha256).HasMaxLength(64);
+            e.Property(x=>x.SourceSha256).HasMaxLength(64).IsRequired();
+            e.Property(x=>x.Version).HasMaxLength(64).IsRequired();
+            e.Property(x=>x.CatalogJson).IsRequired();
+            e.HasIndex(x=>x.SourceSha256);
+        });
         model.Entity<ResearchLicenseRecord>(e=>{
             e.HasKey(x=>x.Id);
             e.Property(x=>x.Doi).HasMaxLength(255).IsRequired();

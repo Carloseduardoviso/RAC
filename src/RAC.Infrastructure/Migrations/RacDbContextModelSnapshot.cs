@@ -1028,6 +1028,36 @@ namespace RAC.Infrastructure.Migrations
                     b.ToTable("ResearchSourceReviews", "rac");
                 });
 
+            modelBuilder.Entity("RAC.Domain.ResearchStrategyCatalogRecord", b =>
+                {
+                    b.Property<string>("ContentSha256")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTimeOffset>("ArchivedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("CatalogJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SourceSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("ContentSha256");
+
+                    b.HasIndex("SourceSha256");
+
+                    b.ToTable("ResearchStrategyCatalogs", "rac");
+                });
+
             modelBuilder.Entity("RAC.Domain.RiskLock", b =>
                 {
                     b.Property<Guid>("Id")
