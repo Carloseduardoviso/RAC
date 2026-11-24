@@ -1,3 +1,8 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.DependencyInjection;
+using RAC.Api.Security;
 using Microsoft.EntityFrameworkCore;
 using RAC.Domain;
 using RAC.Application;
@@ -58,12 +63,21 @@ public class PaperRecoveryRehearsalTests
                 Assert.Equal(0,await db.Database.SqlQueryRaw<int>("SELECT COUNT(*) AS Value FROM rac.RecoveryApprovalUses").SingleAsync());
                 await db.Database.ExecuteSqlRawAsync("ALTER TABLE rac.AuditEvents DROP CONSTRAINT CK_RecoveryTest_Reject");
             }
+            var services=new ServiceCollection();
+            services.AddLogging();
+            services.AddRacAuthentication(true);
+            using var provider=services.BuildServiceProvider();
+            using var scope=provider.CreateScope();
+            var tokens=new PaperRecoveryTokenService(scope.ServiceProvider.GetRequiredService<IAuthorizationService>(),new EphemeralDataProtectionProvider());
+            var principal=new ClaimsPrincipal(new ClaimsIdentity(new[]{new Claim(ClaimTypes.Name,"isolated-test"),new Claim(ClaimTypes.Role,RacRoles.RiskReviewer)},"test"));
+            var token=await tokens.IssueAsync(principal,id,"DOTUSDT",approval.AccountVersion,DateTimeOffset.UtcNow);
+            var rehearsal=new PaperRecoveryTokenRehearsal(tokens);
             if(concurrent)
             {
                 async Task<bool> Attempt()
                 {
                     await using var db=new RacDbContext(options);
-                    try { await PaperRecoveryRehearsal.ApplyAsync(db,id,.6m,6,DateTimeOffset.UtcNow,"isolated-test",approval:approval,authorized:true); return true; }
+                    try { await rehearsal.ApplyAsync(db,token,principal,id,.6m,6,DateTimeOffset.UtcNow); return true; }
                     catch(InvalidOperationException) { return false; }
                     catch(DbUpdateException) { return false; }
                     catch(Microsoft.Data.SqlClient.SqlException e) when(e.Number==1205) { return false; }
@@ -74,7 +88,7 @@ public class PaperRecoveryRehearsalTests
             else
             {
                 await using var db=new RacDbContext(options);
-                await PaperRecoveryRehearsal.ApplyAsync(db,id,.6m,6,DateTimeOffset.UtcNow,"isolated-test",approval:approval,authorized:true);
+                await rehearsal.ApplyAsync(db,token,principal,id,.6m,6,DateTimeOffset.UtcNow);
             }
             await using(var db=new RacDbContext(options))
                 await Assert.ThrowsAsync<InvalidOperationException>(()=>PaperRecoveryRehearsal.ApplyAsync(db,id,.6m,6,DateTimeOffset.UtcNow,"isolated-test",approval:approval,authorized:true));
