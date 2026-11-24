@@ -8,6 +8,7 @@ using RAC.Domain;
 // Manual invocation only. No API registration, worker, trading state or secrets.
 if(args.Length==1 && args[0]=="--research-experiment-ranking") return await ResearchExperimentRankingCli.RunAsync();
 if(args.Length==1 && args[0]=="--research-experiment-replay") return await ResearchExperimentCli.RunAsync();
+if(args.Length==1 && args[0]=="--research-experiment-filtered") return await ResearchExperimentCli.RunAsync(true);
 if(args.Length==1 && args[0]=="--research-experiment-plan")
 {
     var plan=ResearchExperimentPlan.Build();

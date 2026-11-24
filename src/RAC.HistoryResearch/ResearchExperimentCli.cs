@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -6,7 +6,7 @@ using RAC.Application;
 using RAC.Domain;
 internal static class ResearchExperimentCli
 {
-    internal static async Task<int> RunAsync()
+    internal static async Task<int> RunAsync(bool qualityFilters=false)
     {
         var root=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"RAC","research","monthly");
         var plan=ResearchExperimentPlan.Build();
@@ -36,13 +36,13 @@ internal static class ResearchExperimentCli
                 }
                 if(data.Count!=DateTime.DaysInMonth(2026,int.Parse(month[5..],CultureInfo.InvariantCulture))*1440)throw new InvalidDataException("Incomplete month");
                 foreach(var row in plan.Where(x=>x.Symbol==symbol))
-                    rows.Add(new {Month=month,Phase=string.CompareOrdinal(month,"2026-08")<0?"EXPLORATORY_TRAINING":"REUSED_HISTORICAL_EVALUATION",Symbol=symbol,row.Parameters,Result=ResearchExperimentReplay.Run(data,row.Parameters)});
+                    rows.Add(new {Month=month,Phase=string.CompareOrdinal(month,"2026-08")<0?"EXPLORATORY_TRAINING":"REUSED_HISTORICAL_EVALUATION",Symbol=symbol,row.Parameters,Result=ResearchExperimentReplay.Run(data,row.Parameters,qualityFilters)});
             }
             Console.WriteLine($"MONTH={month} ROWS={rows.Count}");
         }
         if(rows.Count!=1728)throw new InvalidDataException("Incomplete experiment matrix");
-        var output=Path.Combine(root,"research-experiments-mvp16314239.json");
-        await File.WriteAllTextAsync(output,JsonSerializer.Serialize(new {Mode="RESEARCH_ONLY",IndependentValidation=false,TradingAuthorized=false,Count=rows.Count,Rows=rows},new JsonSerializerOptions{WriteIndented=true}));
+        var output=Path.Combine(root,qualityFilters?"research-experiments-mvp16314244-filtered.json":"research-experiments-mvp16314239.json");
+        await File.WriteAllTextAsync(output,JsonSerializer.Serialize(new {Mode="RESEARCH_ONLY",IndependentValidation=false,TradingAuthorized=false,QualityFilters=qualityFilters,Count=rows.Count,Rows=rows},new JsonSerializerOptions{WriteIndented=true}));
         Console.WriteLine($"RESULT={output} COUNT={rows.Count}");
         return 0;
     }
