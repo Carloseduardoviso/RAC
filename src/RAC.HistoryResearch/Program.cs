@@ -6,6 +6,12 @@ using RAC.Application;
 using RAC.Domain;
 
 // Manual invocation only. No API registration, worker, trading state or secrets.
+if(args.Length==1 && args[0]=="--research-filter-ablation")
+{
+    foreach(var filter in new[]{ResearchEntryFilter.Volume,ResearchEntryFilter.Volatility,ResearchEntryFilter.Trend,ResearchEntryFilter.Cost})
+        if(await ResearchExperimentCli.RunAsync(true,filter)!=0)return 1;
+    return 0;
+}
 if(args.Length==1 && args[0]=="--research-filter-comparison") return await ResearchFilterComparisonCli.RunAsync();
 if(args.Length==1 && args[0]=="--research-experiment-ranking") return await ResearchExperimentRankingCli.RunAsync();
 if(args.Length==1 && args[0]=="--research-experiment-replay") return await ResearchExperimentCli.RunAsync();

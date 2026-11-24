@@ -4,7 +4,7 @@ public static class ResearchExperimentReplay
 {
     public sealed record Minute(decimal Open,decimal Close,decimal QuoteVolume);
     public sealed record Result(decimal NetPct,decimal DrawdownPct,int Trades,int Wins,decimal? ProfitFactor,decimal Costs,bool Unresolved);
-    public static Result Run(IReadOnlyList<Minute> data,ResearchBacktestParameters.Experiment p,bool qualityFilters=false)
+    public static Result Run(IReadOnlyList<Minute> data,ResearchBacktestParameters.Experiment p,bool qualityFilters=false,ResearchEntryFilter filters=ResearchEntryFilter.All)
     {
         if(p.TradingAuthorized||p.Status!="RESEARCH_ONLY"||p.CandleMinutes is not (60 or 120)||p.SlowPeriod<2||p.FastPeriod<0||p.FastPeriod>=p.SlowPeriod||p.ExposurePct<=0||p.ExposurePct>100||p.StopPct<=0||p.TargetPct<=0||p.FeePctPerSide<0||p.SlippagePctPerSide<0||p.FeePctPerSide+p.SlippagePctPerSide>=100||data.Any(x=>x.Open<=0||x.Close<=0||x.QuoteVolume<0))throw new ArgumentException("Invalid experiment");
         var bars=new List<decimal>();
@@ -49,7 +49,7 @@ public static class ResearchExperimentReplay
             else if(buy)
             {
                 budget=cash*p.ExposurePct/100;
-                if(budget>0&&budget<=capacity&&(!qualityFilters||ResearchEntryQuality.Evaluate(data,i,p.CandleMinutes,budget,p.TargetPct,p.FeePctPerSide+p.SlippagePctPerSide).Allowed)){qty=budget*(1-cost)/price;cash-=budget;entry=price;costs+=budget*cost;}
+                if(budget>0&&budget<=capacity&&(!qualityFilters||ResearchEntryQuality.Evaluate(data,i,p.CandleMinutes,budget,p.TargetPct,p.FeePctPerSide+p.SlippagePctPerSide,filters).Allowed)){qty=budget*(1-cost)/price;cash-=budget;entry=price;costs+=budget*cost;}
             }
             var equity=cash+qty*price*(1-cost);peak=Math.Max(peak,equity);dd=Math.Max(dd,1-equity/peak);
         }
