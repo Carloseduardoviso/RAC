@@ -136,6 +136,7 @@
       return;
     }
     pose(actor, 'rising');
+    actor.sprite.animate?.([{transform:'translateY(8%) scaleY(.78)'},{transform:'translateY(0) scaleY(1)'}],{duration:430,easing:'ease-out'});
     const frames = core.route(started, destination, targetZone)
       .map((pt, i, route) => ({left: pt.x + '%', top: pt.y + '%',
         offset: i / (route.length - 1)}));
@@ -154,6 +155,9 @@
         position(actor, destination);
         actor.zone = targetZone;
         pose(actor, targetZone === 'desk' || targetZone === 'leader' ? 'typing' : targetZone === 'lounge' ? 'resting' : 'standing');
+        if (['typing','resting'].includes(actor.el.dataset.pose)) {
+          actor.sprite.animate?.([{transform:'translateY(-8%) scaleY(1.12)'},{transform:'translateY(0) scaleY(1)'}],{duration:380,easing:'ease-out'});
+        }
         callback?.();
       }).catch(() => {});
     }, 430);
