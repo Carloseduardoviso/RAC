@@ -37,3 +37,6 @@ scrape_configs:
         target_label: instance
       - target_label: __address__
         replacement: blackbox:9115
+  - job_name: rac-container-metrics
+    static_configs:
+      - targets: ['container-metrics:9100']

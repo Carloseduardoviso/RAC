@@ -1,0 +1,13 @@
+﻿services:
+  container-metrics:
+    image: prom/node-exporter:v1.9.1
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    command:
+      - --collector.disable-defaults
+      - --collector.textfile
+      - --collector.textfile.directory=/metrics
+    volumes:
+      - "${RAC_METRICS_DIR:?Set RAC metrics directory}:/metrics:ro"
+    networks:
+      - isolated
