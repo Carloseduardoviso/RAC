@@ -805,6 +805,32 @@ namespace RAC.Infrastructure.Migrations
                     b.ToTable("Users", "rac");
                 });
 
+            modelBuilder.Entity("RAC.Domain.ResearchPublicationRecord", b =>
+                {
+                    b.Property<string>("Doi")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("AuthorsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("DiscoveredUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int?>("PublicationYear")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.HasKey("Doi");
+
+                    b.ToTable("ResearchPublications", "rac");
+                });
+
             modelBuilder.Entity("RAC.Domain.ResearchSourceRecord", b =>
                 {
                     b.Property<string>("Host")
