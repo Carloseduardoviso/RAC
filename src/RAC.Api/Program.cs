@@ -31,7 +31,9 @@ builder.Services.AddSingleton<RacMarketDataService>();
 builder.Services.AddSingleton<RacStrategyService>();
 builder.Services.AddSingleton<RacWalkForwardService>();
 builder.Services.AddSingleton<RacExtendedHistoryService>();
-builder.Services.AddSingleton(RacValidationChain.CreateDefault(null,
+builder.Services.AddSingleton<RebecaNewsCalendar>();
+builder.Services.AddHostedService<RebecaFeedWorker>();
+builder.Services.AddSingleton(sp => RacValidationChain.CreateDefault(sp.GetRequiredService<RebecaNewsCalendar>(),
     builder.Configuration.GetSection("Rac:ValidationChain").Get<RacValidationOptions>()));
 builder.Services.AddSingleton<RacPaperTradingService>();
 builder.Services.AddHostedService<RacPaperTradingWorker>();
