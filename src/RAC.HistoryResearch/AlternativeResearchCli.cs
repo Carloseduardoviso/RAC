@@ -8,11 +8,11 @@ using RAC.Domain;
 internal static class AlternativeResearchCli
 {
     // Exploratory training only; no operational dependencies or promotion.
-    internal static async Task<int> RunAsync()
+    internal static async Task<int> RunAsync(bool holdout = false)
     {
         var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RAC", "research", "monthly");
         var rows = new List<object>();
-        foreach (var month in new[]{"2026-05","2026-06","2026-07"})
+        foreach (var month in (holdout ? new[]{"2026-08","2026-09","2026-10"} : new[]{"2026-05","2026-06","2026-07"}))
         {
             var folder = Path.Combine(root,month);
             using var doc = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(folder,"manifest.json")));
@@ -20,6 +20,7 @@ internal static class AlternativeResearchCli
             if(m.GetProperty("month").GetString()!=month || m.GetProperty("mode").GetString()!="ISOLATED_MONTHLY_ARCHIVE_RESEARCH_ONLY" || m.GetProperty("paperModified").GetBoolean() || m.GetProperty("orderPlacementEnabled").GetBoolean() || m.GetProperty("promotionAllowed").GetBoolean()) throw new InvalidDataException("Unsafe manifest");
             foreach(var symbol in RacMarketSymbols.Supported)
             {
+                if(holdout && symbol is not ("XRPUSDT" or "ADAUSDT")) continue;
                 var name = $"{symbol}-1m-{month}.zip";
                 var item = m.GetProperty("reports").EnumerateArray().Single(x=>x.GetProperty("symbol").GetString()==symbol);
                 using var stream = File.OpenRead(Path.Combine(folder,name));
@@ -41,6 +42,7 @@ internal static class AlternativeResearchCli
                 foreach(var volatilityGate in new[]{false,true})
                 foreach(var cost in new[]{0.0015m,0.003m})
                 {
+                    if(holdout && !(symbol=="XRPUSDT" && interval==240 && strategy=="REVERSAL" && volumeGate && volatilityGate || symbol=="ADAUSDT" && strategy=="TREND" && (interval==30 && volumeGate || interval==120 && !volumeGate && volatilityGate))) continue;
                     decimal cash=1000,qty=0,peak=1000,dd=0,entry=0,high=0; int trades=0,blocked=0,exitBlocked=0; bool pendingExit=false;
                     for(int i=interval*12;i<candles.Count;i++)
                     {
@@ -93,8 +95,8 @@ internal static class AlternativeResearchCli
                 }
             }
         }
-        var output=Path.Combine(root,"alternative-training-mvp162-liquidity.json");
-        await File.WriteAllTextAsync(output+".partial",JsonSerializer.Serialize(new {mode="TRAINING_ONLY_EXPLORATORY",paperModified=false,orderPlacementEnabled=false,promotionAllowed=false,rows},new JsonSerializerOptions{WriteIndented=true}));
+        var output=Path.Combine(root,holdout ? "alternative-holdout-mvp1624.json" : "alternative-training-mvp162-liquidity.json");
+        await File.WriteAllTextAsync(output+".partial",JsonSerializer.Serialize(new {mode=holdout ? "FIXED_REPLAY_PREVIOUSLY_RESEARCHED_MONTHS" : "TRAINING_ONLY_EXPLORATORY",paperModified=false,orderPlacementEnabled=false,promotionAllowed=false,rows},new JsonSerializerOptions{WriteIndented=true}));
         File.Move(output+".partial",output,true);
         Console.WriteLine($"ALTERNATIVE_TRAINING rows={rows.Count}");
         return 0;

@@ -6,6 +6,7 @@ using RAC.Application;
 using RAC.Domain;
 
 // Manual invocation only. No API registration, worker, trading state or secrets.
+if (args.Length == 1 && args[0] == "--alternative-holdout") return await AlternativeResearchCli.RunAsync(true);
 if (args.Length == 1 && args[0] == "--alternative-training") return await AlternativeResearchCli.RunAsync();
 if (args.Length > 0 && args[0] == "--fixed-holdout-replay")
     return await FixedHoldoutReplayCli.RunAsync(args);
