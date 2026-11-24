@@ -9,7 +9,7 @@ body{max-width:1120px;margin:0 auto;padding:24px}
 a{color:#91c9ff}
 header{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
 section{background:#1c293a;border:1px solid #3b5069;border-radius:12px;padding:18px;margin:18px 0}
-.info{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px}
+.info[hidden]{display:none}.info{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:12px}
 .metric{background:#121e2d;border-radius:10px;padding:12px;min-width:0}
 .metric strong{display:block;margin-top:8px;overflow-wrap:anywhere}
 table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #374c63;text-align:left}
@@ -17,7 +17,7 @@ table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px s
 button{background:#2a73b5;color:white;border:0;border-radius:8px;padding:10px 16px;cursor:pointer}
 small,.muted{color:#abbccc}.danger{color:#ffb4b4}.warning{color:#ffd794}
 </style>
-<script src="/paper-risk-review.js" defer></script>
+<script src="/paper-risk-review.js?v=16392" defer></script>
 </head>
 <body>
 <header>
@@ -55,5 +55,17 @@ small,.muted{color:#abbccc}.danger{color:#ffb4b4}.warning{color:#ffd794}
 <section><h2>Incidentes de bloqueio registrados</h2>
 <div class="scroll"><table><thead><tr><th>Data UTC</th><th>Evento</th><th>Descrição</th></tr></thead><tbody id="events"></tbody></table></div>
 </section>
+<section><h2>Previa financeira de encerramento PAPER</h2>
+<p id="previewStatus" role="status">Indisponivel</p>
+<p class="muted">Estimativa com cotacao publica, taxas e slippage. Nao executa venda nem libera a trava.</p>
+<div class="info" id="previewMetrics" hidden>
+<div class="metric">Par<strong id="previewSymbol"></strong></div>
+<div class="metric">Preco estimado (BRL)<strong id="previewPrice"></strong></div>
+<div class="metric">Taxa (BRL)<strong id="previewFee"></strong></div>
+<div class="metric">Recebimento liquido (BRL)<strong id="previewReceived"></strong></div>
+<div class="metric">Resultado liquido (BRL)<strong id="previewRealized"></strong></div>
+<div class="metric">Patrimonio estimado (BRL)<strong id="previewEquity"></strong></div>
+<div class="metric">Cotacao recebida em<strong id="previewTime"></strong></div>
+</div></section>
 <small>Diagnóstico sob demanda. Dados históricos podem estar obsoletos. A ausência de alerta não libera o PAPER.</small>
 </body></html>

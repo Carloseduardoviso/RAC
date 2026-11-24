@@ -27,3 +27,10 @@ test('dossier avoids unsafe approval controls and shows persisted evidence',()=>
  assert.match(script,/textContent/);
  assert.doesNotMatch(script,/innerHTML|fetch\([^]*method:\s*['"]POST/i);
 });
+
+test('recovery preview is read-only and rejects stale quotes',()=>{
+ assert.match(page,/id="previewMetrics" hidden/);
+ assert.match(script,/renderPreview\(data\.recoveryPreview\)/);
+ assert.match(script,/age>30000/);
+ assert.match(script,/renderPreview\(null\)/);
+});

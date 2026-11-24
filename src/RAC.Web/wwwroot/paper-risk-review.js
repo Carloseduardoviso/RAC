@@ -21,7 +21,21 @@ function fillRows(id,rows,columns){
     tr.appendChild(td);target.appendChild(tr);
   }
 }
+function renderPreview(p){
+ field('previewMetrics').hidden=true;
+ text('previewStatus','Indisponivel: sem evidencia valida de encerramento.');
+ for(const id of ['previewSymbol','previewPrice','previewFee','previewReceived','previewRealized','previewEquity','previewTime']) text(id,'-');
+ if(!p || typeof p.symbol!=='string' || !['sellPrice','fee','received','realized','equityAfter'].every(k=>Number.isFinite(p[k]))) return;
+ const age=Date.now()-Date.parse(p.quoteUtc);
+ if(!Number.isFinite(age)||age<0||age>30000) return;
+ text('previewSymbol',p.symbol);
+ for(const [id,key] of [['previewPrice','sellPrice'],['previewFee','fee'],['previewReceived','received'],['previewRealized','realized'],['previewEquity','equityAfter']]) text(id,formatNumber(p[key]));
+ text('previewTime',dateValue(p.quoteUtc));
+ text('previewStatus','Estimativa somente leitura; atualize antes da revisao.');
+ field('previewMetrics').hidden=false;
+}
 function clear(){
+ renderPreview(null);
  for(const id of ['reviewState','paperState','lockState','approval','cycle',
  'valuation','cash','equity','daily','drawdown','fills','testnet','reason'])
    text(id,'—');
@@ -56,6 +70,7 @@ async function refresh(){
   text('testnet',formatNumber(data.testnetOrders)+(data.testnetEnabled?' — HABILITADA':''));
   text('reason',data.riskReason||'Não registrado');
   text('required',data.requiredNextStep);
+  renderPreview(data.recoveryPreview);
   fillRows('positions',data.positions,p=>[p.symbol,formatNumber(p.quantity),
     formatNumber(p.entryPriceBrl),formatNumber(p.lastPriceBrl),
     formatNumber(p.stopPriceBrl),formatNumber(p.lastRecordedValueBrl)]);
