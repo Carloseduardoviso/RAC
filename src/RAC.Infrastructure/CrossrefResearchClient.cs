@@ -3,7 +3,7 @@ using RAC.Application;
 namespace RAC.Infrastructure;
 public sealed class CrossrefResearchClient(HttpClient http)
 {
-    public static readonly Uri Endpoint=new("https://api.crossref.org/works?query=cryptocurrency%20quantitative%20trading%20risk&rows=20&select=URL,link,DOI,title,author,published,abstract");
+    public static readonly Uri Endpoint=new("https://api.crossref.org/works?query=cryptocurrency%20quantitative%20trading%20risk&rows=20&select=URL,link,DOI,title,author,published,abstract,license");
     public static int Discover(string json,ResearchSourceCandidates candidates,DateTimeOffset now)
     {
         using var doc=JsonDocument.Parse(json);
@@ -18,7 +18,7 @@ public sealed class CrossrefResearchClient(HttpClient http)
         return added;
     }
     public sealed record Batch(string Topic,int Added,IReadOnlyList<CrossrefPublicationMetadata.Publication> Publications)
-    { public IReadOnlyList<ResearchAbstractMetadata.Abstract> Abstracts {get;init;}=[]; }
+    { public IReadOnlyList<ResearchAbstractMetadata.Abstract> Abstracts {get;init;}=[]; public IReadOnlyList<ResearchLicenseMetadata.License> Licenses {get;init;}=[]; }
     public async Task<Batch> ReadAsync(ResearchSourceCandidates candidates,CancellationToken ct,string? selectedTopic=null)
     {
         var now=DateTimeOffset.UtcNow;
@@ -36,6 +36,6 @@ public sealed class CrossrefResearchClient(HttpClient http)
         var publications=CrossrefPublicationMetadata.Parse(json);
                 var known=publications.Select(p=>p.Doi).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var abstracts=ResearchAbstractMetadata.Parse(json).Where(a=>known.Contains(a.Doi)).ToArray();
-        return new(topic,Discover(json,candidates,now),publications){Abstracts=abstracts};
+        return new(topic,Discover(json,candidates,now),publications){Abstracts=abstracts,Licenses=ResearchLicenseMetadata.Parse(json).Where(l=>known.Contains(l.Doi)).ToArray()};
     }
 }
