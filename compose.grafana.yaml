@@ -1,4 +1,4 @@
-﻿services:
+services:
   grafana:
     image: grafana/grafana:12.1.0
     profiles: ["monitoring"]
@@ -11,6 +11,8 @@
     volumes:
       - grafana-data:/var/lib/grafana
       - ./deploy/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./deploy/monitoring/grafana/providers:/etc/grafana/provisioning/dashboards:ro
+      - ./deploy/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks:
       - frontend
     depends_on:

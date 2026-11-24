@@ -1,0 +1,215 @@
+﻿{
+    "version":  1,
+    "time":  {
+                 "to":  "now",
+                 "from":  "now-6h"
+             },
+    "uid":  "rac-monitoramento",
+    "title":  "Monitoramento RAC",
+    "tags":  [
+                 "RAC",
+                 "homologacao"
+             ],
+    "refresh":  "30s",
+    "schemaVersion":  41,
+    "panels":  [
+                   {
+                       "id":  1,
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "short"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  0,
+                                       "w":  8,
+                                       "h":  5,
+                                       "x":  0
+                                   },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "rac-prometheus"
+                                                          },
+                                           "expr":  "sum(probe_success{job=\"rac-http\"})",
+                                           "refId":  "A"
+                                       }
+                                   ],
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "rac-prometheus"
+                                      },
+                       "type":  "stat",
+                       "title":  "Servicos online"
+                   },
+                   {
+                       "id":  2,
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "short"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  0,
+                                       "w":  8,
+                                       "h":  5,
+                                       "x":  8
+                                   },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "rac-prometheus"
+                                                          },
+                                           "expr":  "count(probe_success{job=\"rac-http\"} == 0) or vector(0)",
+                                           "refId":  "A"
+                                       }
+                                   ],
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "rac-prometheus"
+                                      },
+                       "type":  "stat",
+                       "title":  "Servicos indisponiveis"
+                   },
+                   {
+                       "id":  3,
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "short"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  0,
+                                       "w":  8,
+                                       "h":  5,
+                                       "x":  16
+                                   },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "rac-prometheus"
+                                                          },
+                                           "expr":  "count(probe_success{job=\"rac-http\"})",
+                                           "refId":  "A"
+                                       }
+                                   ],
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "rac-prometheus"
+                                      },
+                       "type":  "stat",
+                       "title":  "Alvos coletados"
+                   },
+                   {
+                       "id":  4,
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "short"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  5,
+                                       "w":  12,
+                                       "h":  9,
+                                       "x":  0
+                                   },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "rac-prometheus"
+                                                          },
+                                           "expr":  "probe_success{job=\"rac-http\"}",
+                                           "refId":  "A"
+                                       }
+                                   ],
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "rac-prometheus"
+                                      },
+                       "type":  "timeseries",
+                       "title":  "Disponibilidade por servico"
+                   },
+                   {
+                       "id":  5,
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "s"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  5,
+                                       "w":  12,
+                                       "h":  9,
+                                       "x":  12
+                                   },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "rac-prometheus"
+                                                          },
+                                           "expr":  "probe_duration_seconds{job=\"rac-http\"}",
+                                           "refId":  "A"
+                                       }
+                                   ],
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "rac-prometheus"
+                                      },
+                       "type":  "timeseries",
+                       "title":  "Tempo de resposta"
+                   },
+                   {
+                       "id":  6,
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "percent"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  14,
+                                       "w":  24,
+                                       "h":  8,
+                                       "x":  0
+                                   },
+                       "targets":  [
+                                       {
+                                           "datasource":  {
+                                                              "type":  "prometheus",
+                                                              "uid":  "rac-prometheus"
+                                                          },
+                                           "expr":  "100 * avg_over_time(probe_success{job=\"rac-http\"}[24h])",
+                                           "refId":  "A"
+                                       }
+                                   ],
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "rac-prometheus"
+                                      },
+                       "type":  "timeseries",
+                       "title":  "Disponibilidade nas ultimas 24h (amostras coletadas)"
+                   }
+               ]
+}
