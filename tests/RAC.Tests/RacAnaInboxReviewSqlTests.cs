@@ -31,6 +31,11 @@ public sealed class RacAnaInboxReviewSqlTests
             Assert.Equal(3,result.Evidence.Count);
             Assert.Empty(result.Missing);
             Assert.True(result.RiskNoticePresent);
+            var advisory=await new RacAnaAdvisoryService(new RacAnaInboxReview(store))
+                .ReviewAsync(new[]{id,Guid.NewGuid(),id},now,TimeSpan.FromMinutes(5),default);
+            Assert.Equal("RISK_REVIEW_REQUIRED",advisory.Status);
+            Assert.False(advisory.TradingAuthorized);
+            Assert.Equal(3,advisory.EvidenceIds.Count);
             await using var check=new RacDbContext(options);
             Assert.Equal(5,await check.AgentMessages.CountAsync());
             Assert.False(await check.TestnetOrders.AnyAsync());
