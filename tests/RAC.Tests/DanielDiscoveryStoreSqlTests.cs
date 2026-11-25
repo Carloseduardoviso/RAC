@@ -31,6 +31,11 @@ public sealed class DanielDiscoveryStoreSqlTests
             Assert.False(await store.SaveAsync(task.Id,running.LeaseId!.Value,rows,now,default));
             var saved=Assert.Single(await store.ReadRecentAsync(10,default));
             Assert.Equal(1,saved.CandidateCount);
+            Assert.NotNull(saved.ResearchSnapshotJson);
+            var snapshot=System.Text.Json.JsonSerializer.Deserialize<DanielResearchSnapshot>(saved.ResearchSnapshotJson!);
+            Assert.Equal("ABCUSDT",Assert.Single(snapshot!.Decisions).Observation.Symbol);
+            Assert.False(snapshot.TradingAuthorized);
+            await Assert.ThrowsAsync<InvalidOperationException>(()=>store.SaveAsync(task.Id,running.LeaseId!.Value,rows.Append(rows[0] with {Symbol="LOWUSDT",QuoteVolume24h=1}).ToArray(),now,default));
             var reporter=new DanielDiscoveryReporter(factory);
             Assert.True(await reporter.PublishAsync(task.Id,default));
             Assert.False(await reporter.PublishAsync(task.Id,default));

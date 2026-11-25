@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 using RAC.Domain;
 using System.Text.Json;
@@ -14,6 +14,7 @@ public sealed class DanielDiscoveryStore(IDbContextFactory<RacDbContext> factory
             throw new ArgumentException("Invalid discovery context.");
         var candidates=DanielCandidateRanking.Rank(observations,observedUtc);
         var json=JsonSerializer.Serialize(candidates);
+        var snapshotJson=JsonSerializer.Serialize(DanielResearchSnapshot.Create(observations,observedUtc));
         await using var db=await factory.CreateDbContextAsync(ct);
         await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
         var task=await db.AgentTasks.SingleAsync(x=>x.Id==taskId,ct);
@@ -23,13 +24,13 @@ public sealed class DanielDiscoveryStore(IDbContextFactory<RacDbContext> factory
         var existing=await db.DanielDiscoveries.SingleOrDefaultAsync(x=>x.TaskId==taskId,ct);
         if(existing is not null)
         {
-            if(existing.CandidatesJson!=json || existing.ObservedUtc!=observedUtc)
+            if(existing.CandidatesJson!=json || existing.ObservedUtc!=observedUtc || (existing.ResearchSnapshotJson is not null && existing.ResearchSnapshotJson!=snapshotJson))
                 throw new InvalidOperationException("Discovery already recorded.");
             return false;
         }
         db.DanielDiscoveries.Add(new DanielDiscoveryRecord
         {
-            TaskId=taskId,ObservedUtc=observedUtc.ToUniversalTime(),CandidatesJson=json,CandidateCount=candidates.Count
+            TaskId=taskId,ObservedUtc=observedUtc.ToUniversalTime(),CandidatesJson=json,CandidateCount=candidates.Count,ResearchSnapshotJson=snapshotJson
         });
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);

@@ -118,6 +118,9 @@ namespace RAC.Infrastructure.Migrations
                     b.Property<DateTimeOffset>("ObservedUtc")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<string>("ResearchSnapshotJson")
+                        .HasColumnType("nvarchar(max)");
+
                     b.HasKey("TaskId");
 
                     b.HasIndex("ObservedUtc");
