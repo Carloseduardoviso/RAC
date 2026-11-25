@@ -41,7 +41,7 @@ public sealed class DanielTaskExecutorSqlTests
             Assert.True(await executor.ExecuteNextAsync(default));
             Assert.False(await executor.ExecuteNextAsync(default));
             await using var check=new RacDbContext(options);
-            Assert.Equal("Completed",(await check.AgentTasks.SingleAsync()).Status);
+            Assert.Equal("Completed",(await check.AgentTasks.SingleAsync(x=>x.Id==task.Id)).Status);
             Assert.Equal(empty?0:1,(await check.DanielDiscoveries.SingleAsync()).CandidateCount);
             var snapshot=(await check.DanielDiscoveries.SingleAsync()).ResearchSnapshotJson!;
             Assert.Contains("DANIEL_COVERAGE_V1",snapshot);
@@ -53,6 +53,15 @@ public sealed class DanielTaskExecutorSqlTests
             var replay=await new DanielDiscoveryReporter(factory).CreateAsync(task.Id,default);
             Assert.Equal(report.Id,replay.Id);
             Assert.Equal(report.Content,replay.Content);
+            var linked=await check.AgentTasks.Where(x=>x.Specialist=="gabriel").ToListAsync();
+            if(complete)
+            {
+                var next=Assert.Single(linked);
+                Assert.Equal("Pending",next.Status);
+                Assert.Equal("rebeca",next.Leader);
+                Assert.Equal("QUANTITATIVE_RESEARCH:"+task.Id.ToString("N"),next.Description);
+            }
+            else Assert.Empty(linked);
             var reader=new GabrielDiscoveryEvidenceReader(new RebecaMarketEvidenceReader(new RacAgentMessageStore(factory)));
             if(complete)
             {
@@ -92,7 +101,7 @@ public sealed class DanielTaskExecutorSqlTests
             Assert.True(await executor.ExecuteNextAsync(default));
             Assert.False(await executor.ExecuteNextAsync(default));
             await using var check=new RacDbContext(options);
-            Assert.Equal("Completed",(await check.AgentTasks.SingleAsync()).Status);
+            Assert.Equal("Completed",(await check.AgentTasks.SingleAsync(x=>x.Id==task.Id)).Status);
             var discovery=await check.DanielDiscoveries.SingleAsync(); Assert.InRange(discovery.CandidateCount,0,20); Console.WriteLine("LIVE_CANDIDATES="+discovery.CandidateCount);
             Assert.Equal(task.Id,(await check.AgentMessages.SingleAsync()).CorrelationId);
         }
@@ -134,7 +143,7 @@ public sealed class DanielTaskExecutorSqlTests
             Assert.True(await executor.ExecuteNextAsync(default));
             Assert.False(await executor.ExecuteNextAsync(default));
             await using var check=new RacDbContext(options);
-            Assert.Equal("Completed",(await check.AgentTasks.SingleAsync()).Status);
+            Assert.Equal("Completed",(await check.AgentTasks.SingleAsync(x=>x.Id==task.Id)).Status);
             Assert.Equal(1,(await check.DanielDiscoveries.SingleAsync()).CandidateCount);
             Assert.Equal(task.Id,(await check.AgentMessages.SingleAsync()).CorrelationId);
         }

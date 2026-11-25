@@ -69,6 +69,23 @@ public sealed class RacAgentTaskStore(IDbContextFactory<RacDbContext> factory)
                 throw new InvalidOperationException("Conflicting task report.");
         }
         else if(existing.Count!=1) throw new InvalidOperationException("Missing task report.");
+        if(specialist=="daniel" && task.Leader=="rebeca" && task.Description=="MARKET_DISCOVERY" && message is not null)
+        {
+            var evidence=RebecaDanielReportReview.Review(new(id,message.Id,"daniel",message.CreatedUtc,message.Content));
+            var now=DateTimeOffset.UtcNow;
+            if(evidence.Status=="RESEARCH_ONLY" && evidence.CoverageStatus=="RESEARCH_CANDIDATES_AVAILABLE" &&
+                message.CreatedUtc<=now && now-message.CreatedUtc<=TimeSpan.FromMinutes(15))
+            {
+                var hash=System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("GABRIEL:DISCOVERY:V1:"+id.ToString("N")));
+                var linkedId=new Guid(hash.AsSpan(0,16));
+                var description="QUANTITATIVE_RESEARCH:"+id.ToString("N");
+                var linked=await db.AgentTasks.SingleOrDefaultAsync(x=>x.Id==linkedId,ct);
+                if(linked is null)
+                    db.AgentTasks.Add(new RacAgentTaskRecord {Id=linkedId,Leader="rebeca",Specialist="gabriel",Description=description,Status="Pending",UpdatedUtc=now});
+                else if(linked.Leader!="rebeca" || linked.Specialist!="gabriel" || linked.Description!=description)
+                    throw new InvalidOperationException("Conflicting linked research task.");
+            }
+        }
         Apply(task,finished);
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
