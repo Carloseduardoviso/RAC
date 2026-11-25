@@ -14,7 +14,15 @@ public sealed class GabrielDynamicHistoricalSource(GabrielPublicArchiveClient ar
             throw new ArgumentOutOfRangeException(nameof(timeout));
         using var deadline=CancellationTokenSource.CreateLinkedTokenSource(ct);
         deadline.CancelAfter(timeout);
-        var result=await GabrielHistoricalMatrixBuilder.BuildAsync(symbols,ReadArchiveAsync,deadline.Token,memory is null?null:RecordAsync);
+        var evidence=new List<ResearchExecutionManifest.Evidence>();
+        var result=await GabrielHistoricalMatrixBuilder.BuildAsync(symbols,ReadArchiveAsync,deadline.Token,
+            memory is null?null:async (row,hash,month,replay,token)=>
+            {
+                await RecordAsync(row,hash,month,replay,token);
+                evidence.Add(new(row,month,hash));
+            });
+        if(memory is not null)
+            ResearchExecutionManifest.Create(symbols,ResearchEngineCatalog.Current.Id,evidence);
         deadline.Token.ThrowIfCancellationRequested();
         return result;
     }
