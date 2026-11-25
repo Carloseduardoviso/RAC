@@ -1,7 +1,7 @@
 using RAC.Application;
 namespace RAC.Infrastructure;
 
-public sealed class GabrielDynamicHistoricalSource(GabrielPublicArchiveClient archives)
+public sealed class GabrielDynamicHistoricalSource(GabrielPublicArchiveClient archives, ResearchQuantitativeExecutionStore? memory=null)
 {
 
 
@@ -14,10 +14,13 @@ public sealed class GabrielDynamicHistoricalSource(GabrielPublicArchiveClient ar
             throw new ArgumentOutOfRangeException(nameof(timeout));
         using var deadline=CancellationTokenSource.CreateLinkedTokenSource(ct);
         deadline.CancelAfter(timeout);
-        var result=await GabrielHistoricalMatrixBuilder.BuildAsync(symbols,ReadArchiveAsync,deadline.Token);
+        var result=await GabrielHistoricalMatrixBuilder.BuildAsync(symbols,ReadArchiveAsync,deadline.Token,memory is null?null:RecordAsync);
         deadline.Token.ThrowIfCancellationRequested();
         return result;
     }
+
+    private async Task RecordAsync(ResearchExperimentPlan.Row row,string hash,DateOnly month,ResearchExperimentReplay.Result result,CancellationToken ct)
+        => await memory!.SaveAsync(row,hash,month,"REPLAY_V1",result,DateTimeOffset.UtcNow,ct);
 
     private async Task<GabrielHistoricalMatrixBuilder.Archive> ReadArchiveAsync(string symbol,int year,int month,CancellationToken ct)
     {

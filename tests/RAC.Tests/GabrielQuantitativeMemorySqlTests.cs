@@ -1,0 +1,67 @@
+﻿using Microsoft.EntityFrameworkCore;
+using RAC.Infrastructure;
+using System.IO.Compression;
+using System.Security.Cryptography;
+using System.Net;
+namespace RAC.Tests;
+public sealed class GabrielQuantitativeMemorySqlTests
+{
+    private sealed class Factory(DbContextOptions<RacDbContext> options):IDbContextFactory<RacDbContext>
+    {
+        public RacDbContext CreateDbContext()=>new(options);
+    }
+    private sealed class Handler:HttpMessageHandler
+    {
+        private readonly Dictionary<string,byte[]> archives=new();
+        public bool Interrupt {get;set;}
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            Assert.Equal(HttpMethod.Get,request.Method);
+            var name=request.RequestUri!.Segments.Last().Replace(".CHECKSUM","");
+            var month=int.Parse(name.Substring(name.Length-6,2));
+            if(Interrupt && month>=6)return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+            if(!archives.TryGetValue(name,out var bytes))
+            {
+                using var stream=new MemoryStream();
+                using(var zip=new ZipArchive(stream,ZipArchiveMode.Create,true))
+                using(var writer=new StreamWriter(zip.CreateEntry(name.Replace(".zip",".csv")).Open()))
+                {
+                    var first=new DateTimeOffset(2026,month,1,0,0,0,TimeSpan.Zero).ToUnixTimeMilliseconds()*1000;
+                    for(var i=0;i<DateTime.DaysInMonth(2026,month)*1440;i++)
+                    {
+                        var t=first+i*60000000L;
+                        writer.WriteLine($"{t},100,100,100,100,10,{t+59999999},1000,1,0,0,0");
+                    }
+                }
+                archives.Add(name,bytes=stream.ToArray());
+            }
+            HttpContent content=request.RequestUri.AbsolutePath.EndsWith(".CHECKSUM")?
+                new StringContent(Convert.ToHexString(SHA256.HashData(bytes))+"  "+name):new ByteArrayContent(bytes);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK){Content=content});
+        }
+    }
+    [Fact]
+    public async Task PersistsFullMatrixAndRecoversPartialResearchWithoutDuplicates()
+    {
+        if(!OperatingSystem.IsWindows())return;
+        var options=new DbContextOptionsBuilder<RacDbContext>().UseSqlServer(@"Server=(localdb)\MSSQLLocalDB;Database=RAC_GABRIEL_MEMORY_TEST_"+Guid.NewGuid().ToString("N")+";Integrated Security=True;TrustServerCertificate=True").Options;
+        try
+        {
+            await using(var db=new RacDbContext(options))await db.Database.MigrateAsync();
+            using var handler=new Handler{Interrupt=true};
+            using var http=new HttpClient(handler);
+            var source=new GabrielDynamicHistoricalSource(new GabrielPublicArchiveClient(http),new ResearchQuantitativeExecutionStore(new Factory(options)));
+            await Assert.ThrowsAsync<HttpRequestException>(()=>source.ReadAsync(["ABCUSDT"],default));
+            await using(var db=new RacDbContext(options))Assert.Equal(24,await db.ResearchQuantitativeExecutions.CountAsync());
+            handler.Interrupt=false;
+            var first=await source.ReadAsync(["ABCUSDT"],default);
+            var second=await source.ReadAsync(["ABCUSDT"],default);
+            Assert.Equal(first,second);
+            await using var check=new RacDbContext(options);
+            Assert.Equal(144,await check.ResearchQuantitativeExecutions.CountAsync());
+            Assert.False(await check.TestnetOrders.AnyAsync());
+        }
+        finally {await using var db=new RacDbContext(options);await db.Database.EnsureDeletedAsync();}
+    }
+}

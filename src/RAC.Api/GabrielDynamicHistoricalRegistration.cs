@@ -1,4 +1,4 @@
-﻿using RAC.Infrastructure;
+using RAC.Infrastructure;
 namespace RAC.Api;
 
 public static class GabrielDynamicHistoricalRegistration
@@ -8,7 +8,11 @@ public static class GabrielDynamicHistoricalRegistration
         if(!configuration.GetValue<bool>("Specialists:Gabriel:DynamicHistoricalEnabled",false)) return services;
         services.AddHttpClient<GabrielPublicArchiveClient>()
             .ConfigurePrimaryHttpMessageHandler(()=>new HttpClientHandler {AllowAutoRedirect=false,UseCookies=false});
-        services.AddSingleton<GabrielDynamicHistoricalSource>();
+        var persist=configuration.GetValue<bool>("Specialists:Gabriel:QuantitativeMemoryEnabled",false);
+        if(persist) services.AddSingleton<ResearchQuantitativeExecutionStore>();
+        services.AddSingleton<GabrielDynamicHistoricalSource>(sp=>new(
+            sp.GetRequiredService<GabrielPublicArchiveClient>(),
+            persist?sp.GetRequiredService<ResearchQuantitativeExecutionStore>():null));
         services.AddSingleton<Func<IReadOnlyList<string>,CancellationToken,Task<string>>>(sp=>
             sp.GetRequiredService<GabrielDynamicHistoricalSource>().ReadAsync);
         return services;
