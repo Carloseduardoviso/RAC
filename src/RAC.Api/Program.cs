@@ -246,6 +246,7 @@ var app = builder.Build();
 app.UseRacSecurity();
 app.MapRacAuthentication();
 app.MapProductionRiskPolicyEndpoints();
+RAC.Api.RacAnaAdvisoryEndpoints.MapRacAnaAdvisories(app);
 
 app.MapGet("/api/health", async (IDbContextFactory<RacDbContext> factory, CancellationToken ct) =>
 {
