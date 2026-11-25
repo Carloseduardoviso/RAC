@@ -12,6 +12,8 @@ public static class RacAnaAdvisoryRegistration
         services.AddSingleton<RebecaMarketAdvisory>();
         services.AddSingleton<RebecaMarketAdvisoryPublisher>();        services.AddSingleton<RacAnaRecentReview>();
         services.AddSingleton<RacAnaAdvisoryStore>();
+        if(configuration.GetValue<bool>("Specialists:AnaAdvisory:ReviewRequestsEnabled",false))
+            services.AddSingleton<RacAnaReviewRequestStore>();
         services.AddSingleton<RacAnaAdvisoryCycle>();
         services.AddHostedService<RacAnaAdvisoryWorker>(sp=>new RacAnaAdvisoryWorker(
             sp.GetRequiredService<RacAnaAdvisoryCycle>().RunAsync,
