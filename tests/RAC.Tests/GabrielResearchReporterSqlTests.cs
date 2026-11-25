@@ -45,6 +45,26 @@ public sealed class GabrielResearchReporterSqlTests
             Assert.Single(await recovered.ReadInboxAsync("rebeca",task.Id,10,default));
             await using var check=new RacDbContext(options);
             Assert.Equal("Completed",(await check.AgentTasks.SingleAsync(x=>x.Id==task.Id)).Status);
+            var interrupted=await tasks.EnqueueAsync("rebeca","gabriel","QUANTITATIVE_RESEARCH",default);
+            var claimed=await tasks.ClaimAsync("gabriel",default);
+            Assert.NotNull(claimed);
+            Assert.Equal(interrupted.Id,claimed.Id);
+            Assert.True(await new GabrielResearchReporter(recovered).PublishAsync(interrupted.Id,claimed.UpdatedUtc,hash,json,default));
+            await using(var expiry=new RacDbContext(options))
+            {
+                var row=await expiry.AgentTasks.SingleAsync(x=>x.Id==interrupted.Id);
+                row.LeaseUntilUtc=DateTimeOffset.UtcNow.AddSeconds(-1);
+                await expiry.SaveChangesAsync();
+            }
+            Assert.Equal(1,await tasks.RecoverExpiredAsync(default));
+            var retry=new GabrielTaskExecutor(tasks,recovered,new GabrielResearchReporter(recovered),
+                _=>throw new InvalidOperationException("Persisted report must be reused."));
+            Assert.True(await retry.ExecuteNextAsync(default));
+            Assert.Single(await recovered.ReadInboxAsync("rebeca",interrupted.Id,10,default));
+            await using var final=new RacDbContext(options);
+            var completed=await final.AgentTasks.SingleAsync(x=>x.Id==interrupted.Id);
+            Assert.Equal("Completed",completed.Status);
+            Assert.Equal(2,completed.Attempts);
         }
         finally
         {
