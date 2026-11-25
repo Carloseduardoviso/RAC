@@ -58,6 +58,15 @@ public sealed class CarlosFinancialEvidenceSqlTests
             Assert.False(missing.TradingAuthorized);
             await using var check=new RacDbContext(options);
             Assert.Equal(3,await check.AgentMessages.CountAsync());
+            var publisher=new CarlosFinancialAdvisoryPublisher(service,store);
+            var correlation=Guid.NewGuid();
+            var published=await publisher.PublishAsync(correlation,rafaelTask,samuelTask,miguelTask,now,TimeSpan.FromMinutes(5),default);
+            var retry=await publisher.PublishAsync(correlation,rafaelTask,samuelTask,miguelTask,now.AddSeconds(1),TimeSpan.FromMinutes(5),default);
+            Assert.Equal(published,retry);
+            var ana=await new RacAnaInboxReview(store).ReviewAsync(correlation,now.AddSeconds(1),TimeSpan.FromMinutes(5),default);
+            Assert.True(ana.RiskNoticePresent);
+            Assert.Contains(published.Id,ana.RiskNoticeIds);
+            Assert.Equal(4,await check.AgentMessages.CountAsync());
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally
