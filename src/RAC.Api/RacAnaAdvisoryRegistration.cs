@@ -1,4 +1,5 @@
 using RAC.Infrastructure;
+using RAC.Application;
 
 namespace RAC.Api;
 
@@ -8,9 +9,11 @@ public static class RacAnaAdvisoryRegistration
     {
         if(!configuration.GetValue<bool>("Specialists:AnaAdvisory:Enabled",false)) return services;
         services.AddSingleton<RacAgentMessageStore>();
+        services.AddSingleton<IRacNewsCalendar>(sp=>sp.GetRequiredService<RebecaNewsCalendar>());
         services.AddSingleton<RebecaMarketEvidenceReader>();
         services.AddSingleton<RebecaMarketAdvisory>();
-        services.AddSingleton<RebecaMarketAdvisoryPublisher>();        services.AddSingleton<RacAnaRecentReview>();
+        services.AddSingleton<RebecaMarketAdvisoryPublisher>();
+        services.AddSingleton<RacAnaRecentReview>();
         services.AddSingleton<RacAnaAdvisoryStore>();
         if(configuration.GetValue<bool>("Specialists:AnaAdvisory:ReviewRequestsEnabled",false))
             services.AddSingleton<RacAnaReviewRequestStore>();
