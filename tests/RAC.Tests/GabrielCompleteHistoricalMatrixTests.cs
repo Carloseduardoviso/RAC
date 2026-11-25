@@ -10,10 +10,15 @@ public sealed class GabrielCompleteHistoricalMatrixTests
     [InlineData(1)]
     [InlineData(2)]
     [InlineData(5)]
+    [InlineData(10)]
     public async Task BuildsAllExperimentsFromSixCompleteSyntheticMonths(int count)
     {
-        var symbols=new[]{"ABCUSDT","XYZUSDT","DEFUSDT","GHIUSDT","JKLUSDT"}.Take(count).ToArray();
+        var symbols=new[]{"ABCUSDT","XYZUSDT","DEFUSDT","GHIUSDT","JKLUSDT","MNOUSDT","PQRUSDT","STUUSDT","VWXUSDT","YZABUSDT"}.Take(count).ToArray();
         var watch=System.Diagnostics.Stopwatch.StartNew();
+        using var process=System.Diagnostics.Process.GetCurrentProcess();
+        process.Refresh();
+        var initialWorkingSet=process.WorkingSet64;
+        var initialCpu=process.TotalProcessorTime;
         var allocated=GC.GetTotalAllocatedBytes(true);
         var months=new List<int>();
         var json=await GabrielHistoricalMatrixBuilder.BuildAsync(symbols,
@@ -44,6 +49,8 @@ public sealed class GabrielCompleteHistoricalMatrixTests
         var matrix=GabrielExperimentMatrix.Read(json,symbols);
         Assert.Equal(24*count,matrix.Count);
         Assert.All(matrix,row=>Assert.Contains(row.Symbol,symbols));
+        process.Refresh();
+        Console.WriteLine($"Process metrics: initial working set {initialWorkingSet}; final working set {process.WorkingSet64}; lifetime peak working set {process.PeakWorkingSet64}; CPU seconds {(process.TotalProcessorTime-initialCpu).TotalSeconds:F2}");
         Console.WriteLine($"Historical probe: {count} symbols; {watch.Elapsed.TotalSeconds:F2}s; process-wide allocated bytes delta {GC.GetTotalAllocatedBytes(true)-allocated}");
     }
 
