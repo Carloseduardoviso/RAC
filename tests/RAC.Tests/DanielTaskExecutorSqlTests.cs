@@ -77,7 +77,20 @@ public sealed class DanielTaskExecutorSqlTests
                 var matrix=System.Text.Json.JsonSerializer.Serialize(new {Mode="RESEARCH_ONLY",TradingAuthorized=false,IndependentValidation=false,Rows=rows});
                 var messages=new RacAgentMessageStore(factory);
                 var gabriel=new GabrielTaskExecutor(tasks,messages,new GabrielResearchReporter(messages),_=>Task.FromResult(matrix));
-                Assert.True(await gabriel.ExecuteNextAsync(default));
+                // Recover a linked task interrupted before report publication.
+                var interrupted=await tasks.ClaimAsync("gabriel",default);
+                Assert.NotNull(interrupted);
+                Assert.Equal(linked.Single().Id,interrupted.Id);
+                await using(var expiry=new RacDbContext(options))
+                {
+                    var pending=await expiry.AgentTasks.SingleAsync(x=>x.Id==interrupted.Id);
+                    pending.LeaseUntilUtc=DateTimeOffset.UtcNow.AddSeconds(-1);
+                    await expiry.SaveChangesAsync();
+                }
+                Assert.Equal(1,await tasks.RecoverExpiredAsync(default));
+                var competing=new GabrielTaskExecutor(tasks,messages,new GabrielResearchReporter(messages),_=>Task.FromResult(matrix));
+                var outcomes=await Task.WhenAll(gabriel.ExecuteNextAsync(default),competing.ExecuteNextAsync(default));
+                Assert.Single(outcomes.Where(x=>x));
                 Assert.False(await gabriel.ExecuteNextAsync(default));
                 var quantitative=Assert.Single(await messages.ReadInboxAsync("rebeca",linked.Single().Id,10,default));
                 using var quantitativeJson=System.Text.Json.JsonDocument.Parse(quantitative.Content);
@@ -87,6 +100,7 @@ public sealed class DanielTaskExecutorSqlTests
                 await using var completed=new RacDbContext(options);
                 Assert.Equal(2,await completed.AgentTasks.CountAsync(x=>x.Status=="Completed"));
                 Assert.Equal(2,await completed.AgentMessages.CountAsync());
+                Assert.Equal(2,(await completed.AgentTasks.SingleAsync(x=>x.Id==interrupted.Id)).Attempts);
                 Assert.False(await completed.TestnetOrders.AnyAsync());
             }
             else await Assert.ThrowsAsync<InvalidOperationException>(()=>reader.ReadAsync(task.Id,DateTimeOffset.UtcNow,default));
