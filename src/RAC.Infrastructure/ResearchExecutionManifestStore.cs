@@ -23,7 +23,16 @@ public sealed class ResearchExecutionManifestStore(IDbContextFactory<RacDbContex
         await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
         foreach(var batch in ids.Chunk(500))
         {
-            var found=await db.ResearchQuantitativeExecutions.Where(x=>batch.Contains(x.ExecutionId)&&x.EngineVersion==engineVersion).Select(x=>x.ExecutionId).ToListAsync(ct);
+            var records=await db.ResearchQuantitativeExecutions.AsNoTracking().Where(x=>batch.Contains(x.ExecutionId)&&x.EngineVersion==engineVersion).ToListAsync(ct);
+            var found=records.Select(x=>x.ExecutionId);
+            foreach(var record in records)
+            {
+                var parameters=JsonSerializer.Deserialize<ResearchBacktestParameters.Experiment>(record.ParametersJson) ?? throw new InvalidOperationException("Missing research parameters.");
+                var row=new ResearchExperimentPlan.Row(record.Symbol,parameters);
+                var result=JsonSerializer.Deserialize<ResearchExperimentReplay.Result>(record.ResultJson) ?? throw new InvalidOperationException("Missing research result.");
+                if(record.ConfigurationId!=ResearchExperimentIdentity.Create(row)||record.ExecutionId!=ResearchExperimentExecutionIdentity.Create(row,record.SourceSha256,record.Month,record.EngineVersion)||result.NetPct< -100||result.DrawdownPct<0||result.DrawdownPct>100||result.Trades<0||result.Wins<0||result.Wins>result.Trades||result.Costs<0||result.ProfitFactor<0)
+                    throw new InvalidOperationException("Invalid persisted research evidence.");
+            }
             if(!found.ToHashSet(StringComparer.Ordinal).SetEquals(batch))
                 throw new InvalidOperationException("Missing persisted research executions.");
         }

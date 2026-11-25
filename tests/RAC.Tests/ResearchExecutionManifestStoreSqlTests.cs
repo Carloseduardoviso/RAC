@@ -30,6 +30,23 @@ public sealed class ResearchExecutionManifestStoreSqlTests
             await using(var db=factory.CreateDbContext())Assert.False(await db.ResearchExecutionManifests.AnyAsync());
             var last=evidence.Last();
             await executions.SaveAsync(last.Row,last.SourceSha256,last.Month,engine,result,now,default);
+            await using(var corrupt=factory.CreateDbContext())
+            {
+                var record=await corrupt.ResearchQuantitativeExecutions.FirstAsync();
+                var original=record.ConfigurationId;
+                record.ConfigurationId=new string('F',64);
+                await corrupt.SaveChangesAsync();
+                await Assert.ThrowsAsync<InvalidOperationException>(()=>store.SaveAsync(symbols,engine,evidence,now,default));
+                Assert.False(await corrupt.ResearchExecutionManifests.AnyAsync());
+                record.ConfigurationId=original;
+                var originalResult=record.ResultJson;
+                record.ResultJson=System.Text.Json.JsonSerializer.Serialize(new ResearchExperimentReplay.Result(0,101,0,0,null,0,false));
+                await corrupt.SaveChangesAsync();
+                await Assert.ThrowsAsync<InvalidOperationException>(()=>store.SaveAsync(symbols,engine,evidence,now,default));
+                Assert.False(await corrupt.ResearchExecutionManifests.AnyAsync());
+                record.ResultJson=originalResult;
+                await corrupt.SaveChangesAsync();
+            }
             var concurrent=await Task.WhenAll(Enumerable.Range(0,8).Select(_=>store.SaveAsync(symbols,engine,evidence,now,default)));
             Assert.Single(concurrent,x=>x);
             Assert.False(await store.SaveAsync(symbols,engine,evidence.Reverse().ToArray(),now,default));
