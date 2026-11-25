@@ -18,7 +18,7 @@ public sealed class ResearchExecutionManifestStore(IDbContextFactory<RacDbContex
     {
         var manifest=ResearchExecutionManifest.Create(symbols,engineVersion,evidence);
         var ids=evidence.Select(x=>ResearchExperimentExecutionIdentity.Create(x.Row,x.SourceSha256,x.Month,engineVersion)).OrderBy(x=>x,StringComparer.Ordinal).ToArray();
-        var payload=JsonSerializer.Serialize(ids);
+        var digests=new SortedDictionary<string,string>(StringComparer.Ordinal);
         await using var db=await factory.CreateDbContextAsync(ct);
         await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
         foreach(var batch in ids.Chunk(500))
@@ -32,15 +32,21 @@ public sealed class ResearchExecutionManifestStore(IDbContextFactory<RacDbContex
                 var result=JsonSerializer.Deserialize<ResearchExperimentReplay.Result>(record.ResultJson) ?? throw new InvalidOperationException("Missing research result.");
                 if(record.ConfigurationId!=ResearchExperimentIdentity.Create(row)||record.ExecutionId!=ResearchExperimentExecutionIdentity.Create(row,record.SourceSha256,record.Month,record.EngineVersion)||result.NetPct< -100||result.DrawdownPct<0||result.DrawdownPct>100||result.Trades<0||result.Wins<0||result.Wins>result.Trades||result.Costs<0||result.ProfitFactor<0)
                     throw new InvalidOperationException("Invalid persisted research evidence.");
+                digests.Add(record.ExecutionId,ResearchResultDigest.Create(record.ExecutionId,result));
             }
             if(!found.ToHashSet(StringComparer.Ordinal).SetEquals(batch))
                 throw new InvalidOperationException("Missing persisted research executions.");
         }
+        var payload=JsonSerializer.Serialize(new {Schema="RAC_MANIFEST_RESULTS_V2",Results=digests});
         var existing=await db.ResearchExecutionManifests.SingleOrDefaultAsync(x=>x.ManifestId==manifest.Id,ct);
         if(existing is not null)
         {
-            if(existing.EngineVersion!=engineVersion||existing.Assets!=manifest.Assets||existing.Executions!=manifest.Executions||existing.EvidenceJson!=payload)
+            if(existing.EngineVersion!=engineVersion||existing.Assets!=manifest.Assets||existing.Executions!=manifest.Executions)
                 throw new InvalidOperationException("Conflicting research manifest.");
+            if(existing.EvidenceJson==JsonSerializer.Serialize(ids))
+                throw new InvalidOperationException("Legacy manifest requires independent replay verification before upgrade.");
+            if(existing.EvidenceJson!=payload)
+                throw new InvalidOperationException("Conflicting research result digests.");
             return false;
         }
         db.ResearchExecutionManifests.Add(new ResearchExecutionManifestRecord{ManifestId=manifest.Id,EngineVersion=engineVersion,Assets=manifest.Assets,Executions=manifest.Executions,EvidenceJson=payload,RecordedUtc=now.ToUniversalTime()});

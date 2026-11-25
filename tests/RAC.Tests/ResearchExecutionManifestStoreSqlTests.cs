@@ -50,9 +50,29 @@ public sealed class ResearchExecutionManifestStoreSqlTests
             var concurrent=await Task.WhenAll(Enumerable.Range(0,8).Select(_=>store.SaveAsync(symbols,engine,evidence,now,default)));
             Assert.Single(concurrent,x=>x);
             Assert.False(await store.SaveAsync(symbols,engine,evidence.Reverse().ToArray(),now,default));
+            await using(var corrupt=factory.CreateDbContext())
+            {
+                var record=await corrupt.ResearchQuantitativeExecutions.FirstAsync();
+                var original=record.ResultJson;
+                record.ResultJson=System.Text.Json.JsonSerializer.Serialize(result with {NetPct=1});
+                await corrupt.SaveChangesAsync();
+                await Assert.ThrowsAsync<InvalidOperationException>(()=>store.SaveAsync(symbols,engine,evidence,now,default));
+                record.ResultJson=original;
+                await corrupt.SaveChangesAsync();
+            }
             await using var check=factory.CreateDbContext();
             var manifest=await check.ResearchExecutionManifests.SingleAsync();
             Assert.Equal(144,manifest.Executions);
+            using var document=System.Text.Json.JsonDocument.Parse(manifest.EvidenceJson);
+            Assert.Equal("RAC_MANIFEST_RESULTS_V2",document.RootElement.GetProperty("Schema").GetString());
+            Assert.Equal(144,document.RootElement.GetProperty("Results").EnumerateObject().Count());
+            var legacy=System.Text.Json.JsonSerializer.Serialize(evidence.Select(x=>ResearchExperimentExecutionIdentity.Create(x.Row,x.SourceSha256,x.Month,engine)).OrderBy(x=>x,StringComparer.Ordinal).ToArray());
+            manifest.EvidenceJson=legacy;
+            await check.SaveChangesAsync();
+            var error=await Assert.ThrowsAsync<InvalidOperationException>(()=>store.SaveAsync(symbols,engine,evidence,now,default));
+            Assert.Contains("Legacy manifest",error.Message);
+            await check.Entry(manifest).ReloadAsync();
+            Assert.Equal(legacy,manifest.EvidenceJson);
             Assert.Equal(ResearchExecutionManifest.Create(symbols,engine,evidence).Id,manifest.ManifestId);
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
