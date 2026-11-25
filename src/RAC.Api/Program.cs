@@ -109,6 +109,21 @@ builder.Services.AddHttpClient("binance", client =>
     client.BaseAddress = new Uri("https://testnet.binance.vision/");
     client.Timeout = TimeSpan.FromSeconds(8);
 });
+if (builder.Configuration.GetValue<bool>("Specialists:Daniel:Enabled"))
+{
+    builder.Services.AddSingleton<RacAgentTaskStore>();
+    builder.Services.AddSingleton<DanielDiscoveryStore>();
+    builder.Services.AddSingleton<DanielDiscoveryReporter>();
+    builder.Services.AddSingleton<DanielBinancePublicClient>(_ =>
+        new DanielBinancePublicClient(new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
+        { MaxResponseContentBufferSize = 32 * 1024 * 1024 }));
+    builder.Services.AddSingleton<DanielTaskExecutor>();
+    builder.Services.AddSingleton<RacSpecialistDispatcher>(sp =>
+        new RacSpecialistDispatcher(sp.GetRequiredService<IDbContextFactory<RacDbContext>>(), "daniel"));
+    builder.Services.AddHostedService<RAC.Api.RacSpecialistDispatchWorker>();
+    builder.Services.AddHostedService<RAC.Api.DanielDiscoveryWorker>();
+}
+
 var app = builder.Build();
 app.UseRacSecurity();
 app.MapRacAuthentication();
