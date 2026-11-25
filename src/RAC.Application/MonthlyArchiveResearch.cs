@@ -23,6 +23,19 @@ public static class MonthlyArchiveResearch
     {
         if (!RacMarketSymbols.IsSupported(symbol))
             throw new ArgumentException("Unsupported symbol.", nameof(symbol));
+        return AnalyzeCore(symbol,year,month,zipStream);
+    }
+
+    public static Report AnalyzeDiscovery(string symbol,int year,int month,Stream zipStream)
+    {
+        ResearchExperimentPlan.Build(new[]{symbol});
+        return AnalyzeCore(symbol,year,month,zipStream);
+    }
+
+    private static Report AnalyzeCore(string symbol,int year,int month,Stream zipStream)
+    {
+        if (string.IsNullOrEmpty(symbol))
+            throw new ArgumentException("Unsupported symbol.", nameof(symbol));
         if (year is < 2017 or > 2100 || month is < 1 or > 12)
             throw new ArgumentOutOfRangeException(nameof(month));
         if (!zipStream.CanRead || !zipStream.CanSeek ||
