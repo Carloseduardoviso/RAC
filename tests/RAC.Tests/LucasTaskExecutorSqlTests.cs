@@ -29,7 +29,11 @@ public sealed class LucasTaskExecutorSqlTests
             var snapshot=LucasConnectivityAnalysis.Evaluate(new[]{("BINANCE","PUBLIC"),("BINANCE","TESTNET")},[],now,TimeSpan.FromSeconds(30),TimeSpan.FromSeconds(1),TimeSpan.FromMilliseconds(500));
             var calls=0;
             var executor=new LucasTaskExecutor(tasks,messages,reporter,ct=>{calls++;return Task.FromResult(snapshot);});
-            var task=await tasks.EnqueueAsync("ana","lucas","EXCHANGE_HEALTH",default);
+            var advisory=new RacAnaAdvisoryResult("RISK_REVIEW_REQUIRED",["review"],[Guid.NewGuid()]);
+            var requests=new RacAnaReviewRequestStore(factory);
+            Assert.Equal(2,await requests.SaveAsync(advisory,now,default));
+            var request=RacAnaReviewRequests.Create(advisory,now).Single(x=>x.Recipient=="lucas");
+            var task=new {Id=request.Id};
             using(var worker=new LucasConnectivityWorker(executor,NullLogger<LucasConnectivityWorker>.Instance))
             using(var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(30)))
             {
@@ -50,6 +54,9 @@ public sealed class LucasTaskExecutorSqlTests
             using var json=JsonDocument.Parse(report.Content);
             Assert.False(json.RootElement.GetProperty("TradingAuthorized").GetBoolean());
             Assert.Equal("REVIEW_REQUIRED",json.RootElement.GetProperty("Status").GetString());
+            Assert.Equal(request.Id,report.CorrelationId);
+            Assert.Equal(0,await requests.SaveAsync(advisory,now.AddSeconds(1),default));
+            Assert.False(await executor.ExecuteNextAsync(default));
             var retry=await tasks.EnqueueAsync("ana","lucas","EXCHANGE_HEALTH",default);
             var old=await tasks.ClaimAsync("lucas",default);
             Assert.NotNull(old);
