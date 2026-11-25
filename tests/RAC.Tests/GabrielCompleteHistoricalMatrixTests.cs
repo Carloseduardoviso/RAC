@@ -11,9 +11,10 @@ public sealed class GabrielCompleteHistoricalMatrixTests
     [InlineData(2)]
     [InlineData(5)]
     [InlineData(10)]
+    [InlineData(20)]
     public async Task BuildsAllExperimentsFromSixCompleteSyntheticMonths(int count)
     {
-        var symbols=new[]{"ABCUSDT","XYZUSDT","DEFUSDT","GHIUSDT","JKLUSDT","MNOUSDT","PQRUSDT","STUUSDT","VWXUSDT","YZABUSDT"}.Take(count).ToArray();
+        var symbols=new[]{"ABCUSDT","XYZUSDT","DEFUSDT","GHIUSDT","JKLUSDT","MNOUSDT","PQRUSDT","STUUSDT","VWXUSDT","YZABUSDT","AACUSDT","BBCUSDT","CCCUSDT","DDCUSDT","EECUSDT","FFCUSDT","GGCUSDT","HHCUSDT","IICUSDT","JJCUSDT"}.Take(count).ToArray();
         var watch=System.Diagnostics.Stopwatch.StartNew();
         using var process=System.Diagnostics.Process.GetCurrentProcess();
         process.Refresh();
