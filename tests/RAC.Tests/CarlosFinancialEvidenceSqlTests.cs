@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 using RAC.Infrastructure;
 
@@ -48,6 +48,8 @@ public sealed class CarlosFinancialEvidenceSqlTests
             Assert.Contains(samuel.Id,result.EvidenceIds);
             Assert.Contains(miguel.Id,result.EvidenceIds);
             Assert.Contains("MIGUEL:RISK_LOCKED",result.Reasons);
+            Assert.Contains("CROSS_CHECK:EQUITY_MISMATCH",result.Reasons);
+            Assert.Contains("CROSS_CHECK:RISK_STATE_MISMATCH",result.Reasons);
             Assert.Contains("SAMUEL:REVIEW_REQUIRED",result.Reasons);
             Assert.False(result.TradingAuthorized);
             var missing=await service.ReviewAsync(rafaelTask,Guid.NewGuid(),miguelTask,

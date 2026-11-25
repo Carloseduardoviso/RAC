@@ -1,4 +1,4 @@
-﻿namespace RAC.Infrastructure;
+namespace RAC.Infrastructure;
 public sealed record CarlosFinancialEvidenceResult(string Status,IReadOnlyList<Guid> EvidenceIds,IReadOnlyList<string> Reasons)
 {
     public bool TradingAuthorized=>false;
@@ -15,8 +15,17 @@ public sealed class CarlosFinancialEvidenceService(CarlosRafaelEvidenceReader ra
         var r=await rafael.ReadAsync(rafaelTask,now,maximumAge,ct);
         var s=await samuel.ReadAsync(samuelTask,now,maximumAge,ct);
         var m=await miguel.ReadAsync(miguelTask,now,maximumAge,ct);
-        return Summarize(r.Select(CarlosRafaelReportReview.Review),s.Select(CarlosSamuelReportReview.Review),
+        var result=Summarize(r.Select(CarlosRafaelReportReview.Review),s.Select(CarlosSamuelReportReview.Review),
             m.Select(CarlosMiguelReportReview.Review));
+        var cross=r.Count==1 && m.Count==1
+            ?CarlosFinancialCrossCheck.Review(r[0],m[0],0.01m)
+            :new[]{"CROSS_CHECK_UNAVAILABLE"};
+        if(cross.Count==0) return result;
+        var critical=cross.Any(x=>x.EndsWith("_MISMATCH",StringComparison.Ordinal));
+        var status=result.Status=="RISK_LOCKED"?"RISK_LOCKED":
+            critical || result.Status=="CRITICAL_REVIEW"?"CRITICAL_REVIEW":"REVIEW_REQUIRED";
+        return result with {Status=status,Reasons=Array.AsReadOnly(result.Reasons
+            .Concat(cross.Select(x=>"CROSS_CHECK:"+x)).Distinct().OrderBy(x=>x,StringComparer.Ordinal).ToArray())};
     }
     public static CarlosFinancialEvidenceResult Summarize(IEnumerable<CarlosRafaelReportResult> rafael,
         IEnumerable<CarlosSamuelReportResult> samuel,IEnumerable<CarlosMiguelReportResult> miguel)
