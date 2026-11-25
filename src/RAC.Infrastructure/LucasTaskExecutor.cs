@@ -1,4 +1,4 @@
-﻿using RAC.Application;
+using RAC.Application;
 namespace RAC.Infrastructure;
 public sealed class LucasTaskExecutor(RacAgentTaskStore tasks,RacAgentMessageStore messages,
     LucasConnectivityReporter reporter,Func<CancellationToken,Task<LucasConnectivitySnapshot>> assess)
@@ -17,9 +17,10 @@ public sealed class LucasTaskExecutor(RacAgentTaskStore tasks,RacAgentMessageSto
         if(!existing.Any(x=>x.Sender=="lucas" && x.Kind=="Report"))
         {
             var snapshot=await assess(ct);
-            await reporter.PublishAsync(task.Id,snapshot,ct);
+            await tasks.CompleteWithReportAsync(task.Id,"lucas",lease,reporter.Create(task.Id,snapshot),ct);
+            return true;
         }
-        await tasks.FinishAsync(task.Id,"lucas",lease,true,ct);
+        await tasks.CompleteWithReportAsync(task.Id,"lucas",lease,null,ct);
         return true;
     }
 }

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 using RAC.Domain;
 
@@ -48,6 +48,30 @@ public sealed class RacAgentTaskStore(IDbContextFactory<RacDbContext> factory)
         Apply(r,t);
         await db.SaveChangesAsync(ct);
         return t;
+    }
+
+    public async Task CompleteWithReportAsync(Guid id,string specialist,Guid lease,RacAgentMessage? message,CancellationToken ct)
+    {
+        await using var db=await factory.CreateDbContextAsync(ct);
+        await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
+        var task=await db.AgentTasks.SingleAsync(x=>x.Id==id,ct);
+        var finished=RacTaskLifecycle.Finish(Map(task),specialist,lease,true,DateTimeOffset.UtcNow);
+        var existing=await db.AgentMessages.Where(x=>x.CorrelationId==id && x.Sender==specialist &&
+            x.Recipient==task.Leader && x.Kind=="Report").Take(2).ToListAsync(ct);
+        if(existing.Count>1) throw new InvalidOperationException("Multiple task reports.");
+        if(message is not null)
+        {
+            var row=RacAgentMessageStore.Validate(message);
+            if(row.CorrelationId!=id || row.Sender!=specialist || row.Recipient!=task.Leader || row.Kind!="Report")
+                throw new InvalidOperationException("Report does not match task.");
+            if(existing.Count==0) db.AgentMessages.Add(row);
+            else if(existing[0].Id!=row.Id || existing[0].Content!=row.Content || existing[0].CreatedUtc!=row.CreatedUtc)
+                throw new InvalidOperationException("Conflicting task report.");
+        }
+        else if(existing.Count!=1) throw new InvalidOperationException("Missing task report.");
+        Apply(task,finished);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
     }
 
     public async Task<int> RecoverExpiredAsync(CancellationToken ct)

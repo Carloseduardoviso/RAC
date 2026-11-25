@@ -51,7 +51,8 @@ public sealed class LucasTaskExecutorSqlTests
             Assert.False(json.RootElement.GetProperty("TradingAuthorized").GetBoolean());
             Assert.Equal("REVIEW_REQUIRED",json.RootElement.GetProperty("Status").GetString());
             var retry=await tasks.EnqueueAsync("ana","lucas","EXCHANGE_HEALTH",default);
-            Assert.NotNull(await tasks.ClaimAsync("lucas",default));
+            var old=await tasks.ClaimAsync("lucas",default);
+            Assert.NotNull(old);
             await reporter.PublishAsync(retry.Id,snapshot,default);
             await using(var db=new RacDbContext(options))
             {
@@ -60,6 +61,7 @@ public sealed class LucasTaskExecutorSqlTests
                 await db.SaveChangesAsync();
             }
             Assert.Equal(1,await tasks.RecoverExpiredAsync(default));
+            await Assert.ThrowsAsync<InvalidOperationException>(()=>tasks.CompleteWithReportAsync(retry.Id,"lucas",old.LeaseId!.Value,null,default));
             Assert.True(await executor.ExecuteNextAsync(default));
             Assert.Equal(1,calls);
             Assert.Single(await messages.ReadInboxAsync("ana",retry.Id,10,default));
