@@ -240,6 +240,8 @@ if (lucasEnabled)
     builder.Services.AddHostedService<RAC.Api.LucasConnectivityWorker>();
 }
 
+RAC.Api.RacAnaAdvisoryRegistration.AddRacAnaAdvisory(builder.Services,builder.Configuration);
+
 var app = builder.Build();
 app.UseRacSecurity();
 app.MapRacAuthentication();
