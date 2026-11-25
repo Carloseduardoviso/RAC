@@ -74,6 +74,18 @@ public sealed class CarlosFinancialEvidenceSqlTests
             Assert.Contains($"{correlation}:FINANCIAL:RISK_LOCKED",advisory.Reasons);
             Assert.Contains(published.Id,advisory.EvidenceIds);
             Assert.False(advisory.TradingAuthorized);
+            var auditor=new RacAnaFinancialEvidenceAudit(factory);
+            var provenance=await auditor.ReviewAsync(published,TimeSpan.FromMinutes(5),default);
+            Assert.Equal(3,provenance.VerifiedIds.Count);
+            Assert.Empty(provenance.InvalidIds);
+            Assert.False(provenance.TradingAuthorized);
+            var unknown=Guid.NewGuid();
+            var invalidReport=CarlosFinancialAdvisoryReport.Create(Guid.NewGuid(),
+                new("REVIEW_REQUIRED",[rafael.Id,unknown,published.Id],["TEST"]),now);
+            var invalid=await auditor.ReviewAsync(invalidReport,TimeSpan.FromMinutes(5),default);
+            Assert.Equal(rafael.Id,Assert.Single(invalid.VerifiedIds));
+            Assert.Contains(unknown,invalid.InvalidIds);
+            Assert.Contains(published.Id,invalid.InvalidIds);
             Assert.Equal(4,await check.AgentMessages.CountAsync());
             var concurrentId=Guid.NewGuid();
             var concurrent=await Task.WhenAll(Enumerable.Range(0,8).Select(i=>
