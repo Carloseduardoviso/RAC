@@ -111,12 +111,16 @@ builder.Services.AddHttpClient("binance", client =>
 });
 var danielEnabled = builder.Configuration.GetValue<bool>("Specialists:Daniel:Enabled");
 var gabrielEnabled = builder.Configuration.GetValue<bool>("Specialists:Gabriel:Enabled");
-if (danielEnabled || gabrielEnabled)
+var rafaelEnabled = builder.Configuration.GetValue<bool>("Specialists:Rafael:Enabled");
+var enabledSpecialists = new[] { danielEnabled ? "daniel" : null, gabrielEnabled ? "gabriel" : null,
+    rafaelEnabled ? "rafael" : null }.OfType<string>().ToArray();
+if (enabledSpecialists.Length > 0)
 {
     builder.Services.AddSingleton<RacAgentTaskStore>();
+    builder.Services.AddSingleton<RacAgentMessageStore>();
     builder.Services.AddSingleton<RacSpecialistDispatcher>(sp =>
         new RacSpecialistDispatcher(sp.GetRequiredService<IDbContextFactory<RacDbContext>>(),
-            danielEnabled ? "daniel" : "gabriel", gabrielEnabled && danielEnabled ? "gabriel" : null));
+            enabledSpecialists[0], enabledSpecialists.ElementAtOrDefault(1), enabledSpecialists.ElementAtOrDefault(2)));
     builder.Services.AddHostedService<RAC.Api.RacSpecialistDispatchWorker>();
 }
 if (danielEnabled)
@@ -145,6 +149,27 @@ if (gabrielEnabled)
     });
     builder.Services.AddSingleton<GabrielTaskExecutor>();
     builder.Services.AddHostedService<RAC.Api.GabrielResearchWorker>();
+}
+
+if (rafaelEnabled)
+{
+    var section = builder.Configuration.GetSection("Specialists:Rafael");
+    var limits = new RafaelAllocationLimits(
+        section.GetValue<decimal>("ReservePercent",100m),
+        section.GetValue<decimal>("MaxExposurePercent",0m),
+        section.GetValue<decimal>("MaxPositionPercent",0m));
+    var age = TimeSpan.FromSeconds(section.GetValue<int>("MaximumAgeSeconds",120));
+    var tolerance = section.GetValue<decimal>("ReconciliationToleranceBrl",0.01m);
+    RafaelAllocationCapacity.Evaluate(new RafaelCapitalSnapshot(0,0,0,true),limits);
+    RafaelFinancialHealth.Evaluate(new RafaelCapitalSnapshot(0,0,0,true),0,
+        DateTimeOffset.UtcNow,null,false,DateTimeOffset.UtcNow,age,tolerance);
+    builder.Services.AddSingleton<RafaelCapitalReader>();
+    builder.Services.AddSingleton<RafaelFinancialReporter>();
+    builder.Services.AddSingleton<RafaelTaskExecutor>(sp => new RafaelTaskExecutor(
+        sp.GetRequiredService<RacAgentTaskStore>(),sp.GetRequiredService<RacAgentMessageStore>(),
+        sp.GetRequiredService<RafaelFinancialReporter>(),sp.GetRequiredService<RafaelCapitalReader>(),
+        limits,age,tolerance));
+    builder.Services.AddHostedService<RAC.Api.RafaelCapitalWorker>();
 }
 
 var app = builder.Build();
