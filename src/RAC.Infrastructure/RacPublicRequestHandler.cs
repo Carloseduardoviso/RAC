@@ -1,6 +1,6 @@
-﻿using System.Net;
+using System.Net;
 namespace RAC.Infrastructure;
-public sealed class RacPublicRequestHandler(RacPublicRequestGate gate,TimeProvider clock):DelegatingHandler
+public sealed class RacPublicRequestHandler(RacPublicRequestGate gate,TimeProvider clock,RacPublicWeightBudget? budget=null):DelegatingHandler
 {
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken ct)
     {
@@ -19,6 +19,8 @@ public sealed class RacPublicRequestHandler(RacPublicRequestGate gate,TimeProvid
             if(!gate.TryAcquire(uri.Host,TimeSpan.FromSeconds(2),out _))
                 throw new HttpRequestException("Shared exchange cooldown active.");
         }
+        if(budget is not null && !budget.TryReserve(uri.Host,RacPublicWeightBudget.Estimate(uri)))
+            throw new HttpRequestException("Internal public request weight budget exhausted.");
         try
         {
             var response=await base.SendAsync(request,ct);
@@ -34,6 +36,6 @@ public sealed class RacPublicRequestHandler(RacPublicRequestGate gate,TimeProvid
         catch(HttpRequestException){gate.Defer(uri.Host,TimeSpan.FromSeconds(30));throw;}
         catch(OperationCanceledException){gate.Defer(uri.Host,TimeSpan.FromSeconds(30));throw;}
     }
-    public static HttpClient CreateClient(RacPublicRequestGate gate,int buffer)=>new(new RacPublicRequestHandler(gate,TimeProvider.System)
+    public static HttpClient CreateClient(RacPublicRequestGate gate,int buffer,RacPublicWeightBudget? budget=null)=>new(new RacPublicRequestHandler(gate,TimeProvider.System,budget)
     {InnerHandler=new HttpClientHandler{AllowAutoRedirect=false,UseCookies=false}}){MaxResponseContentBufferSize=buffer};
 }
