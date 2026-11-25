@@ -6,7 +6,7 @@ public static class GabrielExperimentMatrix
 {
     public sealed record Row(string Month,string Phase,string Symbol,ResearchBacktestParameters.Experiment Parameters,ResearchExperimentReplay.Result Result);
     public sealed record Assessment(string Symbol,ResearchBacktestParameters.Experiment Parameters, GabrielHistoricalAssessment Evidence);
-    public static IReadOnlyList<Assessment> Read(string json)
+    public static IReadOnlyList<Assessment> Read(string json,IEnumerable<string>? symbols=null)
     {
         using var doc=JsonDocument.Parse(json);
         var root=doc.RootElement;
@@ -14,7 +14,7 @@ public static class GabrielExperimentMatrix
             root.GetProperty("TradingAuthorized").GetBoolean() || root.GetProperty("IndependentValidation").GetBoolean())
             throw new InvalidDataException("Invalid research mode.");
         var rows=root.GetProperty("Rows").Deserialize<Row[]>() ?? throw new InvalidDataException("Missing rows.");
-        var plan=ResearchExperimentPlan.Build();
+        var plan=ResearchExperimentPlan.Build(symbols);
         var months=new[]{"2026-05","2026-06","2026-07","2026-08","2026-09","2026-10"};
         if(rows.Length!=plan.Count*months.Length ||
             rows.Select(x=>(x.Month,x.Symbol,x.Parameters)).Distinct().Count()!=rows.Length ||
