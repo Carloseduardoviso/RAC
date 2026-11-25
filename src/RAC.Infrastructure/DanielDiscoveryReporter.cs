@@ -1,0 +1,23 @@
+﻿using Microsoft.EntityFrameworkCore;
+using RAC.Application;
+using System.Text.Json;
+
+namespace RAC.Infrastructure;
+
+public sealed class DanielDiscoveryReporter(IDbContextFactory<RacDbContext> factory)
+{
+    public async Task<bool> PublishAsync(Guid taskId,CancellationToken ct)
+    {
+        await using var db=await factory.CreateDbContextAsync(ct);
+        var discovery=await db.DanielDiscoveries.AsNoTracking().SingleAsync(x=>x.TaskId==taskId,ct);
+        var candidates=JsonSerializer.Deserialize<DanielRankedCandidate[]>(discovery.CandidatesJson)
+            ?? throw new InvalidOperationException("Missing candidates.");
+        if(candidates.Length!=discovery.CandidateCount || candidates.Length>20)
+            throw new InvalidOperationException("Invalid discovery record.");
+        var content=JsonSerializer.Serialize(new { Mode="RESEARCH_ONLY",TradingAuthorized=false,
+            discovery.TaskId,discovery.ObservedUtc,Candidates=candidates });
+        var message=RacAgentCommunication.Create("daniel","rebeca",RacMessageKind.Report,content,taskId,discovery.ObservedUtc);
+        var hash=System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("DANIEL:REPORT:V1:"+taskId.ToString("N")));
+        return await new RacAgentMessageStore(factory).SaveAsync(message with { Id=new Guid(hash.AsSpan(0,16)) },ct);
+    }
+}

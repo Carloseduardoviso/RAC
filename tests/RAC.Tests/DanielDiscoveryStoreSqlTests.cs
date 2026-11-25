@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 using RAC.Infrastructure;
 namespace RAC.Tests;
@@ -31,6 +31,14 @@ public sealed class DanielDiscoveryStoreSqlTests
             Assert.False(await store.SaveAsync(task.Id,running.LeaseId!.Value,rows,now,default));
             var saved=Assert.Single(await store.ReadRecentAsync(10,default));
             Assert.Equal(1,saved.CandidateCount);
+            var reporter=new DanielDiscoveryReporter(factory);
+            Assert.True(await reporter.PublishAsync(task.Id,default));
+            Assert.False(await reporter.PublishAsync(task.Id,default));
+            var inbox=await new RacAgentMessageStore(factory).ReadInboxAsync("rebeca",task.Id,10,default);
+            var report=Assert.Single(inbox);
+            Assert.Equal("daniel",report.Sender);
+            Assert.Contains("RESEARCH_ONLY",report.Content);
+            Assert.Contains("ABCUSDT",report.Content);
             Assert.Contains("ABCUSDT",saved.CandidatesJson);
             Assert.Contains("\"TradingAuthorized\":false",saved.CandidatesJson);
         }
