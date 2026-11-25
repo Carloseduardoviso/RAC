@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 namespace RAC.Infrastructure;
 
@@ -21,7 +21,11 @@ public sealed class RacAnaReviewRequestStore(IDbContextFactory<RacDbContext> fac
                     throw new InvalidOperationException("Review request identity collision.");
             }
             var missing=requests.Where(x=>existing.All(y=>y.Id!=x.Id)).ToArray();
-            if(missing.Length==0) return 0;
+            var lucas=requests.Single(x=>x.Recipient=="lucas");
+            var task=await db.AgentTasks.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==lucas.Id,ct);
+            if(task is not null && (task.Leader!="ana" || task.Specialist!="lucas" || task.Description!="EXCHANGE_HEALTH")) throw new InvalidOperationException("Lucas task identity collision.");
+            if(task is null) db.AgentTasks.Add(new RAC.Domain.RacAgentTaskRecord {Id=lucas.Id,Leader="ana",Specialist="lucas",Description="EXCHANGE_HEALTH",Status="Pending",UpdatedUtc=now.ToUniversalTime()});
+            if(missing.Length==0 && task is not null) return 0;
             db.AgentMessages.AddRange(missing);
             try { await db.SaveChangesAsync(ct); return missing.Length; }
             catch(DbUpdateException ex) when(attempt<3 && ex.InnerException is Microsoft.Data.SqlClient.SqlException sql && sql.Number is 2601 or 2627) { }

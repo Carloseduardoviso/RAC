@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 using RAC.Infrastructure;
 using Xunit;
@@ -23,6 +23,10 @@ public sealed class RacAnaReviewRequestStoreTests
             Assert.Equal(0,await new RacAnaReviewRequestStore(new Factory(options)).SaveAsync(result,now.AddSeconds(1),default));
             await using var check=new RacDbContext(options);
             Assert.Equal(2,await check.AgentMessages.CountAsync());
+            var task=await check.AgentTasks.SingleAsync();
+            Assert.Equal("EXCHANGE_HEALTH",task.Description);
+            Assert.Equal("Pending",task.Status);
+            Assert.Equal(RacAnaReviewRequests.Create(result,now).Single(x=>x.Recipient=="lucas").Id,task.Id);
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally { await using var db=new RacDbContext(options); await db.Database.EnsureDeletedAsync(); }
