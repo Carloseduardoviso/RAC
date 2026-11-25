@@ -48,9 +48,21 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public DbSet<ResearchLicenseRecord> ResearchLicenses => Set<ResearchLicenseRecord>();
     public DbSet<ResearchStrategyCatalogRecord> ResearchStrategyCatalogs => Set<ResearchStrategyCatalogRecord>();
     public DbSet<RacAgentMessageRecord> AgentMessages => Set<RacAgentMessageRecord>();
+    public DbSet<RacAgentTaskRecord> AgentTasks => Set<RacAgentTaskRecord>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<RacAgentTaskRecord>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Leader).HasMaxLength(64).IsRequired();
+            e.Property(x => x.Specialist).HasMaxLength(64).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(4096).IsRequired();
+            e.Property(x => x.Status).HasMaxLength(32).IsRequired();
+            e.Property(x => x.Version).IsRowVersion();
+            e.HasIndex(x => new { x.Specialist, x.Status, x.UpdatedUtc });
+            e.HasIndex(x => new { x.Status, x.LeaseUntilUtc });
+        });
         model.Entity<RacAgentMessageRecord>(e =>
         {
             e.HasKey(x => x.Id);
