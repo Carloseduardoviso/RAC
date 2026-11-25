@@ -1,4 +1,4 @@
-﻿using RAC.Application;
+using RAC.Application;
 namespace RAC.Infrastructure;
 public sealed class CarlosFinancialAdvisoryPublisher(CarlosFinancialEvidenceService service,RacAgentMessageStore messages)
 {
@@ -8,15 +8,6 @@ public sealed class CarlosFinancialAdvisoryPublisher(CarlosFinancialEvidenceServ
         if(correlationId==Guid.Empty) throw new ArgumentException("Invalid advisory correlation.");
         var result=await service.ReviewAsync(rafaelTask,samuelTask,miguelTask,observedUtc,maximumAge,ct);
         var message=CarlosFinancialAdvisoryReport.Create(correlationId,result,observedUtc);
-        var existing=(await messages.ReadInboxAsync("ana",correlationId,500,ct)).SingleOrDefault(x=>x.Id==message.Id);
-        if(existing is not null)
-        {
-            if(existing.Content!=message.Content || existing.Sender!=message.Sender ||
-                existing.Recipient!=message.Recipient || existing.Kind!=message.Kind.ToString())
-                throw new InvalidOperationException("Advisory identity collision.");
-            return message with {CreatedUtc=existing.CreatedUtc};
-        }
-        await messages.SaveAsync(message,ct);
-        return message;
+        return await messages.SaveFinancialAdvisoryAsync(message,ct);
     }
 }

@@ -67,6 +67,12 @@ public sealed class CarlosFinancialEvidenceSqlTests
             Assert.True(ana.RiskNoticePresent);
             Assert.Contains(published.Id,ana.RiskNoticeIds);
             Assert.Equal(4,await check.AgentMessages.CountAsync());
+            var concurrentId=Guid.NewGuid();
+            var concurrent=await Task.WhenAll(Enumerable.Range(0,8).Select(i=>
+                publisher.PublishAsync(concurrentId,rafaelTask,samuelTask,miguelTask,
+                    now.AddSeconds(i),TimeSpan.FromMinutes(5),default)));
+            Assert.All(concurrent,x=>Assert.Equal(concurrent[0],x));
+            Assert.Equal(5,await check.AgentMessages.CountAsync());
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally

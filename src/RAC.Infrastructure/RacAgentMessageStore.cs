@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 using RAC.Domain;
 
@@ -38,6 +38,28 @@ public sealed class RacAgentMessageStore(IDbContextFactory<RacDbContext> factory
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return true;
+    }
+
+    public async Task<RacAgentMessage> SaveFinancialAdvisoryAsync(RacAgentMessage message,CancellationToken ct)
+    {
+        var row=Validate(message);
+        if(message.Sender!="carlos" || message.Recipient!="ana" ||
+            message.Kind is not (RacMessageKind.Report or RacMessageKind.RiskNotice))
+            throw new ArgumentException("Invalid financial advisory route.");
+        await using var db=await factory.CreateDbContextAsync(ct);
+        db.AgentMessages.Add(row);
+        try { await db.SaveChangesAsync(ct); return message; }
+        catch(DbUpdateException ex) when(ex.InnerException is Microsoft.Data.SqlClient.SqlException sql &&
+            sql.Number is 2601 or 2627)
+        {
+            db.ChangeTracker.Clear();
+            var existing=await db.AgentMessages.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==row.Id,ct);
+            if(existing is null) throw;
+            if(existing.CorrelationId!=row.CorrelationId || existing.Sender!=row.Sender ||
+                existing.Recipient!=row.Recipient || existing.Kind!=row.Kind || existing.Content!=row.Content)
+                throw new InvalidOperationException("Advisory identity collision.",ex);
+            return message with {CreatedUtc=existing.CreatedUtc};
+        }
     }
 
     public async Task<IReadOnlyList<RacAgentMessageRecord>> ReadInboxAsync(string recipient,
