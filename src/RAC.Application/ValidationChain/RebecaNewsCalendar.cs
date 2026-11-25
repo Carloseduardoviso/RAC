@@ -1,4 +1,4 @@
-﻿namespace RAC.Application;
+namespace RAC.Application;
 
 // Observational calendar cache. A missing or expired snapshot is not evidence of safety.
 public sealed class RebecaNewsCalendar : IRacNewsCalendar
@@ -18,6 +18,20 @@ public sealed class RebecaNewsCalendar : IRacNewsCalendar
             if(snapshot is not null && observedUtc<=snapshot.ObservedUtc)
                 throw new InvalidOperationException("Non-monotonic news snapshot.");
             Volatile.Write(ref snapshot,new Snapshot(observedUtc,copy));
+        }
+    }
+    // Capture one immutable snapshot for an entire advisory review.
+    public IRacNewsCalendar Capture()
+    {
+        return new CapturedCalendar(Volatile.Read(ref snapshot));
+    }
+    private sealed class CapturedCalendar(Snapshot? current):IRacNewsCalendar
+    {
+        public IReadOnlyList<RacNewsEvent>? EventsAround(string symbol,DateTimeOffset nowUtc)
+        {
+            if(current is null || current.ObservedUtc>nowUtc ||
+                nowUtc-current.ObservedUtc>TimeSpan.FromMinutes(5)) return null;
+            return current.Items.Where(x=>x.Symbol==symbol || x.Symbol=="ALL").Select(x=>x.Event).ToArray();
         }
     }
     public IReadOnlyList<RacNewsEvent>? EventsAround(string symbol,DateTimeOffset nowUtc)

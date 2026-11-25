@@ -1,4 +1,4 @@
-﻿using RAC.Application;
+using RAC.Application;
 namespace RAC.Infrastructure;
 public sealed record RebecaMarketAdvisoryResult(string Status,IReadOnlyList<Guid> EvidenceIds,IReadOnlyList<string> Reasons,IReadOnlyList<RebecaNewsEvidenceResult> News)
 {
@@ -21,8 +21,9 @@ public sealed class RebecaMarketAdvisory(RebecaMarketEvidenceReader reader,IRacN
         if(gabriel.Count!=1) reasons.Add(gabriel.Count==0?"GABRIEL:MISSING":"GABRIEL:MULTIPLE");
         reasons.AddRange(daniel.Select(x=>"DANIEL:"+x.Status));
         reasons.AddRange(gabriel.Select(x=>"GABRIEL:"+x.Status));
+        var stableCalendar=calendar is RebecaNewsCalendar live?live.Capture():calendar;
         var news=daniel.Count==1 && daniel[0].Status=="RESEARCH_ONLY"
-            ?daniel[0].Candidates.Select(x=>RebecaNewsEvidence.Review(calendar,x.Symbol,now)).ToArray():[];
+            ?daniel[0].Candidates.Select(x=>RebecaNewsEvidence.Review(stableCalendar,x.Symbol,now)).ToArray():[];
         reasons.AddRange(news.Select(x=>"NEWS:"+x.Symbol+":"+x.Status));
         var critical=daniel.Any(x=>x.Status=="INVALID_REPORT") || gabriel.Any(x=>x.Status=="INVALID_REPORT") ||
             news.Any(x=>x.Status is "HIGH_IMPACT_REVIEW" or "NEWS_CONFLICT");
