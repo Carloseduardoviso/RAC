@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 using RAC.Infrastructure;
 using System.Text.Json;
@@ -37,6 +37,14 @@ public sealed class GabrielResearchReporterSqlTests
             Assert.Equal("gabriel",report.Sender);
             using var doc=JsonDocument.Parse(report.Content);
             Assert.False(doc.RootElement.GetProperty("TradingAuthorized").GetBoolean());
+            var tasks=new RacAgentTaskStore(new Factory(options));
+            var task=await tasks.EnqueueAsync("rebeca","gabriel","QUANTITATIVE_RESEARCH",default);
+            var executor=new GabrielTaskExecutor(tasks,recovered,new GabrielResearchReporter(recovered),_=>Task.FromResult(json));
+            Assert.True(await executor.ExecuteNextAsync(default));
+            Assert.False(await executor.ExecuteNextAsync(default));
+            Assert.Single(await recovered.ReadInboxAsync("rebeca",task.Id,10,default));
+            await using var check=new RacDbContext(options);
+            Assert.Equal("Completed",(await check.AgentTasks.SingleAsync(x=>x.Id==task.Id)).Status);
         }
         finally
         {
