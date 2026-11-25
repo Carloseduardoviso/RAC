@@ -3,7 +3,7 @@ namespace RAC.Application;
 // Advisory evidence inventory only; never authorizes execution.
 public sealed record RacAnaReportReviewResult(Guid CorrelationId,
     IReadOnlyList<RacAgentMessage> Evidence, IReadOnlyList<string> Missing,
-    IReadOnlyList<string> Conflicting, bool RiskNoticePresent);
+    IReadOnlyList<string> Conflicting, bool RiskNoticePresent) { public IReadOnlyList<Guid> RiskNoticeIds { get; init; } = []; }
 
 public static class RacAnaReportReview
 {
@@ -25,6 +25,6 @@ public static class RacAnaReportReview
         return new(correlationId, Array.AsReadOnly(reports.OrderBy(m => m.Sender, StringComparer.Ordinal)
             .ThenBy(m => m.CreatedUtc).ThenBy(m => m.Id).ToArray()),
             Array.AsReadOnly(missing), Array.AsReadOnly(conflicts),
-            scoped.Any(m => m.Sender == "carlos" && m.Kind == RacMessageKind.RiskNotice));
+            scoped.Any(m => m.Sender == "carlos" && m.Kind == RacMessageKind.RiskNotice)) { RiskNoticeIds = Array.AsReadOnly(scoped.Where(m => m.Sender == "carlos" && m.Kind == RacMessageKind.RiskNotice).Select(m => m.Id).Distinct().OrderBy(x => x).ToArray()) };
     }
 }

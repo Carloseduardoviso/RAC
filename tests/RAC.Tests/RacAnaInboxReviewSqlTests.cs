@@ -25,7 +25,7 @@ public sealed class RacAnaInboxReviewSqlTests
             var id=Guid.NewGuid();
             foreach(var sender in new[]{"rebeca","carlos","lucas"})
                 await store.SaveAsync(RacAgentCommunication.Create(sender,"ana",RacMessageKind.Report,"evidence",id,now),default);
-            await store.SaveAsync(RacAgentCommunication.Create("carlos","ana",RacMessageKind.RiskNotice,"stop",id,now),default);
+            var notice=RacAgentCommunication.Create("carlos","ana",RacMessageKind.RiskNotice,"stop",id,now); await store.SaveAsync(notice,default);
             await store.SaveAsync(RacAgentCommunication.Create("lucas","ana",RacMessageKind.Report,"foreign",Guid.NewGuid(),now),default);
             var result=await new RacAnaInboxReview(store).ReviewAsync(id,now,TimeSpan.FromMinutes(5),default);
             Assert.Equal(3,result.Evidence.Count);
@@ -35,11 +35,11 @@ public sealed class RacAnaInboxReviewSqlTests
                 .ReviewAsync(new[]{id,Guid.NewGuid(),id},now,TimeSpan.FromMinutes(5),default);
             Assert.Equal("RISK_REVIEW_REQUIRED",advisory.Status);
             Assert.False(advisory.TradingAuthorized);
-            Assert.Equal(3,advisory.EvidenceIds.Count);
+            Assert.Equal(4,advisory.EvidenceIds.Count); Assert.Contains(notice.Id,advisory.EvidenceIds);
             var recent=new RacAnaRecentReview(new Factory(options));
             var automatic=await recent.ReviewAsync(now,TimeSpan.FromMinutes(5),default);
             Assert.Equal("RISK_REVIEW_REQUIRED",automatic.Status);
-            Assert.Equal(4,automatic.EvidenceIds.Count);
+            Assert.Equal(5,automatic.EvidenceIds.Count); Assert.Contains(notice.Id,automatic.EvidenceIds);
             Assert.False(automatic.TradingAuthorized);
             var audit=new RacAnaAdvisoryStore(new Factory(options));
             Assert.True(await audit.SaveAsync(automatic,now,default));
@@ -53,7 +53,7 @@ public sealed class RacAnaInboxReviewSqlTests
             Assert.Empty(expired.EvidenceIds);
             await using var check=new RacDbContext(options);
             Assert.Equal(5,await check.AgentMessages.CountAsync());
-            Assert.Equal(1,await check.AnaAdvisories.CountAsync());
+            Assert.Equal(1,await check.AnaAdvisories.CountAsync()); Assert.Contains(notice.Id,System.Text.Json.JsonSerializer.Deserialize<Guid[]>((await check.AnaAdvisories.SingleAsync()).EvidenceIdsJson)!);
             var concurrent=automatic with { Reasons = ["concurrency-test"] };
             var writes=await Task.WhenAll(Enumerable.Range(0,8).Select(_=>audit.SaveAsync(concurrent,now,default)));
             Assert.Single(writes,x=>x);

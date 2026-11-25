@@ -24,7 +24,6 @@ public static class RacAnaAdvisory
         var status = batch.Any(x => x.RiskNoticePresent) ? "RISK_REVIEW_REQUIRED" :
             reasons.Count > 0 ? "INCOMPLETE_REVIEW" : "HUMAN_REVIEW_REQUIRED";
         if(reasons.Count == 0) reasons.Add("SEMANTIC_REVIEW_REQUIRED");
-        return new(status, reasons.AsReadOnly(), Array.AsReadOnly(batch.SelectMany(x => x.Evidence)
-            .Select(x => x.Id).Distinct().OrderBy(x => x).ToArray()));
+        return new(status, reasons.AsReadOnly(), Array.AsReadOnly(batch.SelectMany(x => x.Evidence.Select(m => m.Id).Concat(x.RiskNoticeIds)).Distinct().OrderBy(x => x).ToArray()));
     }
 }
