@@ -1,8 +1,10 @@
-﻿using RAC.Application;
+using RAC.Application;
 using System.Text.Json;
 namespace RAC.Infrastructure;
-public sealed class LucasBinancePublicClient(HttpClient http)
+public sealed class LucasBinancePublicClient(HttpClient http):ILucasExchangeProbe
 {
+    public string Exchange=>"BINANCE";
+    public string Environment=>"PUBLIC";
     public async Task<LucasExchangeObservation> ReadAsync(CancellationToken ct)
     {
         var start=DateTimeOffset.UtcNow;
