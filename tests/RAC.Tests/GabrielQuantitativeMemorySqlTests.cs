@@ -51,15 +51,17 @@ public sealed class GabrielQuantitativeMemorySqlTests
             await using(var db=new RacDbContext(options))await db.Database.MigrateAsync();
             using var handler=new Handler{Interrupt=true};
             using var http=new HttpClient(handler);
-            var source=new GabrielDynamicHistoricalSource(new GabrielPublicArchiveClient(http),new ResearchQuantitativeExecutionStore(new Factory(options)));
+            var source=new GabrielDynamicHistoricalSource(new GabrielPublicArchiveClient(http),new ResearchQuantitativeExecutionStore(new Factory(options)),new ResearchExecutionManifestStore(new Factory(options)));
             await Assert.ThrowsAsync<HttpRequestException>(()=>source.ReadAsync(["ABCUSDT"],default));
             await using(var db=new RacDbContext(options))Assert.Equal(24,await db.ResearchQuantitativeExecutions.CountAsync());
+            await using(var db=new RacDbContext(options))Assert.False(await db.ResearchExecutionManifests.AnyAsync());
             handler.Interrupt=false;
             var first=await source.ReadAsync(["ABCUSDT"],default);
             var second=await source.ReadAsync(["ABCUSDT"],default);
             Assert.Equal(first,second);
             await using var check=new RacDbContext(options);
             Assert.Equal(144,await check.ResearchQuantitativeExecutions.CountAsync());
+            Assert.Equal(144,(await check.ResearchExecutionManifests.SingleAsync()).Executions);
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally {await using var db=new RacDbContext(options);await db.Database.EnsureDeletedAsync();}
@@ -75,13 +77,14 @@ public sealed class GabrielQuantitativeMemorySqlTests
             await using(var db=new RacDbContext(options))await db.Database.MigrateAsync();
             using var handler=new Handler();
             using var http=new HttpClient(handler);
-            var source=new GabrielDynamicHistoricalSource(new GabrielPublicArchiveClient(http),new ResearchQuantitativeExecutionStore(new Factory(options)));
+            var source=new GabrielDynamicHistoricalSource(new GabrielPublicArchiveClient(http),new ResearchQuantitativeExecutionStore(new Factory(options)),new ResearchExecutionManifestStore(new Factory(options)));
             var symbols=Enumerable.Range(0,20).Select(i=>$"SYN{i:D2}USDT").ToArray();
             var clock=System.Diagnostics.Stopwatch.StartNew();
             await source.ReadAsync(symbols,default);
             clock.Stop();
             await using var check=new RacDbContext(options);
             Assert.Equal(2880,await check.ResearchQuantitativeExecutions.CountAsync());
+            Assert.Equal(2880,(await check.ResearchExecutionManifests.SingleAsync()).Executions);
             Assert.Equal(480,await check.ResearchQuantitativeExecutions.Select(x=>x.ConfigurationId).Distinct().CountAsync());
             Assert.Equal(20,await check.ResearchQuantitativeExecutions.Select(x=>x.Symbol).Distinct().CountAsync());
             Assert.False(await check.TestnetOrders.AnyAsync());

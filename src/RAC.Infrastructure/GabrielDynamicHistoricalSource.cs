@@ -1,7 +1,7 @@
 using RAC.Application;
 namespace RAC.Infrastructure;
 
-public sealed class GabrielDynamicHistoricalSource(GabrielPublicArchiveClient archives, ResearchQuantitativeExecutionStore? memory=null)
+public sealed class GabrielDynamicHistoricalSource(GabrielPublicArchiveClient archives, ResearchQuantitativeExecutionStore? memory=null, ResearchExecutionManifestStore? manifests=null)
 {
 
 
@@ -21,7 +21,10 @@ public sealed class GabrielDynamicHistoricalSource(GabrielPublicArchiveClient ar
                 await RecordAsync(row,hash,month,replay,token);
                 evidence.Add(new(row,month,hash));
             });
-        if(memory is not null)
+        if(manifests is not null && memory is null) throw new InvalidOperationException("Manifest persistence requires quantitative memory.");
+        if(manifests is not null)
+            await manifests.SaveAsync(symbols,ResearchEngineCatalog.Current.Id,evidence,DateTimeOffset.UtcNow,deadline.Token);
+        else if(memory is not null)
             ResearchExecutionManifest.Create(symbols,ResearchEngineCatalog.Current.Id,evidence);
         deadline.Token.ThrowIfCancellationRequested();
         return result;
