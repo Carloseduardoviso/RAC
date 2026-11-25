@@ -45,6 +45,13 @@ public sealed class DanielTaskExecutorSqlTests
             var snapshot=(await check.DanielDiscoveries.SingleAsync()).ResearchSnapshotJson!;
             Assert.Contains("DANIEL_COVERAGE_V1",snapshot);
             Assert.Contains("MISSINGUSDT",snapshot);
+            var report=await check.AgentMessages.SingleAsync();
+            using var json=System.Text.Json.JsonDocument.Parse(report.Content);
+            Assert.Equal(empty?"NO_VALID_OBSERVATIONS":"PARTIAL_COVERAGE",json.RootElement.GetProperty("CoverageStatus").GetString());
+            Assert.False(json.RootElement.GetProperty("TradingAuthorized").GetBoolean());
+            var replay=await new DanielDiscoveryReporter(factory).CreateAsync(task.Id,default);
+            Assert.Equal(report.Id,replay.Id);
+            Assert.Equal(report.Content,replay.Content);
             Assert.False(await check.TestnetOrders.AnyAsync());
             Assert.Equal(task.Id,(await check.AgentMessages.SingleAsync()).CorrelationId);
         }
