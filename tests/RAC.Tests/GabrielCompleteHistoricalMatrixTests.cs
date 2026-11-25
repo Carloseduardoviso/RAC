@@ -9,9 +9,10 @@ public sealed class GabrielCompleteHistoricalMatrixTests
     [Theory]
     [InlineData(1)]
     [InlineData(2)]
+    [InlineData(5)]
     public async Task BuildsAllExperimentsFromSixCompleteSyntheticMonths(int count)
     {
-        var symbols=new[]{"ABCUSDT","XYZUSDT"}.Take(count).ToArray();
+        var symbols=new[]{"ABCUSDT","XYZUSDT","DEFUSDT","GHIUSDT","JKLUSDT"}.Take(count).ToArray();
         var watch=System.Diagnostics.Stopwatch.StartNew();
         var allocated=GC.GetTotalAllocatedBytes(true);
         var months=new List<int>();
@@ -53,5 +54,32 @@ public sealed class GabrielCompleteHistoricalMatrixTests
         cts.Cancel();
         var plan=ResearchExperimentPlan.Build(["ABCUSDT"]);
         Assert.ThrowsAny<OperationCanceledException>(()=>ResearchExperimentReplay.Run([],plan.First().Parameters,ct:cts.Token));
+    }
+
+    [Fact]
+    public void ReplayCancelsDuringActiveProcessing()
+    {
+        using var cts=new CancellationTokenSource();
+        var data=new CancellingMinutes(cts);
+        var plan=ResearchExperimentPlan.Build(["ABCUSDT"]);
+        Assert.ThrowsAny<OperationCanceledException>(()=>ResearchExperimentReplay.Run(data,plan.First().Parameters,ct:cts.Token));
+        Assert.InRange(data.IndexReads,1,10000);
+    }
+
+    private sealed class CancellingMinutes(CancellationTokenSource cts):IReadOnlyList<ResearchExperimentReplay.Minute>
+    {
+        private static readonly ResearchExperimentReplay.Minute Candle=new(100,100,1000);
+        public int IndexReads {get;private set;}
+        public int Count=>44640;
+        public ResearchExperimentReplay.Minute this[int index]
+        {
+            get
+            {
+                if(++IndexReads==100) cts.Cancel();
+                return Candle;
+            }
+        }
+        public IEnumerator<ResearchExperimentReplay.Minute> GetEnumerator()=>Enumerable.Repeat(Candle,Count).GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()=>GetEnumerator();
     }
 }
