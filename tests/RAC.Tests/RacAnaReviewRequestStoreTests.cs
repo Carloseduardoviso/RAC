@@ -23,7 +23,17 @@ public sealed class RacAnaReviewRequestStoreTests
             Assert.Equal(0,await new RacAnaReviewRequestStore(new Factory(options)).SaveAsync(result,now.AddSeconds(1),default));
             await using var check=new RacDbContext(options);
             Assert.Equal(2,await check.AgentMessages.CountAsync());
-            var task=await check.AgentTasks.SingleAsync();
+            var task=await check.AgentTasks.SingleAsync(x=>x.Specialist=="lucas");
+            var expected=RacCarlosReviewTasks.Create(RacAnaReviewRequests.Create(result,now).Single(x=>x.Recipient=="carlos").Id,now);
+            Assert.Equal(4,await check.AgentTasks.CountAsync());
+            foreach(var planned in expected)
+            {
+                var row=await check.AgentTasks.SingleAsync(x=>x.Id==planned.Id);
+                Assert.Equal(planned.Description,row.Description);
+                Assert.Equal("carlos",row.Leader);
+                Assert.Equal(planned.Specialist,row.Specialist);
+                Assert.Equal("Pending",row.Status);
+            }
             Assert.Equal("EXCHANGE_HEALTH",task.Description);
             Assert.Equal("Pending",task.Status);
             Assert.Equal(RacAnaReviewRequests.Create(result,now).Single(x=>x.Recipient=="lucas").Id,task.Id);

@@ -25,7 +25,16 @@ public sealed class RacAnaReviewRequestStore(IDbContextFactory<RacDbContext> fac
             var task=await db.AgentTasks.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==lucas.Id,ct);
             if(task is not null && (task.Leader!="ana" || task.Specialist!="lucas" || task.Description!="EXCHANGE_HEALTH")) throw new InvalidOperationException("Lucas task identity collision.");
             if(task is null) db.AgentTasks.Add(new RAC.Domain.RacAgentTaskRecord {Id=lucas.Id,Leader="ana",Specialist="lucas",Description="EXCHANGE_HEALTH",Status="Pending",UpdatedUtc=now.ToUniversalTime()});
-            if(missing.Length==0 && task is not null) return 0;
+            var financial=RacCarlosReviewTasks.Create(requests.Single(x=>x.Recipient=="carlos").Id,now);
+            var financialIds=financial.Select(x=>x.Id).ToArray();
+            var stored=await db.AgentTasks.AsNoTracking().Where(x=>financialIds.Contains(x.Id)).ToListAsync(ct);
+            foreach(var planned in financial)
+            {
+                var row=stored.SingleOrDefault(x=>x.Id==planned.Id);
+                if(row is not null && (row.Leader!=planned.Leader || row.Specialist!=planned.Specialist || row.Description!=planned.Description)) throw new InvalidOperationException("Financial task identity collision.");
+                if(row is null) db.AgentTasks.Add(new RAC.Domain.RacAgentTaskRecord {Id=planned.Id,Leader=planned.Leader,Specialist=planned.Specialist,Description=planned.Description,Status=planned.Status.ToString(),UpdatedUtc=planned.UpdatedUtc});
+            }
+            if(missing.Length==0 && task is not null && stored.Count==financial.Count) return 0;
             db.AgentMessages.AddRange(missing);
             try { await db.SaveChangesAsync(ct); return missing.Length; }
             catch(DbUpdateException ex) when(attempt<3 && ex.InnerException is Microsoft.Data.SqlClient.SqlException sql && sql.Number is 2601 or 2627) { }
