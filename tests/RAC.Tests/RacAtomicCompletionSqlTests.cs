@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 using RAC.Infrastructure;
 namespace RAC.Tests;
@@ -40,7 +40,7 @@ public sealed class RacAtomicCompletionSqlTests
                 catch(Microsoft.Data.SqlClient.SqlException ex) when(ex.Number==1205){return false;}
             }
             var outcomes=await Task.WhenAll(Enumerable.Range(0,4).Select(_=>Complete()));
-            Assert.Single(outcomes.Where(x=>x));
+            Assert.Single(outcomes,x=>x);
             Assert.Single(await messages.ReadInboxAsync("ana",task.Id,10,default));
             var next=await tasks.EnqueueAsync("ana","lucas","EXCHANGE_HEALTH",default);
             var nextClaim=await tasks.ClaimAsync("lucas",default);
