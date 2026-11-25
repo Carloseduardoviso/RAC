@@ -1,4 +1,4 @@
-﻿using RAC.Infrastructure;
+using RAC.Infrastructure;
 using System.Text.Json;
 using System.Security.Cryptography;
 using System.Text;
@@ -14,6 +14,12 @@ public sealed class RebecaDynamicEvidenceLinkTests
     [InlineData("missing")]
     [InlineData("duplicate")]
     [InlineData("partial")]
+    [InlineData("assessment-symbol")]
+    [InlineData("assessment-status")]
+    [InlineData("assessment-count")]
+    [InlineData("assessment-trading")]
+    [InlineData("assessment-total")]
+    [InlineData("assessment-missing")]
     public void ChecksDynamicReportAgainstDiscovery(string scenario)
     {
         var now=DateTimeOffset.UtcNow;
@@ -31,7 +37,14 @@ public sealed class RebecaDynamicEvidenceLinkTests
                 SourceSha256=new string('A',64),PositiveMean=0,FurtherResearch=0,
                 Findings=new[]{new {Status="NON_POSITIVE_NET_RETURN",Count=12}},
                 DanielTaskId=scenario=="wrong-task"?Guid.NewGuid():task,
-                DanielMessageId=scenario=="wrong-message"?Guid.NewGuid():message}));
+                DanielMessageId=scenario=="wrong-message"?Guid.NewGuid():message,
+                DiscoveryAssessments=scenario=="assessment-missing"?[]:new[]{new {
+                    Symbol=scenario=="assessment-symbol"?"XYZUSDT":"ABCUSDT",
+                    Status=scenario is "assessment-status" or "assessment-total"?"INDEPENDENT_VALIDATION_REQUIRED":"NO_QUALIFYING_CONFIGURATION",
+                    StressConfigurations=scenario=="assessment-count"?11:12,
+                    FurtherResearch=scenario=="assessment-total"?1:0,
+                    TradingAuthorized=scenario=="assessment-trading"
+                }}}));
         RebecaMarketEvidence[] sources=scenario=="missing"?[]:scenario=="duplicate"?[d,d]:[d];
         var result=RebecaDynamicEvidenceLink.Review(report,sources);
         Assert.Equal(scenario=="valid"?"INDEPENDENT_VALIDATION_REQUIRED":"INVALID_REPORT",result.Status);

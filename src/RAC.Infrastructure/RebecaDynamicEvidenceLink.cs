@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 namespace RAC.Infrastructure;
 
 public static class RebecaDynamicEvidenceLink
@@ -22,6 +22,23 @@ public static class RebecaDynamicEvidenceLink
             var symbols=root.GetProperty("Symbols").Deserialize<string[]>();
             if(symbols is null || !symbols.SequenceEqual(reviewed.Candidates.Select(x=>x.Symbol),StringComparer.Ordinal))
                 return Invalid();
+            var assessments=root.GetProperty("DiscoveryAssessments").EnumerateArray().ToArray();
+            if(assessments.Length!=symbols.Length) return Invalid();
+            var total=0;
+            for(var i=0;i<assessments.Length;i++)
+            {
+                var row=assessments[i];
+                if(row.ValueKind!=JsonValueKind.Object ||
+                    row.EnumerateObject().Select(x=>x.Name).Distinct(StringComparer.Ordinal).Count()!=row.EnumerateObject().Count() ||
+                    row.GetProperty("Symbol").GetString()!=symbols[i] ||
+                    row.GetProperty("TradingAuthorized").ValueKind!=JsonValueKind.False ||
+                    row.GetProperty("StressConfigurations").GetInt32()!=12) return Invalid();
+                var further=row.GetProperty("FurtherResearch").GetInt32();
+                if(further<0 || further>12 ||
+                    row.GetProperty("Status").GetString()!=(further>0?"INDEPENDENT_VALIDATION_REQUIRED":"NO_QUALIFYING_CONFIGURATION")) return Invalid();
+                total+=further;
+            }
+            if(total!=result.FurtherResearch) return Invalid();
             return result;
         }
         catch(Exception ex) when(ex is JsonException or InvalidOperationException or KeyNotFoundException or FormatException or ArgumentException)
