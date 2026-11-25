@@ -1,4 +1,4 @@
-﻿using RAC.Application;
+using RAC.Application;
 using RAC.Infrastructure;
 using System.Text.Json;
 namespace RAC.Tests;
@@ -25,4 +25,15 @@ public sealed class CarlosFinancialAdvisoryReportTests
         Assert.Equal(evidence,json.RootElement.GetProperty("EvidenceIds")[0].GetGuid());
         Assert.Equal(status,json.RootElement.GetProperty("Status").GetString());
     }
+    [Fact]
+    public void RejectsOversizedAdvisoryWithoutDroppingEvidence()
+    {
+        var ids=Enumerable.Range(0,150).Select(_=>Guid.NewGuid()).ToArray();
+        var result=new CarlosFinancialEvidenceResult("RISK_LOCKED",ids,["MIGUEL:RISK_LOCKED"]);
+        Assert.Throws<InvalidOperationException>(()=>CarlosFinancialAdvisoryReport.Create(Guid.NewGuid(),result,DateTimeOffset.UtcNow));
+        Assert.Equal(150,result.EvidenceIds.Count);
+        Assert.False(result.TradingAuthorized);
+        Assert.Throws<ArgumentException>(()=>CarlosFinancialAdvisoryReport.Create(Guid.NewGuid(),new("RISK_LOCKED",[],["TEST"]),DateTimeOffset.UtcNow));
+    }
+
 }
