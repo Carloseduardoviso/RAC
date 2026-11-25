@@ -54,4 +54,53 @@ public sealed class RacAgentTaskSqlIntegrationTests
             await db.Database.EnsureDeletedAsync();
         }
     }
+
+    [Fact]
+    public async Task RenewalProtectsActiveTaskAndRejectsRecoveredLease()
+    {
+        if(!OperatingSystem.IsWindows()) return;
+        var options=new DbContextOptionsBuilder<RacDbContext>()
+            .UseSqlServer(@"Server=(localdb)\MSSQLLocalDB;Database=RAC_RENEW_TEST_"+Guid.NewGuid().ToString("N")+
+                ";Integrated Security=True;Encrypt=True;TrustServerCertificate=True").Options;
+        try
+        {
+            await using(var db=new RacDbContext(options)) await db.Database.MigrateAsync();
+            var store=new RacAgentTaskStore(new Factory(options));
+            var task=await store.EnqueueAsync("rebeca","gabriel","QUANTITATIVE_RESEARCH",default);
+            var running=(await store.ClaimAsync("gabriel",default))!;
+            var lease=running.LeaseId!.Value;
+            var renewals=await Task.WhenAll(Enumerable.Range(0,8).Select(_=>
+                new RacAgentTaskStore(new Factory(options)).RenewAsync(task.Id,"gabriel",lease,default)));
+            Assert.Contains(true,renewals);
+            Assert.False(await store.RenewAsync(task.Id,"daniel",lease,default));
+            Assert.Equal(0,await store.RecoverExpiredAsync(default));
+            Assert.Null(await store.ClaimAsync("gabriel",default));
+            await using(var db=new RacDbContext(options))
+            {
+                var row=await db.AgentTasks.SingleAsync();
+                Assert.Equal(lease,row.LeaseId);
+                Assert.Equal(1,row.Attempts);
+                Assert.Equal(running.UpdatedUtc,row.UpdatedUtc);
+                Assert.True(row.LeaseUntilUtc>=running.LeaseUntilUtc);
+                row.LeaseUntilUtc=DateTimeOffset.UtcNow.AddSeconds(-1);
+                await db.SaveChangesAsync();
+            }
+            Assert.False(await store.RenewAsync(task.Id,"gabriel",lease,default));
+            Assert.Equal(1,await store.RecoverExpiredAsync(default));
+            var retry=(await store.ClaimAsync("gabriel",default))!;
+            Assert.NotEqual(lease,retry.LeaseId);
+            Assert.False(await store.RenewAsync(task.Id,"gabriel",lease,default));
+            var report=RacAgentCommunication.Create("gabriel","rebeca",RacMessageKind.Report,"Synthetic report",task.Id,DateTimeOffset.UtcNow);
+            await Assert.ThrowsAsync<InvalidOperationException>(()=>store.CompleteWithReportAsync(task.Id,"gabriel",lease,report,default));
+            await store.CompleteWithReportAsync(task.Id,"gabriel",retry.LeaseId!.Value,report,default);
+            await using var check=new RacDbContext(options);
+            Assert.Equal("Completed",(await check.AgentTasks.SingleAsync()).Status);
+            Assert.Equal(1,await check.AgentMessages.CountAsync());
+        }
+        finally
+        {
+            await using var db=new RacDbContext(options);
+            await db.Database.EnsureDeletedAsync();
+        }
+    }
 }
