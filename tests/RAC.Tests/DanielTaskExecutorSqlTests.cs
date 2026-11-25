@@ -71,10 +71,27 @@ public sealed class DanielTaskExecutorSqlTests
                 Assert.Equal("MATRIX_EVIDENCE_MISSING",Assert.Single(GabrielDiscoveryResearch.Assess(evidence,[])).Status);
                 Assert.False(evidence.TradingAuthorized);
                 await Assert.ThrowsAsync<InvalidOperationException>(()=>reader.ReadAsync(task.Id,DateTimeOffset.UtcNow.AddMinutes(16),default));
+                var months=new[]{"2026-05","2026-06","2026-07","2026-08","2026-09","2026-10"};
+                var rows=RAC.Application.ResearchExperimentPlan.Build().SelectMany(p=>months.Select(m=>
+                    new RAC.Application.GabrielExperimentMatrix.Row(m,"EXPLORATORY",p.Symbol,p.Parameters,new(-1m,2m,5,2,0.5m,1m,false)))).ToArray();
+                var matrix=System.Text.Json.JsonSerializer.Serialize(new {Mode="RESEARCH_ONLY",TradingAuthorized=false,IndependentValidation=false,Rows=rows});
+                var messages=new RacAgentMessageStore(factory);
+                var gabriel=new GabrielTaskExecutor(tasks,messages,new GabrielResearchReporter(messages),_=>Task.FromResult(matrix));
+                Assert.True(await gabriel.ExecuteNextAsync(default));
+                Assert.False(await gabriel.ExecuteNextAsync(default));
+                var quantitative=Assert.Single(await messages.ReadInboxAsync("rebeca",linked.Single().Id,10,default));
+                using var quantitativeJson=System.Text.Json.JsonDocument.Parse(quantitative.Content);
+                Assert.Equal(report.Id,quantitativeJson.RootElement.GetProperty("DanielMessageId").GetGuid());
+                Assert.Equal(task.Id,quantitativeJson.RootElement.GetProperty("DanielTaskId").GetGuid());
+                Assert.False(quantitativeJson.RootElement.GetProperty("TradingAuthorized").GetBoolean());
+                await using var completed=new RacDbContext(options);
+                Assert.Equal(2,await completed.AgentTasks.CountAsync(x=>x.Status=="Completed"));
+                Assert.Equal(2,await completed.AgentMessages.CountAsync());
+                Assert.False(await completed.TestnetOrders.AnyAsync());
             }
             else await Assert.ThrowsAsync<InvalidOperationException>(()=>reader.ReadAsync(task.Id,DateTimeOffset.UtcNow,default));
             Assert.False(await check.TestnetOrders.AnyAsync());
-            Assert.Equal(task.Id,(await check.AgentMessages.SingleAsync()).CorrelationId);
+            Assert.Equal(task.Id,(await check.AgentMessages.SingleAsync(x=>x.Sender=="daniel")).CorrelationId);
         }
         finally
         {
@@ -103,7 +120,7 @@ public sealed class DanielTaskExecutorSqlTests
             await using var check=new RacDbContext(options);
             Assert.Equal("Completed",(await check.AgentTasks.SingleAsync(x=>x.Id==task.Id)).Status);
             var discovery=await check.DanielDiscoveries.SingleAsync(); Assert.InRange(discovery.CandidateCount,0,20); Console.WriteLine("LIVE_CANDIDATES="+discovery.CandidateCount);
-            Assert.Equal(task.Id,(await check.AgentMessages.SingleAsync()).CorrelationId);
+            Assert.Equal(task.Id,(await check.AgentMessages.SingleAsync(x=>x.Sender=="daniel")).CorrelationId);
         }
         finally
         {
@@ -145,7 +162,7 @@ public sealed class DanielTaskExecutorSqlTests
             await using var check=new RacDbContext(options);
             Assert.Equal("Completed",(await check.AgentTasks.SingleAsync(x=>x.Id==task.Id)).Status);
             Assert.Equal(1,(await check.DanielDiscoveries.SingleAsync()).CandidateCount);
-            Assert.Equal(task.Id,(await check.AgentMessages.SingleAsync()).CorrelationId);
+            Assert.Equal(task.Id,(await check.AgentMessages.SingleAsync(x=>x.Sender=="daniel")).CorrelationId);
         }
         finally
         {
