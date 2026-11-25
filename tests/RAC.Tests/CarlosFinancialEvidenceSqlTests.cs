@@ -23,6 +23,32 @@ public sealed class CarlosFinancialEvidenceSqlTests
             var factory=new Factory(options);
             var store=new RacAgentMessageStore(factory);
             var now=DateTimeOffset.UtcNow;
+            var advisoryRequest=new RacAnaAdvisoryResult("RISK_REVIEW_REQUIRED",["review"],[Guid.NewGuid()]);
+            await new RacAnaReviewRequestStore(factory).SaveAsync(advisoryRequest,now,default);
+            var request=RacAnaReviewRequests.Create(advisoryRequest,now).Single(x=>x.Recipient=="carlos");
+            var bridgeService=new CarlosFinancialEvidenceService(new CarlosRafaelEvidenceReader(store),new CarlosSamuelEvidenceReader(store),new CarlosMiguelEvidenceReader(store));
+            var bridge=new CarlosReviewRequestPublisher(factory,new CarlosFinancialAdvisoryPublisher(bridgeService,store));
+            Assert.Null(await bridge.PublishAsync(request.Id,now,TimeSpan.FromMinutes(5),default));
+            var malformed=RacAgentCommunication.Create("ana","carlos",RacMessageKind.TaskRequest,"{",Guid.NewGuid(),now);
+            Assert.True(await store.SaveAsync(malformed,default));
+            Assert.Null(await bridge.PublishAsync(malformed.Id,now,TimeSpan.FromMinutes(5),default));
+            await using(var cleanup=new RacDbContext(options))
+            {
+                var plan=RacCarlosReviewTasks.Create(request.Id,now);
+                foreach(var item in plan)
+                {
+                    var row=await cleanup.AgentTasks.SingleAsync(x=>x.Id==item.Id);
+                    row.Status="Completed";
+                }
+                await cleanup.SaveChangesAsync();
+                var publishedBridge=await bridge.PublishAsync(request.Id,now,TimeSpan.FromMinutes(5),default);
+                Assert.NotNull(publishedBridge);
+                Assert.Equal(request.CorrelationId,publishedBridge.CorrelationId);
+                Assert.Equal(publishedBridge,await bridge.PublishAsync(request.Id,now.AddSeconds(1),TimeSpan.FromMinutes(5),default));
+                cleanup.AgentMessages.RemoveRange(await cleanup.AgentMessages.ToListAsync());
+                cleanup.AgentTasks.RemoveRange(await cleanup.AgentTasks.ToListAsync());
+                await cleanup.SaveChangesAsync();
+            }
             var rafaelTask=Guid.NewGuid();
             var samuelTask=Guid.NewGuid();
             var miguelTask=Guid.NewGuid();
