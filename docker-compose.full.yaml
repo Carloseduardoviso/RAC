@@ -1,0 +1,152 @@
+# RAC full local simulation stack. Keep deploy/ and Dockerfiles with this file.
+name: rac-isolated
+services:
+  sql:
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "SQLCMDPASSWORD=$$MSSQL_SA_PASSWORD /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -Q 'SELECT 1' >/dev/null"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: "${RAC_ISOLATED_SQL_PASSWORD:?Set an isolated SQL password}"
+    volumes:
+      - isolated-sql:/var/opt/mssql
+    networks:
+      - isolated
+  api:
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/8080; printf 'GET /api/health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3; read -r status <&3; [[ $$status == 'HTTP/1.1 200 '* ]]"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    profiles: ["initialized"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      RAC_SQLSERVER_CONNECTION: "Server=sql;Database=RAC_Isolated;User Id=sa;Password=${RAC_ISOLATED_SQL_PASSWORD:?Set an isolated SQL password};Encrypt=True;TrustServerCertificate=True"
+    networks:
+      - isolated
+    depends_on:
+      sql:
+        condition: service_healthy
+  web:
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-ec", "exec 3<>/dev/tcp/127.0.0.1/8080; printf 'GET /api/health HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3; read -r status <&3; [[ $$status == 'HTTP/1.1 200 '* ]]"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    profiles: ["initialized"]
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      RacApi__BaseUrl: http://api:8080
+    ports:
+      - "127.0.0.1:15081:8080"
+    networks:
+      - isolated
+      - frontend
+    depends_on:
+      api:
+        condition: service_healthy
+  proxy:
+    image: caddy:2-alpine
+    profiles: ["initialized"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:15443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - proxy-data:/data
+      - proxy-config:/config
+    networks:
+      - frontend
+    depends_on:
+      web:
+        condition: service_healthy
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:19090:9090"
+    volumes:
+      - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - isolated
+      - frontend
+  blackbox:
+    image: prom/blackbox-exporter:v0.27.0
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    volumes:
+      - ./deploy/monitoring/blackbox.yml:/etc/blackbox_exporter/config.yml:ro
+    networks:
+      - isolated
+  grafana:
+    image: grafana/grafana:12.1.0
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:13000:3000"
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./deploy/monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./deploy/monitoring/grafana/providers:/etc/grafana/provisioning/dashboards:ro
+      - ./deploy/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - frontend
+    depends_on:
+      - prometheus
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:19093:9093"
+    volumes:
+      - ./deploy/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager-data:/alertmanager
+    networks:
+      - frontend
+  container-metrics:
+    image: prom/node-exporter:v1.9.1
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    command:
+      - --collector.disable-defaults
+      - --collector.textfile
+      - --collector.textfile.directory=/metrics
+    volumes:
+      - "${RAC_METRICS_DIR:?Set RAC metrics directory}:/metrics:ro"
+    networks:
+      - isolated
+networks:
+  isolated:
+    internal: true
+  frontend:
+    driver: bridge
+volumes:
+  isolated-sql:
+  proxy-data:
+  proxy-config:
+  prometheus-data:
+  grafana-data:
+  alertmanager-data:
