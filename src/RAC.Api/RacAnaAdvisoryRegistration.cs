@@ -14,6 +14,17 @@ public static class RacAnaAdvisoryRegistration
         services.AddSingleton<RacAnaAdvisoryStore>();
         if(configuration.GetValue<bool>("Specialists:AnaAdvisory:ReviewRequestsEnabled",false))
             services.AddSingleton<RacAnaReviewRequestStore>();
+        // Separate opt-in; never enables trading or request generation.
+        if(configuration.GetValue<bool>("Specialists:AnaAdvisory:CarlosBatchEnabled",false))
+        {
+            services.AddSingleton<CarlosRafaelEvidenceReader>();
+            services.AddSingleton<CarlosSamuelEvidenceReader>();
+            services.AddSingleton<CarlosMiguelEvidenceReader>();
+            services.AddSingleton<CarlosFinancialEvidenceService>();
+            services.AddSingleton<CarlosFinancialAdvisoryPublisher>();
+            services.AddSingleton<CarlosReviewRequestPublisher>();
+            services.AddSingleton<CarlosReviewRequestBatch>();
+        }
         services.AddSingleton<RacAnaAdvisoryCycle>();
         services.AddHostedService<RacAnaAdvisoryWorker>(sp=>new RacAnaAdvisoryWorker(
             sp.GetRequiredService<RacAnaAdvisoryCycle>().RunAsync,
