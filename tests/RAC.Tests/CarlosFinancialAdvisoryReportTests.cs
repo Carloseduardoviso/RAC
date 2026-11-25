@@ -52,7 +52,9 @@ public sealed class CarlosFinancialAdvisoryReportTests
         Assert.Equal(r,json.RootElement.GetProperty("RafaelTask").GetGuid());
         Assert.False(json.RootElement.GetProperty("TradingAuthorized").GetBoolean());
         Assert.Contains("CAPACITY_EXCEEDED",report.Content);
-        // Existing Ana review rejects incomplete evidence, while RiskNotice still requires risk review.
-        Assert.Equal("INVALID_FINANCIAL_REPORT",RacAnaFinancialReportReview.Review(report).Status);
+        // Capacity notices are recognized but never authorize trading.
+        Assert.Equal("CRITICAL_REVIEW",RacAnaFinancialReportReview.Review(report).Status);
+        Assert.Empty(RacAnaFinancialReportReview.Review(report).EvidenceIds);
+        Assert.Equal("INVALID_FINANCIAL_REPORT",RacAnaFinancialReportReview.Review(report with {Content=report.Content.Replace(r.ToString(),Guid.Empty.ToString())}).Status);
     }
 }

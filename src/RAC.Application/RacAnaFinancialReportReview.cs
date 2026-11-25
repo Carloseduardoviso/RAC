@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 namespace RAC.Application;
 public sealed record RacAnaFinancialReportResult(Guid MessageId,string Status,IReadOnlyList<Guid> EvidenceIds,IReadOnlyList<string> Reasons)
 {
@@ -27,6 +27,18 @@ public static class RacAnaFinancialReportReview
             if(message.Kind!=kind) return Invalid();
             var ids=r.GetProperty("EvidenceIds").EnumerateArray().Select(x=>x.GetGuid()).ToArray();
             var reasons=r.GetProperty("Reasons").EnumerateArray().Select(x=>x.GetString()??"").ToArray();
+            if(reasons.Contains("CAPACITY_EXCEEDED",StringComparer.Ordinal))
+            {
+                var tasks=new[]{r.GetProperty("RafaelTask").GetGuid(),r.GetProperty("SamuelTask").GetGuid(),r.GetProperty("MiguelTask").GetGuid()};
+                var digest=r.GetProperty("EvidenceDigest").GetString();
+                var count=r.GetProperty("EvidenceCount").GetInt32();
+                if(status!="CRITICAL_REVIEW" || ids.Length!=0 || count<0 || count>1500 ||
+                    tasks.Contains(Guid.Empty) || tasks.Distinct().Count()!=3 ||
+                    digest is null || digest.Length!=64 || !digest.All(Uri.IsHexDigit) ||
+                    reasons.Length!=2 || !reasons.Any(x=>x is "ORIGINAL_STATUS:RISK_LOCKED" or "ORIGINAL_STATUS:CRITICAL_REVIEW" or "ORIGINAL_STATUS:REVIEW_REQUIRED" or "ORIGINAL_STATUS:HUMAN_REVIEW_REQUIRED"))
+                    return Invalid();
+                return new(message.Id,"CRITICAL_REVIEW",[],Array.AsReadOnly(reasons));
+            }
             if(ids.Contains(Guid.Empty) || ids.Distinct().Count()!=ids.Length || reasons.Length==0 ||
                 reasons.Any(string.IsNullOrWhiteSpace) || reasons.Distinct(StringComparer.Ordinal).Count()!=reasons.Length ||
                 (ids.Length==0 && status!="REVIEW_REQUIRED")) return Invalid();
