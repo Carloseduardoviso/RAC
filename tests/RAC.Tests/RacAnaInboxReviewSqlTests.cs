@@ -66,4 +66,38 @@ public sealed class RacAnaInboxReviewSqlTests
             await db.Database.EnsureDeletedAsync();
         }
     }
-}
+    [Fact]
+    public async Task PersistsAndClassifiesRebecaCriticalMarketReportInSql()
+    {
+        if(!OperatingSystem.IsWindows()) return;
+        var options=new DbContextOptionsBuilder<RacDbContext>().UseSqlServer(
+            @"Server=(localdb)\MSSQLLocalDB;Database=RAC_REBECA_ANA_TEST_"+Guid.NewGuid().ToString("N")+
+            ";Integrated Security=True;TrustServerCertificate=True").Options;
+        try
+        {
+            await using(var db=new RacDbContext(options)) await db.Database.MigrateAsync();
+            var factory=new Factory(options); var store=new RacAgentMessageStore(factory);
+            var now=DateTimeOffset.UtcNow; var danielTask=Guid.NewGuid(); var gabrielTask=Guid.NewGuid();
+            var daniel=RacAgentCommunication.Create("daniel","rebeca",RacMessageKind.Report,"daniel-evidence",danielTask,now);
+            var gabriel=RacAgentCommunication.Create("gabriel","rebeca",RacMessageKind.Report,"gabriel-evidence",gabrielTask,now);
+            await store.SaveAsync(daniel,default); await store.SaveAsync(gabriel,default);
+            var correlation=RebecaMarketAdvisoryPublisher.CreateCorrelationId(danielTask,gabrielTask);
+            var market=RebecaMarketAdvisoryReport.Create(correlation,
+                new("CRITICAL_REVIEW",[daniel.Id,gabriel.Id],["NEWS:BTCUSDT:HIGH_IMPACT_REVIEW"],[]),now);
+            await store.SaveAsync(market,default);
+            await store.SaveAsync(RacAgentCommunication.Create("carlos","ana",RacMessageKind.Report,"financial evidence",correlation,now),default);
+            await store.SaveAsync(RacAgentCommunication.Create("lucas","ana",RacMessageKind.Report,"health evidence",correlation,now),default);
+            var result=await new RacAnaRecentReview(factory).ReviewAsync(now,TimeSpan.FromMinutes(5),default);
+            Assert.Equal("RISK_REVIEW_REQUIRED",result.Status);
+            Assert.Contains(market.Id,result.EvidenceIds); Assert.Contains(daniel.Id,result.EvidenceIds); Assert.Contains(gabriel.Id,result.EvidenceIds);
+            Assert.Contains(result.Reasons,x=>x.Contains("REBECA:CRITICAL_REVIEW:NEWS:BTCUSDT:HIGH_IMPACT_REVIEW",StringComparison.Ordinal));
+            Assert.False(result.TradingAuthorized);
+            var audit=new RacAnaAdvisoryStore(factory);
+            Assert.True(await audit.SaveAsync(result,now,default));
+            Assert.False(await audit.SaveAsync(result,now.AddMinutes(1),default));
+            await using var check=new RacDbContext(options);
+            Assert.Equal(5,await check.AgentMessages.CountAsync()); Assert.Equal(1,await check.AnaAdvisories.CountAsync());
+            Assert.False(await check.TestnetOrders.AnyAsync());
+        }
+        finally { await using var db=new RacDbContext(options); await db.Database.EnsureDeletedAsync(); }
+    }}

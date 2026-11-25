@@ -3,7 +3,7 @@ namespace RAC.Application;
 // Advisory evidence inventory only; never authorizes execution.
 public sealed record RacAnaReportReviewResult(Guid CorrelationId,
     IReadOnlyList<RacAgentMessage> Evidence, IReadOnlyList<string> Missing,
-    IReadOnlyList<string> Conflicting, bool RiskNoticePresent) { public IReadOnlyList<Guid> RiskNoticeIds { get; init; } = []; public IReadOnlyList<RacAnaFinancialReportResult> FinancialReports { get; init; } = []; }
+    IReadOnlyList<string> Conflicting, bool RiskNoticePresent) { public IReadOnlyList<Guid> RiskNoticeIds { get; init; } = []; public IReadOnlyList<RacAnaFinancialReportResult> FinancialReports { get; init; } = []; public IReadOnlyList<RacAnaMarketReportResult> MarketReports { get; init; } = []; }
 
 public static class RacAnaReportReview
 {
@@ -25,6 +25,6 @@ public static class RacAnaReportReview
         return new(correlationId, Array.AsReadOnly(reports.OrderBy(m => m.Sender, StringComparer.Ordinal)
             .ThenBy(m => m.CreatedUtc).ThenBy(m => m.Id).ToArray()),
             Array.AsReadOnly(missing), Array.AsReadOnly(conflicts),
-            scoped.Any(m => m.Sender == "carlos" && m.Kind == RacMessageKind.RiskNotice)) { FinancialReports = Array.AsReadOnly(scoped.Where(m=>m.Sender=="carlos" && m.Content.Contains("CARLOS_FINANCIAL_V1",StringComparison.Ordinal)).Select(RacAnaFinancialReportReview.Review).OrderBy(x=>x.MessageId).ToArray()), RiskNoticeIds = Array.AsReadOnly(scoped.Where(m => m.Sender == "carlos" && m.Kind == RacMessageKind.RiskNotice).Select(m => m.Id).Distinct().OrderBy(x => x).ToArray()) };
+            scoped.Any(m => m.Sender == "carlos" && m.Kind == RacMessageKind.RiskNotice)) { MarketReports = Array.AsReadOnly(reports.Where(m=>m.Sender=="rebeca" && m.Content.TrimStart().StartsWith("{" )).Select(RacAnaMarketReportReview.Review).OrderBy(x=>x.MessageId).ToArray()), FinancialReports = Array.AsReadOnly(scoped.Where(m=>m.Sender=="carlos" && m.Content.Contains("CARLOS_FINANCIAL_V1",StringComparison.Ordinal)).Select(RacAnaFinancialReportReview.Review).OrderBy(x=>x.MessageId).ToArray()), RiskNoticeIds = Array.AsReadOnly(scoped.Where(m => m.Sender == "carlos" && m.Kind == RacMessageKind.RiskNotice).Select(m => m.Id).Distinct().OrderBy(x => x).ToArray()) };
     }
 }
