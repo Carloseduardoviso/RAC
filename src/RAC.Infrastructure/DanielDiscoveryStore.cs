@@ -7,7 +7,7 @@ namespace RAC.Infrastructure;
 
 public sealed class DanielDiscoveryStore(IDbContextFactory<RacDbContext> factory)
 {
-    public async Task<bool> SaveAsync(Guid taskId,Guid leaseId,IReadOnlyList<DanielMarketObservation> observations,DateTimeOffset observedUtc,CancellationToken ct)
+    public async Task<bool> SaveAsync(Guid taskId,Guid leaseId,IReadOnlyList<DanielMarketObservation> observations,DateTimeOffset observedUtc,CancellationToken ct,DanielMarketCoverage? coverage=null)
     {
         var now=DateTimeOffset.UtcNow;
         if(taskId==Guid.Empty || leaseId==Guid.Empty || observedUtc>now || now-observedUtc>TimeSpan.FromMinutes(2))
@@ -15,6 +15,12 @@ public sealed class DanielDiscoveryStore(IDbContextFactory<RacDbContext> factory
         var candidates=DanielCandidateRanking.Rank(observations,observedUtc);
         var json=JsonSerializer.Serialize(candidates);
         var snapshotJson=JsonSerializer.Serialize(DanielResearchSnapshot.Create(observations,observedUtc));
+        if(coverage is not null)
+        {
+            var symbols=observations.Select(x=>x.Symbol).Concat(coverage.MissingTickers).Concat(coverage.RejectedTickers).ToArray();
+            if(!observations.SequenceEqual(coverage.Observations) || symbols.Length!=coverage.ExpectedMarkets || symbols.Distinct(StringComparer.Ordinal).Count()!=symbols.Length || !coverage.RejectedTickers.OrderBy(x=>x,StringComparer.Ordinal).SequenceEqual(coverage.RejectionReasons.Keys.OrderBy(x=>x,StringComparer.Ordinal))) throw new ArgumentException("Inconsistent market coverage.");
+            snapshotJson=JsonSerializer.Serialize(new { Schema="DANIEL_COVERAGE_V1", Snapshot=DanielResearchSnapshot.Create(observations,observedUtc), coverage.ExpectedMarkets, MissingTickers=coverage.MissingTickers.OrderBy(x=>x,StringComparer.Ordinal), RejectedTickers=coverage.RejectedTickers.OrderBy(x=>x,StringComparer.Ordinal), RejectionReasons=coverage.RejectionReasons.OrderBy(x=>x.Key,StringComparer.Ordinal), TradingAuthorized=false });
+        }
         await using var db=await factory.CreateDbContextAsync(ct);
         await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
         var task=await db.AgentTasks.SingleAsync(x=>x.Id==taskId,ct);

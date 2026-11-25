@@ -36,6 +36,16 @@ public sealed class DanielDiscoveryStoreSqlTests
             Assert.Equal("ABCUSDT",Assert.Single(snapshot!.Decisions).Observation.Symbol);
             Assert.False(snapshot.TradingAuthorized);
             await Assert.ThrowsAsync<InvalidOperationException>(()=>store.SaveAsync(task.Id,running.LeaseId!.Value,rows.Append(rows[0] with {Symbol="LOWUSDT",QuoteVolume24h=1}).ToArray(),now,default));
+            var second=await tasks.EnqueueAsync("rebeca","daniel","MARKET_DISCOVERY",default);
+            var lease=(await tasks.ClaimAsync("daniel",default))!;
+            var coverage=new DanielMarketCoverage(rows,["MISSINGUSDT"],["BADUSDT"],3) { RejectionReasons=new Dictionary<string,string>{{"BADUSDT","INVALID_PRICE_RANGE"}} };
+            await Assert.ThrowsAsync<ArgumentException>(()=>store.SaveAsync(second.Id,lease.LeaseId!.Value,rows,now,default,coverage with {ExpectedMarkets=4}));
+            Assert.True(await store.SaveAsync(second.Id,lease.LeaseId!.Value,rows,now,default,coverage));
+            Assert.False(await store.SaveAsync(second.Id,lease.LeaseId!.Value,rows,now,default,coverage));
+            var covered=(await store.ReadRecentAsync(10,default)).Single(x=>x.TaskId==second.Id);
+            Assert.Contains("MISSINGUSDT",covered.ResearchSnapshotJson!);
+            Assert.Contains("INVALID_PRICE_RANGE",covered.ResearchSnapshotJson!);
+            await Assert.ThrowsAsync<InvalidOperationException>(()=>store.SaveAsync(second.Id,lease.LeaseId!.Value,rows,now,default,coverage with {MissingTickers=["OTHERUSDT"]}));
             var reporter=new DanielDiscoveryReporter(factory);
             Assert.True(await reporter.PublishAsync(task.Id,default));
             Assert.False(await reporter.PublishAsync(task.Id,default));
