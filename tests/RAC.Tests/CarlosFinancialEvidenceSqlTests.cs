@@ -138,6 +138,17 @@ public sealed class CarlosFinancialEvidenceSqlTests
             Assert.Equal("RISK_REVIEW_REQUIRED",recoveredHistory.Status);
             Assert.False(recoveredHistory.TradingAuthorized);
             Assert.True(await new RacAnaAdvisoryStore(factory).SaveAsync(recoveredHistory,now.AddSeconds(10),default));
+                        // More than 500 distinct references force multiple SQL chunks.
+            var absent=Enumerable.Range(0,510).Select(_=>Guid.NewGuid()).ToArray();
+            var many=absent.Chunk(60).Select(ids=>CarlosFinancialAdvisoryReport.Create(Guid.NewGuid(),
+                new("REVIEW_REQUIRED",ids.Append(rafael.Id).ToArray(),["BATCH_TEST"]),now)).ToArray();
+            var multi=await auditor.ReviewBatchAsync(many,TimeSpan.FromMinutes(5),default);
+            Assert.Equal(many.Length,multi.Count);
+            Assert.All(multi,x=>Assert.Equal(rafael.Id,Assert.Single(x.VerifiedIds)));
+            Assert.Equal(absent.OrderBy(x=>x).ToArray(),multi.SelectMany(x=>x.InvalidIds).OrderBy(x=>x).ToArray());
+            Assert.All(multi,x=>Assert.False(x.TradingAuthorized));
+            await Assert.ThrowsAsync<ArgumentException>(()=>auditor.ReviewBatchAsync([published,published],TimeSpan.FromMinutes(5),default));
+            await Assert.ThrowsAsync<ArgumentException>(()=>auditor.ReviewBatchAsync(Enumerable.Repeat(published,501),TimeSpan.FromMinutes(5),default));
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally
