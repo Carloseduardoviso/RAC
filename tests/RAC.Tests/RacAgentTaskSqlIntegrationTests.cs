@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 using RAC.Infrastructure;
 
@@ -27,7 +27,7 @@ public sealed class RacAgentTaskSqlIntegrationTests
             var task = await store.EnqueueAsync("rebeca","daniel","Synthetic research",default);
             var claims = await Task.WhenAll(Enumerable.Range(0,8).Select(_ =>
                 new RacAgentTaskStore(new Factory(options)).ClaimAsync("daniel",default)));
-            var winner = Assert.Single(claims.Where(x => x is not null))!;
+            var winner = Assert.Single(claims, x => x is not null)!;
             Assert.Equal(task.Id,winner.Id);
             Assert.Null(await store.ClaimAsync("gabriel",default));
             Assert.Equal(0,await store.RecoverExpiredAsync(default));
