@@ -60,6 +60,24 @@ public sealed class GabrielResearchReporterSqlTests
             Assert.False(linkedJson.RootElement.GetProperty("TradingAuthorized").GetBoolean());
             Assert.Equal("Completed",(await check.AgentTasks.SingleAsync(x=>x.Id==linked.Id)).Status);
             Assert.False(await check.TestnetOrders.AnyAsync());
+            var dynamicTask=await tasks.EnqueueAsync("rebeca","gabriel","QUANTITATIVE_RESEARCH:"+discoveryId.ToString("N"),default);
+            var dynamicExecutor=new GabrielTaskExecutor(tasks,recovered,new GabrielResearchReporter(recovered),
+                _=>throw new InvalidOperationException("Legacy source must not be used."),
+                (symbols,ct)=>{
+                    Assert.Equal(new[]{"ABCUSDT"},symbols);
+                    var dynamicRows=ResearchExperimentPlan.Build(symbols).SelectMany(p=>months.Select(m=>
+                        new GabrielExperimentMatrix.Row(m,"EXPLORATORY",p.Symbol,p.Parameters,new(-1m,2m,5,2,0.5m,1m,false)))).ToArray();
+                    return Task.FromResult(JsonSerializer.Serialize(new {Mode="RESEARCH_ONLY",TradingAuthorized=false,IndependentValidation=false,Rows=dynamicRows}));
+                });
+            Assert.True(await dynamicExecutor.ExecuteNextAsync(default));
+            var dynamicReport=Assert.Single(await recovered.ReadInboxAsync("rebeca",dynamicTask.Id,10,default));
+            using var dynamicJson=JsonDocument.Parse(dynamicReport.Content);
+            Assert.Equal("GABRIEL_DYNAMIC_V2",dynamicJson.RootElement.GetProperty("Schema").GetString());
+            Assert.Equal(24,dynamicJson.RootElement.GetProperty("Configurations").GetInt32());
+            Assert.Equal("NO_QUALIFYING_CONFIGURATION",dynamicJson.RootElement.GetProperty("DiscoveryAssessments")[0].GetProperty("Status").GetString());
+            Assert.False(dynamicJson.RootElement.GetProperty("TradingAuthorized").GetBoolean());
+            Assert.Equal("Completed",(await check.AgentTasks.SingleAsync(x=>x.Id==dynamicTask.Id)).Status);
+            Assert.False(await check.TestnetOrders.AnyAsync());
             var interrupted=await tasks.EnqueueAsync("rebeca","gabriel","QUANTITATIVE_RESEARCH",default);
             var claimed=await tasks.ClaimAsync("gabriel",default);
             Assert.NotNull(claimed);

@@ -4,7 +4,7 @@ using System.Text;
 namespace RAC.Infrastructure;
 
 public sealed class GabrielTaskExecutor(RacAgentTaskStore tasks,RacAgentMessageStore messages,
-    GabrielResearchReporter reporter,Func<CancellationToken,Task<string>> readMatrix)
+    GabrielResearchReporter reporter,Func<CancellationToken,Task<string>> readMatrix,Func<IReadOnlyList<string>,CancellationToken,Task<string>>? readDynamicMatrix=null)
 {
     public async Task<bool> ExecuteNextAsync(CancellationToken ct)
     {
@@ -21,14 +21,15 @@ public sealed class GabrielTaskExecutor(RacAgentTaskStore tasks,RacAgentMessageS
         var existing=await messages.ReadInboxAsync("rebeca",task.Id,10,ct);
         if(!existing.Any(x=>x.Sender=="gabriel" && x.Kind=="Report"))
         {
-            var json=await readMatrix(ct);
+            var evidence=linked?await new GabrielDiscoveryEvidenceReader(new RebecaMarketEvidenceReader(messages)).ReadAsync(discoveryId,DateTimeOffset.UtcNow,ct):null;
+            var symbols=evidence is not null && readDynamicMatrix is not null?evidence.Candidates.Select(x=>x.Symbol).ToArray():null;
+            var json=symbols is null?await readMatrix(ct):await readDynamicMatrix!(symbols,ct);
             if(json.Length>8*1024*1024) throw new InvalidDataException("Matrix too large.");
             var hash=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
-            var report=reporter.Create(task.Id,task.UpdatedUtc,hash,json);
-            if(linked)
+            var report=reporter.Create(task.Id,task.UpdatedUtc,hash,json,symbols);
+            if(evidence is not null)
             {
-                var evidence=await new GabrielDiscoveryEvidenceReader(new RebecaMarketEvidenceReader(messages)).ReadAsync(discoveryId,DateTimeOffset.UtcNow,ct);
-                var assessments=GabrielDiscoveryResearch.Assess(evidence,GabrielExperimentMatrix.Read(json));
+                var assessments=GabrielDiscoveryResearch.Assess(evidence,GabrielExperimentMatrix.Read(json,symbols));
                 var content=System.Text.Json.Nodes.JsonNode.Parse(report.Content)!.AsObject();
                 content["DanielTaskId"]=System.Text.Json.Nodes.JsonValue.Create(discoveryId);
                 content["DanielMessageId"]=System.Text.Json.Nodes.JsonValue.Create(evidence.MessageId);
