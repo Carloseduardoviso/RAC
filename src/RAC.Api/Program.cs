@@ -12,7 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 var racConnection = RacSqlConnectionSecret.Read()
     ?? builder.Configuration.GetConnectionString("RAC");
 if (string.IsNullOrWhiteSpace(racConnection))
-    throw new InvalidOperationException("RAC requer conexÃ£o SQL Server configurada; execuÃ§Ã£o bloqueada.");
+    throw new InvalidOperationException("RAC requer conexÃƒÂ£o SQL Server configurada; execuÃƒÂ§ÃƒÂ£o bloqueada.");
 
 builder.Services.AddDbContextFactory<RacDbContext>(options => options.UseSqlServer(racConnection));
 builder.Services.AddRacAuthentication(builder.Environment.IsDevelopment());
@@ -114,15 +114,16 @@ var gabrielEnabled = builder.Configuration.GetValue<bool>("Specialists:Gabriel:E
 var rafaelEnabled = builder.Configuration.GetValue<bool>("Specialists:Rafael:Enabled");
 var samuelEnabled = builder.Configuration.GetValue<bool>("Specialists:Samuel:Enabled");
 var miguelEnabled = builder.Configuration.GetValue<bool>("Specialists:Miguel:Enabled");
+var lucasEnabled = builder.Configuration.GetValue<bool>("Specialists:Lucas:Enabled");
 var enabledSpecialists = new[] { danielEnabled ? "daniel" : null, gabrielEnabled ? "gabriel" : null,
-    rafaelEnabled ? "rafael" : null, samuelEnabled ? "samuel" : null, miguelEnabled ? "miguel" : null }.OfType<string>().ToArray();
+    rafaelEnabled ? "rafael" : null, samuelEnabled ? "samuel" : null, miguelEnabled ? "miguel" : null, lucasEnabled ? "lucas" : null }.OfType<string>().ToArray();
 if (enabledSpecialists.Length > 0)
 {
     builder.Services.AddSingleton<RacAgentTaskStore>();
     builder.Services.AddSingleton<RacAgentMessageStore>();
     builder.Services.AddSingleton<RacSpecialistDispatcher>(sp =>
         new RacSpecialistDispatcher(sp.GetRequiredService<IDbContextFactory<RacDbContext>>(),
-            enabledSpecialists[0], enabledSpecialists.ElementAtOrDefault(1), enabledSpecialists.ElementAtOrDefault(2), enabledSpecialists.ElementAtOrDefault(3), enabledSpecialists.ElementAtOrDefault(4)));
+            enabledSpecialists[0], enabledSpecialists.ElementAtOrDefault(1), enabledSpecialists.ElementAtOrDefault(2), enabledSpecialists.ElementAtOrDefault(3), enabledSpecialists.ElementAtOrDefault(4), enabledSpecialists.ElementAtOrDefault(5)));
     builder.Services.AddHostedService<RAC.Api.RacSpecialistDispatchWorker>();
 }
 if (danielEnabled)
@@ -216,6 +217,31 @@ if (miguelEnabled)
     builder.Services.AddHostedService<RAC.Api.MiguelAuditWorker>();
 }
 
+if (lucasEnabled)
+{
+    var section = builder.Configuration.GetSection("Specialists:Lucas");
+    var age = section.GetValue<int>("MaximumAgeSeconds",60);
+    var latency = section.GetValue<int>("MaximumLatencyMilliseconds",1000);
+    var offset = section.GetValue<int>("MaximumClockOffsetMilliseconds",1000);
+    if(age<30 || age>120 || latency<100 || latency>10000 || offset<100 || offset>5000)
+        throw new InvalidOperationException("Invalid Lucas connectivity configuration.");
+    builder.Services.AddKeyedSingleton<HttpClient>("lucas-probe",(_,_)=>LucasProbeRateHandler.CreateClient());
+    builder.Services.AddSingleton<LucasExchangeProbeRegistry>(sp=>
+    {
+        var http=sp.GetRequiredKeyedService<HttpClient>("lucas-probe");
+        return new LucasExchangeProbeRegistry(new ILucasExchangeProbe[]{
+            new LucasBinancePublicClient(http),new LucasBinanceTestnetClient(http)});
+    });
+    builder.Services.AddSingleton<LucasConnectivityService>(sp=>new LucasConnectivityService(
+        sp.GetRequiredService<LucasExchangeProbeRegistry>(),TimeSpan.FromSeconds(age),
+        TimeSpan.FromMilliseconds(latency),TimeSpan.FromMilliseconds(offset)));
+    builder.Services.AddSingleton<LucasConnectivityReporter>();
+    builder.Services.AddSingleton<LucasTaskExecutor>(sp=>new LucasTaskExecutor(
+        sp.GetRequiredService<RacAgentTaskStore>(),sp.GetRequiredService<RacAgentMessageStore>(),
+        sp.GetRequiredService<LucasConnectivityReporter>(),sp.GetRequiredService<LucasConnectivityService>().AssessAsync));
+    builder.Services.AddHostedService<RAC.Api.LucasConnectivityWorker>();
+}
+
 var app = builder.Build();
 app.UseRacSecurity();
 app.MapRacAuthentication();
@@ -248,7 +274,7 @@ app.MapGet("/api/research/robustness", () =>
         return Results.Ok(new { available = false, mode = "ROBUSTNESS_INVALID",
             paperModified = false, orderPlacementEnabled = false,
             promotionAllowed = false,
-            notice = "RelatÃ³rio SHADOW invÃ¡lido ou incompleto. Nenhuma estratÃ©gia aprovada." });
+            notice = "RelatÃƒÂ³rio SHADOW invÃƒÂ¡lido ou incompleto. Nenhuma estratÃƒÂ©gia aprovada." });
     }
 }).RequireAuthorization();
 
@@ -266,7 +292,7 @@ app.MapGet("/api/research/frozen-decisions", () =>
     {
         return Results.Ok(new { available = false, mode = "FROZEN_DECISION_INVALID",
             paperModified = false, orderPlacementEnabled = false,
-            promotionAllowed = false, notice = "Auditoria congelada invÃ¡lida. Nenhuma estratÃ©gia aprovada." });
+            promotionAllowed = false, notice = "Auditoria congelada invÃƒÂ¡lida. Nenhuma estratÃƒÂ©gia aprovada." });
     }
 }).RequireAuthorization();
 
@@ -287,7 +313,7 @@ app.MapGet("/api/research/six-month-validation", () =>
             available = false, mode = "SIX_MONTH_VALIDATION_FAILED",
             paperModified = false, orderPlacementEnabled = false,
             promotionAllowed = false,
-            notice = "Pesquisa longitudinal incompleta ou invÃ¡lida: nenhuma aprovaÃ§Ã£o."
+            notice = "Pesquisa longitudinal incompleta ou invÃƒÂ¡lida: nenhuma aprovaÃƒÂ§ÃƒÂ£o."
         });
     }
 }).RequireAuthorization();
@@ -310,7 +336,7 @@ app.MapGet("/api/research/overfit-screen", () =>
             available = false, mode = "OVERFIT_SCREEN_INVALID",
             paperModified = false, orderPlacementEnabled = false,
             promotionAllowed = false,
-            notice = "EvidÃªncia estatÃ­stica indisponÃ­vel ou invÃ¡lida. Nenhuma aprovaÃ§Ã£o."
+            notice = "EvidÃƒÂªncia estatÃƒÂ­stica indisponÃƒÂ­vel ou invÃƒÂ¡lida. Nenhuma aprovaÃƒÂ§ÃƒÂ£o."
         });
     }
 }).RequireAuthorization();
@@ -331,7 +357,7 @@ app.MapGet("/api/research/three-month-dashboard", () =>
         return Results.Ok(new {
             available = false, mode = "REPORT_VALIDATION_FAILED",
             orderPlacementEnabled = false, promotionAllowed = false,
-            notice = "ComparaÃ§Ã£o histÃ³rica invÃ¡lida ou incompleta. Nenhuma estratÃ©gia autorizada."
+            notice = "ComparaÃƒÂ§ÃƒÂ£o histÃƒÂ³rica invÃƒÂ¡lida ou incompleta. Nenhuma estratÃƒÂ©gia autorizada."
         });
     }
 }).RequireAuthorization();
@@ -353,7 +379,7 @@ app.MapGet("/api/research/shadow-dashboard", () =>
             available = false, mode = "REPORT_VALIDATION_FAILED",
             month = "2026-10", agents = 0,
             orderPlacementEnabled = false, promotionAllowed = false,
-            notice = "RelatÃ³rio SHADOW invÃ¡lido ou indisponÃ­vel. Nenhum resultado autorizado."
+            notice = "RelatÃƒÂ³rio SHADOW invÃƒÂ¡lido ou indisponÃƒÂ­vel. Nenhum resultado autorizado."
         });
     }
 }).RequireAuthorization();
@@ -409,7 +435,7 @@ app.MapGet("/api/market/candles/{symbol}", async (
     string symbol, int? limit, RacDbContext db, CancellationToken ct) =>
 {
     if (!RacMarketSymbols.IsSupported(symbol))
-        return Results.BadRequest(new { error = "Par nÃ£o monitorado pelo RAC." });
+        return Results.BadRequest(new { error = "Par nÃƒÂ£o monitorado pelo RAC." });
     if (limit is < 1 or > 120)
         return Results.BadRequest(new { error = "Limite permitido: 1 a 120 candles." });
     var candles = await db.MarketCandles.AsNoTracking()
@@ -452,7 +478,7 @@ app.MapGet("/api/strategy/backtest/{symbol}", async (
     string symbol, RacStrategyService strategies, CancellationToken ct) =>
 {
     if (!RacMarketSymbols.IsSupported(symbol))
-        return Results.BadRequest(new { error = "Par nÃ£o monitorado pelo RAC." });
+        return Results.BadRequest(new { error = "Par nÃƒÂ£o monitorado pelo RAC." });
     return Results.Ok(await strategies.BacktestAsync(symbol, ct));
 }).RequireAuthorization();
 
@@ -557,7 +583,7 @@ app.MapGet("/api/binance/spot/status", (BinanceSpotCredentialStore store,
     context.Response.Headers.CacheControl = "no-store";
     return Results.Ok(new { configured = store.IsConfigured,
         source = "BINANCE_SPOT_REAL", mode = "READ_ONLY",
-        realOrdersEnabled = false, note = "Apenas saldos Spot; sem ordens ou transferÃªncias." });
+        realOrdersEnabled = false, note = "Apenas saldos Spot; sem ordens ou transferÃƒÂªncias." });
 }).RequireAuthorization("RacWalletOwner");
 
 app.MapGet("/api/binance/spot/balances", async (BinanceSpotAccountClient wallet,
@@ -571,12 +597,12 @@ app.MapGet("/api/binance/spot/balances", async (BinanceSpotAccountClient wallet,
     catch (BinanceUnsafePermissionsException)
     {
         return Results.BadRequest(new { error =
-            "A chave Binance possui permissÃµes de movimentaÃ§Ã£o ou nÃ£o comprovou acesso somente leitura. Desative trading, saques e transferÃªncias e configure outra chave." });
+            "A chave Binance possui permissÃƒÂµes de movimentaÃƒÂ§ÃƒÂ£o ou nÃƒÂ£o comprovou acesso somente leitura. Desative trading, saques e transferÃƒÂªncias e configure outra chave." });
     }
     catch (BinanceWalletRequestException)
     {
         return Results.Json(new { error =
-            "A Binance recusou a consulta da carteira. Verifique a chave, IP permitido e permissÃµes somente leitura." },
+            "A Binance recusou a consulta da carteira. Verifique a chave, IP permitido e permissÃƒÂµes somente leitura." },
             statusCode: StatusCodes.Status502BadGateway);
     }
     catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or
@@ -584,7 +610,7 @@ app.MapGet("/api/binance/spot/balances", async (BinanceSpotAccountClient wallet,
         System.Text.Json.JsonException)
     {
         return Results.Json(new { error =
-            "NÃ£o foi possÃ­vel consultar a carteira. Verifique a rede e o usuÃ¡rio Windows que protege as credenciais." },
+            "NÃƒÂ£o foi possÃƒÂ­vel consultar a carteira. Verifique a rede e o usuÃƒÂ¡rio Windows que protege as credenciais." },
             statusCode: StatusCodes.Status503ServiceUnavailable);
     }
 }).RequireAuthorization("RacWalletOwner");
@@ -684,9 +710,9 @@ static async Task<IResult> HandlePortfolioAsync(Func<Task<object>> operation)
         ex.Message.StartsWith("Aguarde 45 segundos", StringComparison.Ordinal))
     { return Results.Conflict(new { error = ex.Message }); }
     catch (BinanceUnsafePermissionsException)
-    { return Results.BadRequest(new { error = "A chave Binance deve ter permissÃ£o exclusivamente de leitura." }); }
+    { return Results.BadRequest(new { error = "A chave Binance deve ter permissÃƒÂ£o exclusivamente de leitura." }); }
     catch (Exception)
-    { return Results.Json(new { error = "Falha ao consultar ou registrar o patrimÃ´nio. Verifique a Binance e o SQL Server." }, statusCode: 503); }
+    { return Results.Json(new { error = "Falha ao consultar ou registrar o patrimÃƒÂ´nio. Verifique a Binance e o SQL Server." }, statusCode: 503); }
 }
 
 static async Task<IResult> HandleControlAsync(Func<Task<RacState>> change)
