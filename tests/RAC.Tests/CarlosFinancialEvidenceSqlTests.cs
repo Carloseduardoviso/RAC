@@ -115,6 +115,12 @@ public sealed class CarlosFinancialEvidenceSqlTests
             Assert.True(recovered.Verified);
             Assert.True((await recovery.ReviewAsync(overflow,TimeSpan.FromTicks(1),default)).Verified);
             Assert.Equal(113,recovered.EvidenceIds.Count);
+            var legacyResult=await service.ReviewAsync(rafaelTask,samuelTask,miguelTask,now,TimeSpan.FromMinutes(5),default);
+            var legacy=CarlosFinancialAdvisoryReport.CreateForPublication(Guid.NewGuid(),legacyResult,rafaelTask,samuelTask,miguelTask,now);
+            Assert.DoesNotContain("EvidenceWindowTicks",legacy.Content);
+            Assert.True((await recovery.ReviewAsync(legacy,TimeSpan.FromMinutes(5),default)).Verified);
+            var missingLegacy=CarlosFinancialAdvisoryReport.CreateForPublication(Guid.NewGuid(),legacyResult,Guid.NewGuid(),samuelTask,miguelTask,now);
+            Assert.False((await recovery.ReviewAsync(missingLegacy,TimeSpan.FromMinutes(5),default)).Verified);
             Assert.False(recovered.TradingAuthorized);
             var tampered=await recovery.ReviewAsync(overflow with {Id=Guid.NewGuid()},TimeSpan.FromMinutes(5),default);
             Assert.False(tampered.Verified);

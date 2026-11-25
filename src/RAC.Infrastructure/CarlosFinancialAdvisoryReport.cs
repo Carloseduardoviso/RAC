@@ -42,6 +42,13 @@ public static class CarlosFinancialAdvisoryReport
                 EvidenceIds=Array.Empty<Guid>(),Reasons=new[]{"CAPACITY_EXCEEDED","ORIGINAL_STATUS:"+result.Status},
                 EvidenceCount=result.EvidenceIds.Distinct().Count(),EvidenceDigest=digest,
                 RafaelTask=rafaelTask,SamuelTask=samuelTask,MiguelTask=miguelTask, EvidenceWindowTicks=evidenceWindow?.Ticks});
+            // Preserve the exact legacy wire format when no original window was recorded.
+            if(!evidenceWindow.HasValue)
+                content=JsonSerializer.Serialize(new {Schema="CARLOS_FINANCIAL_V1",Mode="RESEARCH_ONLY",
+                    TradingAuthorized=false,HumanReviewRequired=true,Status="CRITICAL_REVIEW",
+                    EvidenceIds=Array.Empty<Guid>(),Reasons=new[]{"CAPACITY_EXCEEDED","ORIGINAL_STATUS:"+result.Status},
+                    EvidenceCount=result.EvidenceIds.Distinct().Count(),EvidenceDigest=digest,
+                    RafaelTask=rafaelTask,SamuelTask=samuelTask,MiguelTask=miguelTask});
             var message=RacAgentCommunication.Create("carlos","ana",RacMessageKind.RiskNotice,content,correlationId,observedUtc);
             return message with {Id=new Guid(SHA256.HashData(Encoding.UTF8.GetBytes("CARLOS:CAPACITY:V1:"+correlationId.ToString("N")+":"+content)).AsSpan(0,16))};
         }
