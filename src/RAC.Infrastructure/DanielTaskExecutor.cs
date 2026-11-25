@@ -26,7 +26,7 @@ public sealed class DanielTaskExecutor(
             {
                 var coverage=await market.ReadCoverageAsync(ct);
                 var observations=coverage.Observations;
-                if(observations.Count==0) throw new InvalidOperationException("No valid market observations.");
+                if(coverage.ExpectedMarkets==0) throw new InvalidOperationException("Empty market universe.");
                 await discoveries.SaveAsync(task.Id,lease,observations,DateTimeOffset.UtcNow,ct,coverage);
             }
         }

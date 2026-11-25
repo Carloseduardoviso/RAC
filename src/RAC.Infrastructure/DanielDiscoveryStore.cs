@@ -14,12 +14,13 @@ public sealed class DanielDiscoveryStore(IDbContextFactory<RacDbContext> factory
             throw new ArgumentException("Invalid discovery context.");
         var candidates=DanielCandidateRanking.Rank(observations,observedUtc);
         var json=JsonSerializer.Serialize(candidates);
-        var snapshotJson=JsonSerializer.Serialize(DanielResearchSnapshot.Create(observations,observedUtc));
+        var snapshot=observations.Count==0 && coverage is not null && coverage.ExpectedMarkets>0 ? new DanielResearchSnapshot(observedUtc.ToUniversalTime(),Array.Empty<DanielResearchDecision>()) : DanielResearchSnapshot.Create(observations,observedUtc);
+        var snapshotJson=JsonSerializer.Serialize(snapshot);
         if(coverage is not null)
         {
             var symbols=observations.Select(x=>x.Symbol).Concat(coverage.MissingTickers).Concat(coverage.RejectedTickers).ToArray();
             if(!observations.SequenceEqual(coverage.Observations) || symbols.Length!=coverage.ExpectedMarkets || symbols.Distinct(StringComparer.Ordinal).Count()!=symbols.Length || !coverage.RejectedTickers.OrderBy(x=>x,StringComparer.Ordinal).SequenceEqual(coverage.RejectionReasons.Keys.OrderBy(x=>x,StringComparer.Ordinal))) throw new ArgumentException("Inconsistent market coverage.");
-            snapshotJson=JsonSerializer.Serialize(new { Schema="DANIEL_COVERAGE_V1", Snapshot=DanielResearchSnapshot.Create(observations,observedUtc), coverage.ExpectedMarkets, MissingTickers=coverage.MissingTickers.OrderBy(x=>x,StringComparer.Ordinal), RejectedTickers=coverage.RejectedTickers.OrderBy(x=>x,StringComparer.Ordinal), RejectionReasons=coverage.RejectionReasons.OrderBy(x=>x.Key,StringComparer.Ordinal), TradingAuthorized=false });
+            snapshotJson=JsonSerializer.Serialize(new { Schema="DANIEL_COVERAGE_V1", Snapshot=snapshot, coverage.ExpectedMarkets, MissingTickers=coverage.MissingTickers.OrderBy(x=>x,StringComparer.Ordinal), RejectedTickers=coverage.RejectedTickers.OrderBy(x=>x,StringComparer.Ordinal), RejectionReasons=coverage.RejectionReasons.OrderBy(x=>x.Key,StringComparer.Ordinal), TradingAuthorized=false });
         }
         await using var db=await factory.CreateDbContextAsync(ct);
         await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);

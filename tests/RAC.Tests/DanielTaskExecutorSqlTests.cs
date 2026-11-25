@@ -9,7 +9,7 @@ public sealed class DanielTaskExecutorSqlTests
     {
         public RacDbContext CreateDbContext()=>new(options);
     }
-    private sealed class Handler:HttpMessageHandler
+    private sealed class Handler(bool empty=false):HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken ct)
         {
@@ -18,11 +18,11 @@ public sealed class DanielTaskExecutorSqlTests
                 ? """{"symbols":[{"symbol":"ABCUSDT","status":"TRADING","quoteAsset":"USDT","isSpotTradingAllowed":true},{"symbol":"MISSINGUSDT","status":"TRADING","quoteAsset":"USDT","isSpotTradingAllowed":true}]}"""
                 : """[{"symbol":"ABCUSDT","lowPrice":"100","highPrice":"103","quoteVolume":"2000000","bidPrice":"101","askPrice":"101.1","closeTime":TIME}]"""
                     .Replace("TIME",DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString(System.Globalization.CultureInfo.InvariantCulture));
+            if(empty && !request.RequestUri!.AbsolutePath.EndsWith("exchangeInfo")) body="[]";
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK){Content=new StringContent(body)});
         }
     }
-    [Fact]
-    public async Task ExecutesResearchAndPublishesReport()
+    [Theory] [InlineData(false)] [InlineData(true)] public async Task ExecutesResearchAndPublishesReport(bool empty)
     {
         if(!OperatingSystem.IsWindows()) return;
         var options=new DbContextOptionsBuilder<RacDbContext>().UseSqlServer(
@@ -34,14 +34,14 @@ public sealed class DanielTaskExecutorSqlTests
             var factory=new Factory(options);
             var tasks=new RacAgentTaskStore(factory);
             var task=await tasks.EnqueueAsync("rebeca","daniel","MARKET_DISCOVERY",default);
-            using var http=new HttpClient(new Handler());
+            using var http=new HttpClient(new Handler(empty));
             var executor=new DanielTaskExecutor(factory,new DanielBinancePublicClient(http),tasks,
                 new DanielDiscoveryStore(factory),new DanielDiscoveryReporter(factory));
             Assert.True(await executor.ExecuteNextAsync(default));
             Assert.False(await executor.ExecuteNextAsync(default));
             await using var check=new RacDbContext(options);
             Assert.Equal("Completed",(await check.AgentTasks.SingleAsync()).Status);
-            Assert.Equal(1,(await check.DanielDiscoveries.SingleAsync()).CandidateCount);
+            Assert.Equal(empty?0:1,(await check.DanielDiscoveries.SingleAsync()).CandidateCount);
             var snapshot=(await check.DanielDiscoveries.SingleAsync()).ResearchSnapshotJson!;
             Assert.Contains("DANIEL_COVERAGE_V1",snapshot);
             Assert.Contains("MISSINGUSDT",snapshot);
