@@ -24,13 +24,15 @@ public static class DanielBinanceMarketParser
             .Where(x=>x.GetProperty("status").GetString()=="TRADING" &&
                 x.GetProperty("quoteAsset").GetString()=="USDT" &&
                 x.GetProperty("isSpotTradingAllowed").GetBoolean())
-            .Select(x=>x.GetProperty("symbol").GetString()!).ToHashSet(StringComparer.Ordinal);
+            .Select(x=>x.GetProperty("symbol").GetString()!).ToArray();
+        if(allowed.Any(x=>string.IsNullOrWhiteSpace(x) || !x.EndsWith("USDT",StringComparison.Ordinal)) || allowed.Distinct(StringComparer.Ordinal).Count()!=allowed.Length) throw new FormatException("Invalid or duplicate market metadata.");
         var result=new List<DanielMarketObservation>();
         var seen=new HashSet<string>(StringComparer.Ordinal);
         var rejected=new SortedDictionary<string,string>(StringComparer.Ordinal);
         foreach(var ticker in prices.RootElement.EnumerateArray())
         {
             var symbol=ticker.GetProperty("symbol").GetString()!;
+            if(string.IsNullOrWhiteSpace(symbol)) throw new FormatException("Missing ticker identity.");
             if(!allowed.Contains(symbol)) continue;
             if(!seen.Add(symbol)) throw new FormatException("Duplicate market ticker.");
             try
@@ -47,6 +49,6 @@ public static class DanielBinanceMarketParser
             { rejected.Add(symbol,"MISSING_OR_INVALID_FIELD"); }
         }
         var accepted=result.Select(x=>x.Symbol).ToHashSet(StringComparer.Ordinal);
-        return new(result.AsReadOnly(),Array.AsReadOnly(allowed.Except(seen).OrderBy(x=>x,StringComparer.Ordinal).ToArray()),Array.AsReadOnly(seen.Except(accepted).OrderBy(x=>x,StringComparer.Ordinal).ToArray()),allowed.Count) { RejectionReasons=new System.Collections.ObjectModel.ReadOnlyDictionary<string,string>(rejected) };
+        return new(result.AsReadOnly(),Array.AsReadOnly(allowed.Except(seen).OrderBy(x=>x,StringComparer.Ordinal).ToArray()),Array.AsReadOnly(seen.Except(accepted).OrderBy(x=>x,StringComparer.Ordinal).ToArray()),allowed.Length) { RejectionReasons=new System.Collections.ObjectModel.ReadOnlyDictionary<string,string>(rejected) };
     }
 }

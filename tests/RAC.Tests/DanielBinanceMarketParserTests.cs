@@ -41,4 +41,28 @@ public sealed class DanielBinanceMarketParserTests
         Assert.Single(incomplete.Observations);
         Assert.Equal("MISSING_OR_INVALID_FIELD",incomplete.RejectionReasons["BBBUSDT"]);
     }
+    [Theory]
+    [InlineData("{}","MISSING_OR_INVALID_FIELD")]
+    [InlineData("{\"closeTime\":9223372036854775807}","MISSING_OR_INVALID_FIELD")]
+    [InlineData("{\"closeTime\":1799999800000}","STALE_OR_FUTURE_DATA")]
+    public void RejectsIncompleteOrInvalidTimestampWithoutLosingValidMarket(string fields,string reason)
+    {
+        const string info="""{"symbols":[{"symbol":"AAAUSDT","status":"TRADING","quoteAsset":"USDT","isSpotTradingAllowed":true},{"symbol":"BBBUSDT","status":"TRADING","quoteAsset":"USDT","isSpotTradingAllowed":true}]}""";
+        var valid="""{"symbol":"AAAUSDT","lowPrice":"100","highPrice":"103","quoteVolume":"2000000","bidPrice":"101","askPrice":"101.1","closeTime":1800000000000}""";
+        var bad="""{"symbol":"BBBUSDT","lowPrice":"100","highPrice":"103"}""";
+        if(fields!="{}") bad=bad[..^1]+","+fields[1..];
+        var coverage=DanielBinanceMarketParser.ParseCoverage(info,"["+valid+","+bad+"]",DateTimeOffset.FromUnixTimeMilliseconds(1800000000000));
+        Assert.Single(coverage.Observations);
+        Assert.Equal(reason,coverage.RejectionReasons["BBBUSDT"]);
+        Assert.Equal(coverage.ExpectedMarkets,coverage.Observations.Count+coverage.MissingTickers.Count+coverage.RejectedTickers.Count);
+    }
+    [Fact]
+    public void RejectsDuplicateMarketMetadataAndTickers()
+    {
+        const string market="""{"symbol":"AAAUSDT","status":"TRADING","quoteAsset":"USDT","isSpotTradingAllowed":true}""";
+        const string ticker="""{"symbol":"AAAUSDT"}""";
+        var now=DateTimeOffset.UtcNow;
+        Assert.Throws<FormatException>(()=>DanielBinanceMarketParser.ParseCoverage("{\"symbols\":["+market+","+market+"]}","[]",now));
+        Assert.Throws<FormatException>(()=>DanielBinanceMarketParser.ParseCoverage("{\"symbols\":["+market+"]}","["+ticker+","+ticker+"]",now));
+    }
 }
