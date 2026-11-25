@@ -30,7 +30,9 @@ public sealed class RacAnaCollectiveCycleSqlTests
             var now=DateTimeOffset.UtcNow;
             var root=RacAgentCommunication.Create("rebeca","ana",RacMessageKind.Report,"independent review",Guid.NewGuid(),now);
             Assert.True(await messages.SaveAsync(root,default));
-            var first=await cycle.RunAsync(now,TimeSpan.FromMinutes(5),default);
+            var concurrent=await Task.WhenAll(Enumerable.Range(0,4).Select(_=>cycle.RunAsync(now,TimeSpan.FromMinutes(5),default)));
+            var first=concurrent[0];
+            Assert.All(concurrent,x=>Assert.False(x.TradingAuthorized));
             Assert.False(first.TradingAuthorized);
             var rafael=new RafaelTaskExecutor(tasks,messages,new RafaelFinancialReporter(messages),new RafaelCapitalReader(factory),new RafaelAllocationLimits(30,40,15),TimeSpan.FromMinutes(2),0.01m);
             var samuel=new SamuelTaskExecutor(tasks,messages,new SamuelLiquidityReporter(messages),(symbol,ct)=>Task.FromResult(new SamuelDepthSnapshot(1,DateTimeOffset.UtcNow,[new(99,1)],[new(100,1)])),"BTCUSDT",[1,2],1,2,2);
@@ -40,7 +42,10 @@ public sealed class RacAnaCollectiveCycleSqlTests
             Assert.True(await samuel.ExecuteNextAsync(default));
             Assert.True(await miguel.ExecuteNextAsync(default));
             Assert.True(await lucas.ExecuteNextAsync(default));
-            var final=await cycle.RunAsync(DateTimeOffset.UtcNow,TimeSpan.FromMinutes(5),default);
+            var observed=DateTimeOffset.UtcNow;
+            var finals=await Task.WhenAll(Enumerable.Range(0,4).Select(_=>cycle.RunAsync(observed,TimeSpan.FromMinutes(5),default)));
+            var final=finals[0];
+            Assert.All(finals,x=>Assert.Equal(final.EvidenceIds.ToArray(),x.EvidenceIds.ToArray()));
             Assert.False(final.TradingAuthorized);
             Assert.Equal("RISK_REVIEW_REQUIRED",final.Status);
             await using var check=new RacDbContext(options);
@@ -57,6 +62,28 @@ public sealed class RacAnaCollectiveCycleSqlTests
             Assert.Equal(4,await check.AgentTasks.CountAsync());
             Assert.Equal(2,await check.AgentMessages.CountAsync(x=>x.Kind=="TaskRequest"));
             Assert.True((await check.PaperAccounts.SingleAsync()).RiskLocked);
+            Assert.False(await check.TestnetOrders.AnyAsync());
+        }
+        finally { await using var db=new RacDbContext(options); await db.Database.EnsureDeletedAsync(); }
+    }
+    [Fact]
+    public async Task FinancialBatchRejectsOverflowWithoutPublishing()
+    {
+        if(!OperatingSystem.IsWindows()) return;
+        var options=new DbContextOptionsBuilder<RacDbContext>().UseSqlServer(@"Server=(localdb)\MSSQLLocalDB;Database=RAC_BATCH_LIMIT_"+Guid.NewGuid().ToString("N")+";Integrated Security=True;TrustServerCertificate=True").Options;
+        var factory=new Factory(options);
+        try
+        {
+            await using(var db=new RacDbContext(options)) await db.Database.MigrateAsync();
+            var messages=new RacAgentMessageStore(factory);
+            var now=DateTimeOffset.UtcNow;
+            for(var i=0;i<101;i++) Assert.True(await messages.SaveAsync(RacAgentCommunication.Create("ana","carlos",RacMessageKind.TaskRequest,"test",Guid.NewGuid(),now),default));
+            var service=new CarlosFinancialEvidenceService(new CarlosRafaelEvidenceReader(messages),new CarlosSamuelEvidenceReader(messages),new CarlosMiguelEvidenceReader(messages));
+            var batch=new CarlosReviewRequestBatch(factory,new CarlosReviewRequestPublisher(factory,new CarlosFinancialAdvisoryPublisher(service,messages)));
+            var error=await Assert.ThrowsAsync<InvalidOperationException>(()=>batch.RunAsync(now,TimeSpan.FromMinutes(5),default));
+            Assert.Equal("Financial request batch overflow.",error.Message);
+            await using var check=new RacDbContext(options);
+            Assert.Equal(101,await check.AgentMessages.CountAsync());
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally { await using var db=new RacDbContext(options); await db.Database.EnsureDeletedAsync(); }
