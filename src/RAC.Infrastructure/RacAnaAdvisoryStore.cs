@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 using System.Text.Json;
 
@@ -19,15 +19,17 @@ public sealed class RacAnaAdvisoryStore(IDbContextFactory<RacDbContext> factory)
     {
         var key = RacAnaAdvisoryFingerprint.Compute(result);
         await using var db = await factory.CreateDbContextAsync(ct);
-        await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
-        if(await db.AnaAdvisories.AnyAsync(x=>x.Fingerprint==key,ct)) return false;
         db.AnaAdvisories.Add(new RacAnaAdvisoryRecord {
             Fingerprint=key, Status=result.Status, CreatedUtc=now.ToUniversalTime(),
             ReasonsJson=JsonSerializer.Serialize(result.Reasons),
             EvidenceIdsJson=JsonSerializer.Serialize(result.EvidenceIds)
         });
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        try { await db.SaveChangesAsync(ct); }
+        catch(DbUpdateException ex) when(ex.InnerException is Microsoft.Data.SqlClient.SqlException sql && sql.Number is 2601 or 2627)
+        {
+            if(await db.AnaAdvisories.AsNoTracking().AnyAsync(x=>x.Fingerprint==key,ct)) return false;
+            throw;
+        }
         return true;
     }
 }

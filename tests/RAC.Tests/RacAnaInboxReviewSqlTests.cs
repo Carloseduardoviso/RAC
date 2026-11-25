@@ -54,6 +54,10 @@ public sealed class RacAnaInboxReviewSqlTests
             await using var check=new RacDbContext(options);
             Assert.Equal(5,await check.AgentMessages.CountAsync());
             Assert.Equal(1,await check.AnaAdvisories.CountAsync());
+            var concurrent=automatic with { Reasons = ["concurrency-test"] };
+            var writes=await Task.WhenAll(Enumerable.Range(0,8).Select(_=>audit.SaveAsync(concurrent,now,default)));
+            Assert.Single(writes.Where(x=>x));
+            Assert.Equal(2,await check.AnaAdvisories.CountAsync());
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally
