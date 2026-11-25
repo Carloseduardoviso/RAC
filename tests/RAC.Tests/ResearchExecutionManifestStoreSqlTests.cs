@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 using RAC.Infrastructure;
 namespace RAC.Tests;
@@ -30,7 +30,8 @@ public sealed class ResearchExecutionManifestStoreSqlTests
             await using(var db=factory.CreateDbContext())Assert.False(await db.ResearchExecutionManifests.AnyAsync());
             var last=evidence.Last();
             await executions.SaveAsync(last.Row,last.SourceSha256,last.Month,engine,result,now,default);
-            Assert.True(await store.SaveAsync(symbols,engine,evidence,now,default));
+            var concurrent=await Task.WhenAll(Enumerable.Range(0,8).Select(_=>store.SaveAsync(symbols,engine,evidence,now,default)));
+            Assert.Single(concurrent,x=>x);
             Assert.False(await store.SaveAsync(symbols,engine,evidence.Reverse().ToArray(),now,default));
             await using var check=factory.CreateDbContext();
             var manifest=await check.ResearchExecutionManifests.SingleAsync();
