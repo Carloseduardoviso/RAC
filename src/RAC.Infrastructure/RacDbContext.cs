@@ -51,9 +51,21 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public DbSet<RacAgentTaskRecord> AgentTasks => Set<RacAgentTaskRecord>();
     public DbSet<DanielDiscoveryRecord> DanielDiscoveries => Set<DanielDiscoveryRecord>();
     public DbSet<RacAnaAdvisoryRecord> AnaAdvisories => Set<RacAnaAdvisoryRecord>();
+    public DbSet<ResearchQuantitativeExecutionRecord> ResearchQuantitativeExecutions => Set<ResearchQuantitativeExecutionRecord>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<ResearchQuantitativeExecutionRecord>(e=>{
+            e.HasKey(x=>x.ExecutionId);
+            e.Property(x=>x.ExecutionId).HasMaxLength(64);
+            e.Property(x=>x.ConfigurationId).HasMaxLength(64).IsRequired();
+            e.Property(x=>x.SourceSha256).HasMaxLength(64).IsRequired();
+            e.Property(x=>x.Symbol).HasMaxLength(40).IsRequired();
+            e.Property(x=>x.EngineVersion).HasMaxLength(64).IsRequired();
+            e.Property(x=>x.ParametersJson).IsRequired();
+            e.Property(x=>x.ResultJson).IsRequired();
+            e.HasIndex(x=>new {x.ConfigurationId,x.Month});
+        });
         model.Entity<RacAnaAdvisoryRecord>(e =>
         {
             e.HasKey(x => x.Fingerprint);

@@ -1083,6 +1083,53 @@ namespace RAC.Infrastructure.Migrations
                     b.ToTable("ResearchPublications", "rac");
                 });
 
+            modelBuilder.Entity("RAC.Domain.ResearchQuantitativeExecutionRecord", b =>
+                {
+                    b.Property<string>("ExecutionId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("ConfigurationId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("EngineVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateOnly>("Month")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ParametersJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("RecordedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ResultJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SourceSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.HasKey("ExecutionId");
+
+                    b.HasIndex("ConfigurationId", "Month");
+
+                    b.ToTable("ResearchQuantitativeExecutions", "rac");
+                });
+
             modelBuilder.Entity("RAC.Domain.ResearchSourceRecord", b =>
                 {
                     b.Property<string>("Host")
