@@ -1,4 +1,4 @@
-﻿using RAC.Infrastructure;
+using RAC.Infrastructure;
 using RAC.Application;
 namespace RAC.Tests;
 
@@ -20,5 +20,21 @@ public sealed class DanielBinanceMarketParserTests
         Assert.Equal(now,row.ObservedUtc);
         Assert.True(DanielMarketDiscovery.Evaluate(row,now).ResearchCandidate);
         Assert.Empty(DanielBinanceMarketParser.Parse(info,tickers,now.AddMinutes(3)));
+    }
+    [Fact]
+    public void CoverageDistinguishesMissingAndRejectedMarkets()
+    {
+        const string info="""
+        {"symbols":[{"symbol":"AAAUSDT","status":"TRADING","quoteAsset":"USDT","isSpotTradingAllowed":true},{"symbol":"BBBUSDT","status":"TRADING","quoteAsset":"USDT","isSpotTradingAllowed":true},{"symbol":"CCCUSDT","status":"TRADING","quoteAsset":"USDT","isSpotTradingAllowed":true}]}
+        """;
+        const string tickers="""
+        [{"symbol":"AAAUSDT","lowPrice":"100","highPrice":"103","quoteVolume":"2000000","bidPrice":"101","askPrice":"101.1","closeTime":1800000000000},{"symbol":"BBBUSDT","lowPrice":"0","highPrice":"103"}]
+        """;
+        var coverage=DanielBinanceMarketParser.ParseCoverage(info,tickers,DateTimeOffset.FromUnixTimeMilliseconds(1800000000000));
+        Assert.Equal(3,coverage.ExpectedMarkets);
+        Assert.Equal("AAAUSDT",Assert.Single(coverage.Observations).Symbol);
+        Assert.Equal("BBBUSDT",Assert.Single(coverage.RejectedTickers));
+        Assert.Equal("CCCUSDT",Assert.Single(coverage.MissingTickers));
+        Assert.False(coverage.TradingAuthorized);
     }
 }

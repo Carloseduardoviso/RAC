@@ -1,8 +1,11 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Globalization;
 using RAC.Application;
 
 namespace RAC.Infrastructure;
+
+public sealed record DanielMarketCoverage(IReadOnlyList<DanielMarketObservation> Observations,IReadOnlyList<string> MissingTickers,IReadOnlyList<string> RejectedTickers,int ExpectedMarkets)
+{ public bool TradingAuthorized => false; }
 
 public static class DanielBinanceMarketParser
 {
@@ -10,6 +13,10 @@ public static class DanielBinanceMarketParser
         decimal.Parse(e.GetProperty(key).GetString()!,NumberStyles.AllowDecimalPoint,CultureInfo.InvariantCulture);
 
     public static IReadOnlyList<DanielMarketObservation> Parse(string exchangeInfo,string tickers,DateTimeOffset receivedUtc)
+    {
+        return ParseCoverage(exchangeInfo,tickers,receivedUtc).Observations;
+    }
+    public static DanielMarketCoverage ParseCoverage(string exchangeInfo,string tickers,DateTimeOffset receivedUtc)
     {
         using var info=JsonDocument.Parse(exchangeInfo);
         using var prices=JsonDocument.Parse(tickers);
@@ -33,6 +40,7 @@ public static class DanielBinanceMarketParser
             result.Add(new(symbol,true,Number(ticker,"quoteVolume"),Number(ticker,"bidPrice"),
                 Number(ticker,"askPrice"),(high-low)/low*100m,observed));
         }
-        return result;
+        var accepted=result.Select(x=>x.Symbol).ToHashSet(StringComparer.Ordinal);
+        return new(result.AsReadOnly(),Array.AsReadOnly(allowed.Except(seen).OrderBy(x=>x,StringComparer.Ordinal).ToArray()),Array.AsReadOnly(seen.Except(accepted).OrderBy(x=>x,StringComparer.Ordinal).ToArray()),allowed.Count);
     }
 }
