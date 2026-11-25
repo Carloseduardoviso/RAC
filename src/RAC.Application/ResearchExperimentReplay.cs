@@ -2,6 +2,8 @@ using RAC.Infrastructure;
 namespace RAC.Application;
 public static class ResearchExperimentReplay
 {
+    // Change this identifier whenever the unfiltered replay semantics change.
+    public const string HistoricalEngineVersion="REPLAY_V1";
     public sealed record Minute(decimal Open,decimal Close,decimal QuoteVolume);
     public sealed record Result(decimal NetPct,decimal DrawdownPct,int Trades,int Wins,decimal? ProfitFactor,decimal Costs,bool Unresolved);
     public static Result Run(IReadOnlyList<Minute> data,ResearchBacktestParameters.Experiment p,bool qualityFilters=false,ResearchEntryFilter filters=ResearchEntryFilter.All,CancellationToken ct=default)

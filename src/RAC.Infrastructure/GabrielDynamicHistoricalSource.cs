@@ -20,7 +20,7 @@ public sealed class GabrielDynamicHistoricalSource(GabrielPublicArchiveClient ar
     }
 
     private async Task RecordAsync(ResearchExperimentPlan.Row row,string hash,DateOnly month,ResearchExperimentReplay.Result result,CancellationToken ct)
-        => await memory!.SaveAsync(row,hash,month,"REPLAY_V1",result,DateTimeOffset.UtcNow,ct);
+        => await memory!.SaveAsync(row,hash,month,ResearchEngineCatalog.Current.Id,result,DateTimeOffset.UtcNow,ct);
 
     private async Task<GabrielHistoricalMatrixBuilder.Archive> ReadArchiveAsync(string symbol,int year,int month,CancellationToken ct)
     {

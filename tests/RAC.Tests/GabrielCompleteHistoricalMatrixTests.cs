@@ -47,7 +47,7 @@ public sealed class GabrielCompleteHistoricalMatrixTests
                 return Task.FromResult(new GabrielHistoricalMatrixBuilder.Archive(bytes,hash));
             },default,(row,hash,month,result,ct)=>{
                 Assert.Equal(hashes[(row.Symbol,month.Month)],hash);
-                Assert.True(executions.Add(ResearchExperimentExecutionIdentity.Create(row,hash,month,"REPLAY_V1")));
+                Assert.True(executions.Add(ResearchExperimentExecutionIdentity.Create(row,hash,month,ResearchExperimentReplay.HistoricalEngineVersion)));
                 return Task.CompletedTask;
             });
         Assert.Equal(144*count,executions.Count);
