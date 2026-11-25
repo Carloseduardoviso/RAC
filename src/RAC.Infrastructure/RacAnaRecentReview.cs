@@ -30,6 +30,7 @@ public sealed class RacAnaRecentReview(IDbContextFactory<RacDbContext> factory)
         bool invalid=false;
         var financial=batch.SelectMany(x=>x.FinancialReports).Where(x=>x.Status!="INVALID_FINANCIAL_REPORT").ToArray();
         var byId=evidence.ToDictionary(x=>x.Id);
+        var audits=(await auditor.ReviewBatchAsync(financial.Where(x=>!x.Reasons.Contains("CAPACITY_EXCEEDED",StringComparer.Ordinal)).Select(x=>byId[x.MessageId]),maxAge,ct)).ToDictionary(x=>x.MessageId);
         foreach(var report in financial)
         {
             if(report.Reasons.Contains("CAPACITY_EXCEEDED",StringComparer.Ordinal))
@@ -51,7 +52,7 @@ public sealed class RacAnaRecentReview(IDbContextFactory<RacDbContext> factory)
                 }
                 continue;
             }
-            var audit=await auditor.ReviewAsync(byId[report.MessageId],maxAge,ct);
+            var audit=audits[report.MessageId];
             originals.AddRange(audit.VerifiedIds);
             findings.Add($"{report.MessageId}:FINANCIAL_PROVENANCE:{audit.VerifiedIds.Count}:{audit.InvalidIds.Count}");
             foreach(var id in audit.InvalidIds) findings.Add($"{report.MessageId}:INVALID_EVIDENCE:{id}");

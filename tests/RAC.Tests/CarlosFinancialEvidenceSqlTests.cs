@@ -86,6 +86,10 @@ public sealed class CarlosFinancialEvidenceSqlTests
             Assert.Equal(rafael.Id,Assert.Single(invalid.VerifiedIds));
             Assert.Contains(unknown,invalid.InvalidIds);
             Assert.Contains(published.Id,invalid.InvalidIds);
+            var auditedBatch=await auditor.ReviewBatchAsync([published,invalidReport],TimeSpan.FromMinutes(5),default);
+            Assert.Equal(provenance.VerifiedIds.ToArray(),auditedBatch[0].VerifiedIds.ToArray());
+            Assert.Equal(invalid.InvalidIds.ToArray(),auditedBatch[1].InvalidIds.ToArray());
+            Assert.Empty(await auditor.ReviewBatchAsync([],TimeSpan.FromMinutes(5),default));
             Assert.Equal(4,await check.AgentMessages.CountAsync());
             var concurrentId=Guid.NewGuid();
             var concurrent=await Task.WhenAll(Enumerable.Range(0,8).Select(i=>
