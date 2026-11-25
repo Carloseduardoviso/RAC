@@ -32,6 +32,25 @@ public sealed class RacAnaRecentReview(IDbContextFactory<RacDbContext> factory)
         var byId=evidence.ToDictionary(x=>x.Id);
         foreach(var report in financial)
         {
+            if(report.Reasons.Contains("CAPACITY_EXCEEDED",StringComparer.Ordinal))
+            {
+                var store=new RacAgentMessageStore(factory);
+                var recovery=new RacAnaFinancialCapacityRecovery(new CarlosFinancialEvidenceService(
+                    new CarlosRafaelEvidenceReader(store),new CarlosSamuelEvidenceReader(store),new CarlosMiguelEvidenceReader(store)));
+                try
+                {
+                    var recovered=await recovery.ReviewAsync(byId[report.MessageId],maxAge,ct);
+                    originals.AddRange(recovered.EvidenceIds);
+                    findings.Add($"{report.MessageId}:CAPACITY_RECOVERY:{(recovered.Verified?"VERIFIED":"MISMATCH")}");
+                    invalid|=!recovered.Verified;
+                }
+                catch(InvalidOperationException)
+                {
+                    findings.Add($"{report.MessageId}:CAPACITY_RECOVERY:UNAVAILABLE");
+                    invalid=true;
+                }
+                continue;
+            }
             var audit=await auditor.ReviewAsync(byId[report.MessageId],maxAge,ct);
             originals.AddRange(audit.VerifiedIds);
             findings.Add($"{report.MessageId}:FINANCIAL_PROVENANCE:{audit.VerifiedIds.Count}:{audit.InvalidIds.Count}");

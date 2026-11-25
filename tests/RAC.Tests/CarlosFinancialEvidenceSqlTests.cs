@@ -118,6 +118,15 @@ public sealed class CarlosFinancialEvidenceSqlTests
             var tampered=await recovery.ReviewAsync(overflow with {Id=Guid.NewGuid()},TimeSpan.FromMinutes(5),default);
             Assert.False(tampered.Verified);
             Assert.Empty(tampered.EvidenceIds);
+            var altered=overflow with {Id=Guid.NewGuid()};
+            await store.SaveAsync(altered,default);
+            var recoveredHistory=await new RacAnaRecentReview(factory).ReviewAsync(now.AddSeconds(10),TimeSpan.FromMinutes(5),default);
+            Assert.Contains($"{overflow.Id}:CAPACITY_RECOVERY:VERIFIED",recoveredHistory.Reasons);
+            Assert.Contains($"{altered.Id}:CAPACITY_RECOVERY:MISMATCH",recoveredHistory.Reasons);
+            Assert.All(extra,x=>Assert.Contains(x.Id,recoveredHistory.EvidenceIds));
+            Assert.Equal("RISK_REVIEW_REQUIRED",recoveredHistory.Status);
+            Assert.False(recoveredHistory.TradingAuthorized);
+            Assert.True(await new RacAnaAdvisoryStore(factory).SaveAsync(recoveredHistory,now.AddSeconds(10),default));
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally
