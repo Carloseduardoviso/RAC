@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Security.Cryptography;
 using RAC.Application;
 
@@ -11,12 +11,13 @@ internal static class GabrielHistoricalCli
         if(new FileInfo(path).Length>8*1024*1024) throw new InvalidDataException("Matrix too large.");
         var bytes=await File.ReadAllBytesAsync(path);
         var rows=GabrielExperimentMatrix.Read(System.Text.Encoding.UTF8.GetString(bytes));
+        var ranking=GabrielStrategyRanking.Rank(rows);
         var report=new {Mode="RESEARCH_ONLY",TradingAuthorized=false,IndependentValidation=false,
             SourceSha256=Convert.ToHexString(SHA256.HashData(bytes)),Count=rows.Count,
             PositiveMean=rows.Count(x=>x.Evidence.MeanNetPercent>0),
-            Unresolved=rows.Count(x=>x.Evidence.UnresolvedMonths>0),Rows=rows};
+            Unresolved=rows.Count(x=>x.Evidence.UnresolvedMonths>0),Rows=rows,Recipient="rebeca",Ranked=ranking,FurtherResearch=ranking.Count(x=>x.Status=="INDEPENDENT_VALIDATION_REQUIRED")};
         var json=JsonSerializer.Serialize(report,new JsonSerializerOptions{WriteIndented=true});
-        var output=Path.Combine(root,"gabriel-historical-v1-"+report.SourceSha256+".json");
+        var output=Path.Combine(root,"gabriel-historical-v2-"+report.SourceSha256+".json");
         if(File.Exists(output))
         {
             if(await File.ReadAllTextAsync(output)!=json) throw new InvalidDataException("Conflicting existing report.");
@@ -28,6 +29,7 @@ internal static class GabrielHistoricalCli
             await writer.WriteAsync(json);
         }
         Console.WriteLine($"GABRIEL_CONFIGURATIONS={report.Count} POSITIVE_MEAN={report.PositiveMean} UNRESOLVED={report.Unresolved}");
+        Console.WriteLine($"STRESS_RANKED={ranking.Count} FURTHER_RESEARCH={report.FurtherResearch}");
         return 0;
     }
 }
