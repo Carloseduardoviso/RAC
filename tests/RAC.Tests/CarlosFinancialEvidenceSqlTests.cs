@@ -29,6 +29,8 @@ public sealed class CarlosFinancialEvidenceSqlTests
             var bridgeService=new CarlosFinancialEvidenceService(new CarlosRafaelEvidenceReader(store),new CarlosSamuelEvidenceReader(store),new CarlosMiguelEvidenceReader(store));
             var bridge=new CarlosReviewRequestPublisher(factory,new CarlosFinancialAdvisoryPublisher(bridgeService,store));
             Assert.Null(await bridge.PublishAsync(request.Id,now,TimeSpan.FromMinutes(5),default));
+            var batch=new CarlosReviewRequestBatch(factory,bridge);
+            Assert.Equal(0,await batch.RunAsync(now,TimeSpan.FromMinutes(5),default));
             var malformed=RacAgentCommunication.Create("ana","carlos",RacMessageKind.TaskRequest,"{",Guid.NewGuid(),now);
             Assert.True(await store.SaveAsync(malformed,default));
             Assert.Null(await bridge.PublishAsync(malformed.Id,now,TimeSpan.FromMinutes(5),default));
@@ -41,6 +43,8 @@ public sealed class CarlosFinancialEvidenceSqlTests
                     row.Status="Completed";
                 }
                 await cleanup.SaveChangesAsync();
+                Assert.Equal(1,await batch.RunAsync(now,TimeSpan.FromMinutes(5),default));
+                Assert.Equal(0,await batch.RunAsync(now,TimeSpan.FromMinutes(5),default));
                 var publishedBridge=await bridge.PublishAsync(request.Id,now,TimeSpan.FromMinutes(5),default);
                 Assert.NotNull(publishedBridge);
                 Assert.Equal(request.CorrelationId,publishedBridge.CorrelationId);
