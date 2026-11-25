@@ -22,7 +22,24 @@ public sealed class RacAnaRecentReview(IDbContextFactory<RacDbContext> factory)
         if(rows.Count == 0) return RacAnaAdvisory.Summarize([]);
         var evidence = rows.Select(x => new RacAgentMessage(x.Id,x.CorrelationId,x.Sender,x.Recipient,
             x.Kind == "Report" ? RacMessageKind.Report : RacMessageKind.RiskNotice,x.Content,x.CreatedUtc));
-        return RacAnaAdvisory.Summarize(RacAnaEvidenceBatch.Review(
-            rows.Select(x => x.CorrelationId), evidence, now, maxAge));
+        var batch=RacAnaEvidenceBatch.Review(rows.Select(x=>x.CorrelationId),evidence,now,maxAge);
+        var result=RacAnaAdvisory.Summarize(batch);
+        var auditor=new RacAnaFinancialEvidenceAudit(factory);
+        var originals=new List<Guid>();
+        var findings=new List<string>();
+        bool invalid=false;
+        var financial=batch.SelectMany(x=>x.FinancialReports).Where(x=>x.Status!="INVALID_FINANCIAL_REPORT").ToArray();
+        var byId=evidence.ToDictionary(x=>x.Id);
+        foreach(var report in financial)
+        {
+            var audit=await auditor.ReviewAsync(byId[report.MessageId],maxAge,ct);
+            originals.AddRange(audit.VerifiedIds);
+            findings.Add($"{report.MessageId}:FINANCIAL_PROVENANCE:{audit.VerifiedIds.Count}:{audit.InvalidIds.Count}");
+            foreach(var id in audit.InvalidIds) findings.Add($"{report.MessageId}:INVALID_EVIDENCE:{id}");
+            invalid|=audit.InvalidIds.Count>0;
+        }
+        return result with {Status=invalid?"RISK_REVIEW_REQUIRED":result.Status,
+            Reasons=Array.AsReadOnly(result.Reasons.Concat(findings).Distinct().OrderBy(x=>x,StringComparer.Ordinal).ToArray()),
+            EvidenceIds=Array.AsReadOnly(result.EvidenceIds.Concat(originals).Distinct().OrderBy(x=>x).ToArray())};
     }
 }

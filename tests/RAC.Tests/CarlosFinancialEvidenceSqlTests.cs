@@ -93,6 +93,19 @@ public sealed class CarlosFinancialEvidenceSqlTests
                     now.AddSeconds(i),TimeSpan.FromMinutes(5),default)));
             Assert.All(concurrent,x=>Assert.Equal(concurrent[0],x));
             Assert.Equal(5,await check.AgentMessages.CountAsync());
+            await store.SaveAsync(invalidReport,default);
+            var recent=await new RacAnaRecentReview(factory).ReviewAsync(now.AddSeconds(10),TimeSpan.FromMinutes(5),default);
+            Assert.Equal("RISK_REVIEW_REQUIRED",recent.Status);
+            Assert.Contains(rafael.Id,recent.EvidenceIds);
+            Assert.Contains(samuel.Id,recent.EvidenceIds);
+            Assert.Contains(miguel.Id,recent.EvidenceIds);
+            Assert.Contains($"{invalidReport.Id}:INVALID_EVIDENCE:{unknown}",recent.Reasons);
+            Assert.DoesNotContain(unknown,recent.EvidenceIds);
+            Assert.False(recent.TradingAuthorized);
+            Assert.True(await new RacAnaAdvisoryStore(factory).SaveAsync(recent,now.AddSeconds(10),default));
+            var saved=await check.AnaAdvisories.SingleAsync();
+            Assert.Contains(unknown.ToString(),saved.ReasonsJson);
+            Assert.Contains(rafael.Id.ToString(),saved.EvidenceIdsJson);
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally
