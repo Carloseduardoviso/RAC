@@ -1,4 +1,4 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Text;
 using RAC.Application;
 namespace RAC.Infrastructure;
@@ -15,7 +15,7 @@ public sealed class RebecaMarketAdvisoryPublisher(RebecaMarketAdvisory review,Ra
         var result=await review.ReviewAsync(danielTask,gabrielTask,now,maximumAge,ct);
         var correlation=CreateCorrelationId(danielTask,gabrielTask);
         var message=RebecaMarketAdvisoryReport.Create(correlation,result,now);
-        var published=await messages.SaveAsync(message,ct);
+        var published=await messages.SaveMarketAdvisoryAsync(message,ct);
         return new(result,correlation,message.Id,published);
     }
     public static Guid CreateCorrelationId(Guid danielTask,Guid gabrielTask)

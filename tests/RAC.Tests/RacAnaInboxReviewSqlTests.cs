@@ -84,7 +84,11 @@ public sealed class RacAnaInboxReviewSqlTests
             var correlation=RebecaMarketAdvisoryPublisher.CreateCorrelationId(danielTask,gabrielTask);
             var market=RebecaMarketAdvisoryReport.Create(correlation,
                 new("CRITICAL_REVIEW",[daniel.Id,gabriel.Id],["NEWS:BTCUSDT:HIGH_IMPACT_REVIEW"],[]),now);
-            await store.SaveAsync(market,default);
+            var writes=await Task.WhenAll(Enumerable.Range(0,8).Select(_=>store.SaveMarketAdvisoryAsync(market,default)));
+            Assert.Single(writes,x=>x);
+            var restarted=new RacAgentMessageStore(new Factory(options));
+            Assert.False(await restarted.SaveMarketAdvisoryAsync(market with {CreatedUtc=now.AddSeconds(1)},default));
+            await Assert.ThrowsAsync<InvalidOperationException>(()=>restarted.SaveMarketAdvisoryAsync(market with {Content=market.Content+" "},default));
             var provenance=new RacAnaMarketEvidenceAudit(factory);
             Assert.True(await provenance.VerifyAsync(market,RacAnaMarketReportReview.Review(market),TimeSpan.FromMinutes(5),default));
             var missing=RebecaMarketAdvisoryReport.Create(correlation,new("CRITICAL_REVIEW",[daniel.Id,Guid.NewGuid()],["missing"],[]),now);

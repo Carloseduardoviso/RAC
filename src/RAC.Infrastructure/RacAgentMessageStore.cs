@@ -40,6 +40,24 @@ public sealed class RacAgentMessageStore(IDbContextFactory<RacDbContext> factory
         return true;
     }
 
+    public async Task<bool> SaveMarketAdvisoryAsync(RacAgentMessage message,CancellationToken ct)
+    {
+        var row=Validate(message);
+        if(message.Sender!="rebeca" || message.Recipient!="ana" || message.Kind!=RacMessageKind.Report)
+            throw new ArgumentException("Invalid market advisory route.");
+        await using var db=await factory.CreateDbContextAsync(ct);
+        db.AgentMessages.Add(row);
+        try { await db.SaveChangesAsync(ct); return true; }
+        catch(DbUpdateException ex) when(ex.InnerException is Microsoft.Data.SqlClient.SqlException sql && sql.Number is 2601 or 2627)
+        {
+            db.ChangeTracker.Clear();
+            var existing=await db.AgentMessages.AsNoTracking().SingleOrDefaultAsync(x=>x.Id==row.Id,ct);
+            if(existing is null) throw;
+            if(existing.CorrelationId!=row.CorrelationId || existing.Sender!=row.Sender || existing.Recipient!=row.Recipient || existing.Kind!=row.Kind || existing.Content!=row.Content)
+                throw new InvalidOperationException("Market advisory identity collision.",ex);
+            return false;
+        }
+    }
     public async Task<RacAgentMessage> SaveFinancialAdvisoryAsync(RacAgentMessage message,CancellationToken ct)
     {
         var row=Validate(message);
