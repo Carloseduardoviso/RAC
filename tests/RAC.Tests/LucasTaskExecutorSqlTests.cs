@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+using RAC.Api;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 using RAC.Infrastructure;
 using System.Text.Json;
@@ -28,7 +30,21 @@ public sealed class LucasTaskExecutorSqlTests
             var calls=0;
             var executor=new LucasTaskExecutor(tasks,messages,reporter,ct=>{calls++;return Task.FromResult(snapshot);});
             var task=await tasks.EnqueueAsync("ana","lucas","EXCHANGE_HEALTH",default);
-            Assert.True(await executor.ExecuteNextAsync(default));
+            using(var worker=new LucasConnectivityWorker(executor,NullLogger<LucasConnectivityWorker>.Instance))
+            using(var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(30)))
+            {
+                await worker.StartAsync(timeout.Token);
+                try
+                {
+                    while(true)
+                    {
+                        await using var check=new RacDbContext(options);
+                        if(await check.AgentTasks.AnyAsync(x=>x.Id==task.Id && x.Status=="Completed",timeout.Token)) break;
+                        await Task.Delay(100,timeout.Token);
+                    }
+                }
+                finally {await worker.StopAsync(CancellationToken.None);}
+            }
             Assert.False(await executor.ExecuteNextAsync(default));
             var report=Assert.Single(await messages.ReadInboxAsync("ana",task.Id,10,default));
             using var json=JsonDocument.Parse(report.Content);
