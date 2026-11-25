@@ -79,7 +79,7 @@ public sealed class RacAnaInboxReviewSqlTests
             var factory=new Factory(options); var store=new RacAgentMessageStore(factory);
             var now=DateTimeOffset.UtcNow; var danielTask=Guid.NewGuid(); var gabrielTask=Guid.NewGuid();
             var daniel=RacAgentCommunication.Create("daniel","rebeca",RacMessageKind.Report,"daniel-evidence",danielTask,now);
-            var gabriel=RacAgentCommunication.Create("gabriel","rebeca",RacMessageKind.Report,"gabriel-evidence",gabrielTask,now);
+            var gabriel=RacAgentCommunication.Create("gabriel","rebeca",RacMessageKind.Report,"{\"Mode\":\"RESEARCH_ONLY\",\"TradingAuthorized\":false}",gabrielTask,now);
             await store.SaveAsync(daniel,default); await store.SaveAsync(gabriel,default);
             var correlation=RebecaMarketAdvisoryPublisher.CreateCorrelationId(danielTask,gabrielTask);
             var market=RebecaMarketAdvisoryReport.Create(correlation,

@@ -49,5 +49,15 @@ public sealed class RebecaDynamicEvidenceLinkTests
         var result=RebecaDynamicEvidenceLink.Review(report,sources);
         Assert.Equal(scenario=="valid"?"INDEPENDENT_VALIDATION_REQUIRED":"INVALID_REPORT",result.Status);
         Assert.False(result.TradingAuthorized);
+        Assert.Equal(scenario=="valid",RacAnaMarketEvidenceAudit.VerifyDynamicEvidence(sources,[report]));
+        Assert.False(RacAnaMarketEvidenceAudit.VerifyDynamicEvidence(sources,[report,report]));
+    }
+
+    [Fact]
+    public void AnaRejectsMalformedEvidenceAndPreservesLegacyJson()
+    {
+        var evidence=new RebecaMarketEvidence(Guid.NewGuid(),Guid.NewGuid(),"gabriel",DateTimeOffset.UtcNow,"not-json");
+        Assert.False(RacAnaMarketEvidenceAudit.VerifyDynamicEvidence([],[evidence]));
+        Assert.True(RacAnaMarketEvidenceAudit.VerifyDynamicEvidence([],[evidence with {Content="{\"Mode\":\"RESEARCH_ONLY\",\"TradingAuthorized\":false}"}]));
     }
 }

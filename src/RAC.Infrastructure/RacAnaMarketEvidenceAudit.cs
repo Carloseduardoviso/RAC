@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 namespace RAC.Infrastructure;
 
@@ -16,7 +16,27 @@ public sealed class RacAnaMarketEvidenceAudit(IDbContextFactory<RacDbContext> fa
         var g=rows.Where(x=>x.Sender=="gabriel").Select(x=>x.CorrelationId).Distinct().ToArray();
         if(d.Length!=1 || g.Length!=1 || d[0]==g[0]) return false;
         if(RebecaMarketAdvisoryPublisher.CreateCorrelationId(d[0],g[0])!=message.CorrelationId) return false;
+        var discovery=RebecaMarketEvidenceReader.Select("daniel",d[0],rows,message.CreatedUtc,maxAge);
+        var quantitative=RebecaMarketEvidenceReader.Select("gabriel",g[0],rows,message.CreatedUtc,maxAge);
+        if(!VerifyDynamicEvidence(discovery,quantitative)) return false;
         var rebuilt=RebecaMarketAdvisoryReport.Create(message.CorrelationId,new(report.Status,report.EvidenceIds,report.Reasons,[]),message.CreatedUtc);
         return rebuilt.Id==message.Id && rebuilt.Content==message.Content;
+    }
+
+    public static bool VerifyDynamicEvidence(IReadOnlyList<RebecaMarketEvidence> discovery,IReadOnlyList<RebecaMarketEvidence> quantitative)
+    {
+        foreach(var evidence in quantitative)
+        {
+            try
+            {
+                using var doc=System.Text.Json.JsonDocument.Parse(evidence.Content);
+                if(doc.RootElement.TryGetProperty("Schema",out _) &&
+                    (quantitative.Count!=1 || RebecaDynamicEvidenceLink.Review(evidence,discovery).Status=="INVALID_REPORT"))
+                    return false;
+            }
+            catch(System.Text.Json.JsonException){return false;}
+            catch(InvalidOperationException){return false;}
+        }
+        return true;
     }
 }
