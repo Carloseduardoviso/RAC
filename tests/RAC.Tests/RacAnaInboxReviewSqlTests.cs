@@ -44,6 +44,10 @@ public sealed class RacAnaInboxReviewSqlTests
             var audit=new RacAnaAdvisoryStore(new Factory(options));
             Assert.True(await audit.SaveAsync(automatic,now,default));
             Assert.False(await audit.SaveAsync(automatic,now.AddMinutes(1),default));
+            var cycle=new RacAnaAdvisoryCycle(recent,audit);
+            var cycleResult=await cycle.RunAsync(now,TimeSpan.FromMinutes(5),default);
+            Assert.Equal(automatic.Status,cycleResult.Status);
+            Assert.False(cycleResult.TradingAuthorized);
             var expired=await recent.ReviewAsync(now.AddHours(1),TimeSpan.FromMinutes(5),default);
             Assert.Equal("INCOMPLETE_REVIEW",expired.Status);
             Assert.Empty(expired.EvidenceIds);
