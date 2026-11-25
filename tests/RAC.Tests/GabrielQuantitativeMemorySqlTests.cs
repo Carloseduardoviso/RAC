@@ -84,7 +84,18 @@ public sealed class GabrielQuantitativeMemorySqlTests
             clock.Stop();
             await using var check=new RacDbContext(options);
             Assert.Equal(2880,await check.ResearchQuantitativeExecutions.CountAsync());
-            Assert.Equal(2880,(await check.ResearchExecutionManifests.SingleAsync()).Executions);
+            var manifest=await check.ResearchExecutionManifests.SingleAsync();
+            Assert.Equal(2880,manifest.Executions);
+            using var document=System.Text.Json.JsonDocument.Parse(manifest.EvidenceJson);
+            Assert.Equal("RAC_MANIFEST_RESULTS_V2",document.RootElement.GetProperty("Schema").GetString());
+            var hashes=document.RootElement.GetProperty("Results").EnumerateObject().ToDictionary(x=>x.Name,x=>x.Value.GetString(),StringComparer.Ordinal);
+            Assert.Equal(2880,hashes.Count);
+            foreach(var record in await check.ResearchQuantitativeExecutions.AsNoTracking().ToListAsync())
+            {
+                var result=System.Text.Json.JsonSerializer.Deserialize<RAC.Application.ResearchExperimentReplay.Result>(record.ResultJson)!;
+                Assert.Equal(RAC.Application.ResearchResultDigest.Create(record.ExecutionId,result),hashes[record.ExecutionId]);
+            }
+            Assert.Equal(2880,hashes.Values.Distinct().Count());
             Assert.Equal(480,await check.ResearchQuantitativeExecutions.Select(x=>x.ConfigurationId).Distinct().CountAsync());
             Assert.Equal(20,await check.ResearchQuantitativeExecutions.Select(x=>x.Symbol).Distinct().CountAsync());
             Assert.False(await check.TestnetOrders.AnyAsync());
