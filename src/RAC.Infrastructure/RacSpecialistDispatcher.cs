@@ -4,14 +4,14 @@ using RAC.Domain;
 
 namespace RAC.Infrastructure;
 
-public sealed class RacSpecialistDispatcher(IDbContextFactory<RacDbContext> factory, string? onlySpecialist = null)
+public sealed class RacSpecialistDispatcher(IDbContextFactory<RacDbContext> factory, string? onlySpecialist = null, string? secondSpecialist = null)
 {
     public async Task<int> DispatchAsync(DateTimeOffset now,CancellationToken ct)
     {
         int count=0;
         foreach(var schedule in RacSpecialistSchedulePlan.Entries)
         {
-            if(onlySpecialist is not null && schedule.Specialist!=onlySpecialist) continue;
+            if(onlySpecialist is not null && schedule.Specialist!=onlySpecialist && schedule.Specialist!=secondSpecialist) continue;
             var task=RacSpecialistSchedulePlan.ForWindow(schedule,now);
             await using var db=await factory.CreateDbContextAsync(ct);
             await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);

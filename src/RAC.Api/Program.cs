@@ -109,19 +109,42 @@ builder.Services.AddHttpClient("binance", client =>
     client.BaseAddress = new Uri("https://testnet.binance.vision/");
     client.Timeout = TimeSpan.FromSeconds(8);
 });
-if (builder.Configuration.GetValue<bool>("Specialists:Daniel:Enabled"))
+var danielEnabled = builder.Configuration.GetValue<bool>("Specialists:Daniel:Enabled");
+var gabrielEnabled = builder.Configuration.GetValue<bool>("Specialists:Gabriel:Enabled");
+if (danielEnabled || gabrielEnabled)
 {
     builder.Services.AddSingleton<RacAgentTaskStore>();
+    builder.Services.AddSingleton<RacSpecialistDispatcher>(sp =>
+        new RacSpecialistDispatcher(sp.GetRequiredService<IDbContextFactory<RacDbContext>>(),
+            danielEnabled ? "daniel" : "gabriel", gabrielEnabled && danielEnabled ? "gabriel" : null));
+    builder.Services.AddHostedService<RAC.Api.RacSpecialistDispatchWorker>();
+}
+if (danielEnabled)
+{
     builder.Services.AddSingleton<DanielDiscoveryStore>();
     builder.Services.AddSingleton<DanielDiscoveryReporter>();
     builder.Services.AddSingleton<DanielBinancePublicClient>(_ =>
         new DanielBinancePublicClient(new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
         { MaxResponseContentBufferSize = 32 * 1024 * 1024 }));
     builder.Services.AddSingleton<DanielTaskExecutor>();
-    builder.Services.AddSingleton<RacSpecialistDispatcher>(sp =>
-        new RacSpecialistDispatcher(sp.GetRequiredService<IDbContextFactory<RacDbContext>>(), "daniel"));
-    builder.Services.AddHostedService<RAC.Api.RacSpecialistDispatchWorker>();
     builder.Services.AddHostedService<RAC.Api.DanielDiscoveryWorker>();
+}
+if (gabrielEnabled)
+{
+    var matrixPath = builder.Configuration["Specialists:Gabriel:MatrixPath"];
+    if (string.IsNullOrWhiteSpace(matrixPath) || !Path.IsPathFullyQualified(matrixPath) || !File.Exists(matrixPath))
+        throw new InvalidOperationException("Gabriel requires an existing absolute research matrix path.");
+    builder.Services.AddSingleton<RacAgentMessageStore>();
+    builder.Services.AddSingleton<GabrielResearchReporter>();
+    builder.Services.AddSingleton<Func<CancellationToken,Task<string>>>(_ => async ct =>
+    {
+        await using var stream = File.OpenRead(matrixPath);
+        if (stream.Length > 8*1024*1024) throw new InvalidDataException("Matrix too large.");
+        using var reader = new StreamReader(stream);
+        return await reader.ReadToEndAsync(ct);
+    });
+    builder.Services.AddSingleton<GabrielTaskExecutor>();
+    builder.Services.AddHostedService<RAC.Api.GabrielResearchWorker>();
 }
 
 var app = builder.Build();
