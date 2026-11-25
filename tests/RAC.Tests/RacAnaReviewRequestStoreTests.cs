@@ -37,6 +37,19 @@ public sealed class RacAnaReviewRequestStoreTests
             Assert.Equal("EXCHANGE_HEALTH",task.Description);
             Assert.Equal("Pending",task.Status);
             Assert.Equal(RacAnaReviewRequests.Create(result,now).Single(x=>x.Recipient=="lucas").Id,task.Id);
+            var messages=new RacAgentMessageStore(new Factory(options));
+            var root=RacAgentCommunication.Create("rebeca","ana",RacMessageKind.Report,"independent",Guid.NewGuid(),now);
+            Assert.True(await messages.SaveAsync(root,default));
+            var seed=new RacAnaAdvisoryResult("RISK_REVIEW_REQUIRED",["first"],[root.Id]);
+            Assert.Equal(2,await store.SaveIndependentAsync(seed,now,default));
+            var req=RacAnaReviewRequests.Create(new RacAnaAdvisoryResult("HUMAN_REVIEW_REQUIRED",["INDEPENDENT_EVIDENCE_REVIEW"],[root.Id]),now);
+            var reply=RacAgentCommunication.Create("carlos","ana",RacMessageKind.Report,"derived",req.Single(x=>x.Recipient=="carlos").CorrelationId,now);
+            var health=RacAgentCommunication.Create("lucas","ana",RacMessageKind.Report,"derived",req.Single(x=>x.Recipient=="lucas").Id,now);
+            Assert.True(await messages.SaveAsync(reply,default));
+            Assert.True(await messages.SaveAsync(health,default));
+            Assert.Equal(0,await store.SaveIndependentAsync(seed with {Reasons=["changed"],EvidenceIds=[root.Id,reply.Id,health.Id]},now.AddSeconds(1),default));
+            Assert.Equal(0,await store.SaveIndependentAsync(seed with {EvidenceIds=[reply.Id,health.Id]},now.AddSeconds(2),default));
+            Assert.Equal(8,await check.AgentTasks.CountAsync());
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally { await using var db=new RacDbContext(options); await db.Database.EnsureDeletedAsync(); }

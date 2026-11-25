@@ -5,6 +5,24 @@ namespace RAC.Infrastructure;
 // Explicit persistence only; does not activate workers or authorize trading.
 public sealed class RacAnaReviewRequestStore(IDbContextFactory<RacDbContext> factory)
 {
+    // Only independent incoming reports may seed automatic requests. Derived replies remain in the full advisory.
+    public async Task<int> SaveIndependentAsync(RacAnaAdvisoryResult result,DateTimeOffset now,CancellationToken ct)
+    {
+        if(result.EvidenceIds.Count==0) return 0;
+        await using var db=await factory.CreateDbContextAsync(ct);
+        var ids=result.EvidenceIds.Distinct().ToArray();
+        var roots=await db.AgentMessages.AsNoTracking().Where(x=>ids.Contains(x.Id) && x.Recipient=="ana" &&
+            (x.Kind=="Report" || x.Kind=="RiskNotice") && (x.Sender=="rebeca" || x.Sender=="carlos" || x.Sender=="lucas") &&
+            !db.AgentMessages.Any(q=>q.Sender=="ana" && q.Kind=="TaskRequest" && (q.Recipient=="carlos" || q.Recipient=="lucas") && (q.CorrelationId==x.CorrelationId || q.Id==x.CorrelationId)))
+            .Select(x=>x.Id).ToListAsync(ct);
+        if(roots.Count==0) return 0;
+        // Stable per-source identity, independent of changes to derived advisory status or reasons.
+        var count=0;
+        foreach(var root in roots.OrderBy(x=>x))
+            count+=await SaveAsync(new RacAnaAdvisoryResult("HUMAN_REVIEW_REQUIRED",["INDEPENDENT_EVIDENCE_REVIEW"],[root]),now,ct);
+        return count;
+    }
+
     public async Task<int> SaveAsync(RacAnaAdvisoryResult result,DateTimeOffset now,CancellationToken ct)
     {
         var requests=RacAnaReviewRequests.Create(result,now).Select(RacAgentMessageStore.Validate).ToArray();

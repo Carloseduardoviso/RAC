@@ -10,7 +10,7 @@ public sealed class RacAnaAdvisoryCycle(RacAnaRecentReview review, RacAnaAdvisor
         if(financial is not null) await financial.RunAsync(now,maxAge,ct);
         var result = await review.ReviewAsync(now,maxAge,ct);
         await store.SaveAsync(result,now,ct);
-        if(requests is not null && result.EvidenceIds.Count>0) await requests.SaveAsync(result,now,ct);
+        if(requests is not null && result.EvidenceIds.Count>0) await requests.SaveIndependentAsync(result,now,ct);
         return result;
     }
 }
