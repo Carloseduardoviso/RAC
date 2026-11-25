@@ -1679,6 +1679,35 @@ namespace RAC.Infrastructure.Migrations
                     b.ToTable("Orders", "rac");
                 });
 
+            modelBuilder.Entity("RAC.Infrastructure.RacAnaAdvisoryRecord", b =>
+                {
+                    b.Property<string>("Fingerprint")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTimeOffset>("CreatedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("EvidenceIdsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ReasonsJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("Fingerprint");
+
+                    b.HasIndex("CreatedUtc");
+
+                    b.ToTable("AnaAdvisories", "rac");
+                });
+
             modelBuilder.Entity("RAC.Domain.ResearchKnowledgeRecord", b =>
                 {
                     b.HasOne("RAC.Domain.ResearchPublicationRecord", null)

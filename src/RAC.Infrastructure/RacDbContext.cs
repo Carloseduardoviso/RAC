@@ -50,9 +50,17 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public DbSet<RacAgentMessageRecord> AgentMessages => Set<RacAgentMessageRecord>();
     public DbSet<RacAgentTaskRecord> AgentTasks => Set<RacAgentTaskRecord>();
     public DbSet<DanielDiscoveryRecord> DanielDiscoveries => Set<DanielDiscoveryRecord>();
+    public DbSet<RacAnaAdvisoryRecord> AnaAdvisories => Set<RacAnaAdvisoryRecord>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<RacAnaAdvisoryRecord>(e =>
+        {
+            e.HasKey(x => x.Fingerprint);
+            e.Property(x => x.Fingerprint).HasMaxLength(64);
+            e.Property(x => x.Status).HasMaxLength(64).IsRequired();
+            e.HasIndex(x => x.CreatedUtc);
+        });
         model.Entity<DanielDiscoveryRecord>(e =>
         {
             e.HasKey(x => x.TaskId);
