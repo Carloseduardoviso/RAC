@@ -1,16 +1,18 @@
-﻿namespace RAC.Application;
+namespace RAC.Application;
 
 // Research eligibility only. Never grants execution permission.
 public static class IndependentResearchGate
 {
     public record Evidence(DateOnly Month, decimal Cost, int Trades, decimal Profit, decimal Loss, decimal DrawdownPct, bool Unresolved);
-    public static string[] Evaluate(IReadOnlyList<Evidence> rows)
+    public static string[] Evaluate(IReadOnlyList<Evidence> rows, DateTimeOffset? asOf=null)
     {
         var reasons=new List<string>();
         var months=Enumerable.Range(0,6).Select(i=>new DateOnly(2026,12,1).AddMonths(i)).ToArray();
         var costs=new[]{.0015m,.003m};
         if(rows.Count!=12 || months.Any(m=>costs.Any(c=>rows.Count(r=>r.Month==m && r.Cost==c)!=1)))
             return new[]{"INCOMPLETE_OR_DUPLICATE_EVIDENCE"};
+        if(DateOnly.FromDateTime((asOf??DateTimeOffset.UtcNow).UtcDateTime)<months[^1].AddMonths(1))
+            reasons.Add("VALIDATION_PERIOD_NOT_COMPLETE");
         foreach(var c in costs)
         {
             var group=rows.Where(r=>r.Cost==c).ToArray();
