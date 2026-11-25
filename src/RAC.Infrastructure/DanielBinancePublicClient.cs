@@ -1,4 +1,4 @@
-﻿using RAC.Application;
+using RAC.Application;
 namespace RAC.Infrastructure;
 
 public sealed class DanielBinancePublicClient(HttpClient http)
@@ -6,7 +6,9 @@ public sealed class DanielBinancePublicClient(HttpClient http)
     private readonly SemaphoreSlim gate = new(1,1);
     private DateTimeOffset nextAllowed = DateTimeOffset.MinValue;
 
-    public async Task<IReadOnlyList<DanielMarketObservation>> ReadAsync(CancellationToken ct)
+    public async Task<IReadOnlyList<DanielMarketObservation>> ReadAsync(CancellationToken ct) => (await ReadCoverageAsync(ct)).Observations;
+
+    public async Task<DanielMarketCoverage> ReadCoverageAsync(CancellationToken ct)
     {
         await gate.WaitAsync(ct);
         try
@@ -17,7 +19,7 @@ public sealed class DanielBinancePublicClient(HttpClient http)
             timeout.CancelAfter(TimeSpan.FromSeconds(30));
             var info=await GetAsync("exchangeInfo",timeout.Token);
             var tickers=await GetAsync("ticker/24hr",timeout.Token);
-            return DanielBinanceMarketParser.Parse(info,tickers,DateTimeOffset.UtcNow);
+            return DanielBinanceMarketParser.ParseCoverage(info,tickers,DateTimeOffset.UtcNow);
         }
         finally { gate.Release(); }
     }

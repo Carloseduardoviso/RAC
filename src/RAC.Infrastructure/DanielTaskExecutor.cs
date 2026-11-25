@@ -24,9 +24,10 @@ public sealed class DanielTaskExecutor(
         {
             if(!await db.DanielDiscoveries.AnyAsync(x=>x.TaskId==task.Id,ct))
             {
-                var observations=await market.ReadAsync(ct);
+                var coverage=await market.ReadCoverageAsync(ct);
+                var observations=coverage.Observations;
                 if(observations.Count==0) throw new InvalidOperationException("No valid market observations.");
-                await discoveries.SaveAsync(task.Id,lease,observations,DateTimeOffset.UtcNow,ct);
+                await discoveries.SaveAsync(task.Id,lease,observations,DateTimeOffset.UtcNow,ct,coverage);
             }
         }
         var report=await reporter.CreateAsync(task.Id,ct);

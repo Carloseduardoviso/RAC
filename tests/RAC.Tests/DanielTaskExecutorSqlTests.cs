@@ -15,7 +15,7 @@ public sealed class DanielTaskExecutorSqlTests
         {
             Assert.Equal(HttpMethod.Get,request.Method);
             var body=request.RequestUri!.AbsolutePath.EndsWith("exchangeInfo")
-                ? """{"symbols":[{"symbol":"ABCUSDT","status":"TRADING","quoteAsset":"USDT","isSpotTradingAllowed":true}]}"""
+                ? """{"symbols":[{"symbol":"ABCUSDT","status":"TRADING","quoteAsset":"USDT","isSpotTradingAllowed":true},{"symbol":"MISSINGUSDT","status":"TRADING","quoteAsset":"USDT","isSpotTradingAllowed":true}]}"""
                 : """[{"symbol":"ABCUSDT","lowPrice":"100","highPrice":"103","quoteVolume":"2000000","bidPrice":"101","askPrice":"101.1","closeTime":TIME}]"""
                     .Replace("TIME",DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString(System.Globalization.CultureInfo.InvariantCulture));
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK){Content=new StringContent(body)});
@@ -42,6 +42,10 @@ public sealed class DanielTaskExecutorSqlTests
             await using var check=new RacDbContext(options);
             Assert.Equal("Completed",(await check.AgentTasks.SingleAsync()).Status);
             Assert.Equal(1,(await check.DanielDiscoveries.SingleAsync()).CandidateCount);
+            var snapshot=(await check.DanielDiscoveries.SingleAsync()).ResearchSnapshotJson!;
+            Assert.Contains("DANIEL_COVERAGE_V1",snapshot);
+            Assert.Contains("MISSINGUSDT",snapshot);
+            Assert.False(await check.TestnetOrders.AnyAsync());
             Assert.Equal(task.Id,(await check.AgentMessages.SingleAsync()).CorrelationId);
         }
         finally
