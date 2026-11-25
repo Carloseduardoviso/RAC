@@ -4,8 +4,9 @@ public static class ResearchExperimentReplay
 {
     public sealed record Minute(decimal Open,decimal Close,decimal QuoteVolume);
     public sealed record Result(decimal NetPct,decimal DrawdownPct,int Trades,int Wins,decimal? ProfitFactor,decimal Costs,bool Unresolved);
-    public static Result Run(IReadOnlyList<Minute> data,ResearchBacktestParameters.Experiment p,bool qualityFilters=false,ResearchEntryFilter filters=ResearchEntryFilter.All)
+    public static Result Run(IReadOnlyList<Minute> data,ResearchBacktestParameters.Experiment p,bool qualityFilters=false,ResearchEntryFilter filters=ResearchEntryFilter.All,CancellationToken ct=default)
     {
+        ct.ThrowIfCancellationRequested();
         if(p.TradingAuthorized||p.Status!="RESEARCH_ONLY"||p.CandleMinutes is not (60 or 120)||p.SlowPeriod<2||p.FastPeriod<0||p.FastPeriod>=p.SlowPeriod||p.ExposurePct<=0||p.ExposurePct>100||p.StopPct<=0||p.TargetPct<=0||p.FeePctPerSide<0||p.SlippagePctPerSide<0||p.FeePctPerSide+p.SlippagePctPerSide>=100||data.Any(x=>x.Open<=0||x.Close<=0||x.QuoteVolume<0))throw new ArgumentException("Invalid experiment");
         var bars=new List<decimal>();
         decimal cash=1000,qty=0,entry=0,budget=0,peak=1000,dd=0,profit=0,loss=0,costs=0;
@@ -14,6 +15,7 @@ public static class ResearchExperimentReplay
         bool pending=false;
         for(int i=1;i<data.Count;i++)
         {
+            if((i & 1023)==0) ct.ThrowIfCancellationRequested();
             var price=data[i].Open;
             bool buy=false,sell=false;
             if(i%p.CandleMinutes==0)
@@ -53,6 +55,7 @@ public static class ResearchExperimentReplay
             }
             var equity=cash+qty*price*(1-cost);peak=Math.Max(peak,equity);dd=Math.Max(dd,1-equity/peak);
         }
+        ct.ThrowIfCancellationRequested();
         var final=cash+(data.Count==0?0:qty*data[^1].Close*(1-cost));dd=Math.Max(dd,1-final/peak);
         return new((final/1000-1)*100,dd*100,trades,wins,loss>0?profit/loss:null,costs,qty>0);
     }

@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 namespace RAC.Application;
 
 public static class GabrielHistoricalMatrixBuilder
@@ -20,7 +20,7 @@ public static class GabrielHistoricalMatrixBuilder
                 {
                     ct.ThrowIfCancellationRequested();
                     rows.Add(new($"2026-{month:D2}",month<8?"EXPLORATORY_TRAINING":"REUSED_HISTORICAL_EVALUATION",
-                        row.Symbol,row.Parameters,ResearchExperimentReplay.Run(data,row.Parameters)));
+                        row.Symbol,row.Parameters,ResearchExperimentReplay.Run(data,row.Parameters,ct:ct)));
                 }
             }
         }

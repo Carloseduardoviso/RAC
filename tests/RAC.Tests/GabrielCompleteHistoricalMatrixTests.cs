@@ -1,4 +1,4 @@
-﻿using RAC.Application;
+using RAC.Application;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -6,14 +6,19 @@ namespace RAC.Tests;
 
 public sealed class GabrielCompleteHistoricalMatrixTests
 {
-    [Fact]
-    public async Task BuildsAllExperimentsFromSixCompleteSyntheticMonths()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task BuildsAllExperimentsFromSixCompleteSyntheticMonths(int count)
     {
+        var symbols=new[]{"ABCUSDT","XYZUSDT"}.Take(count).ToArray();
+        var watch=System.Diagnostics.Stopwatch.StartNew();
+        var allocated=GC.GetTotalAllocatedBytes(true);
         var months=new List<int>();
-        var json=await GabrielHistoricalMatrixBuilder.BuildAsync(new[]{"ABCUSDT"},
+        var json=await GabrielHistoricalMatrixBuilder.BuildAsync(symbols,
             (symbol,year,month,ct)=>{
                 ct.ThrowIfCancellationRequested();
-                Assert.Equal("ABCUSDT",symbol);
+                Assert.Contains(symbol,symbols);
                 Assert.Equal(2026,year);
                 months.Add(month);
                 using var stream=new MemoryStream();
@@ -30,13 +35,23 @@ public sealed class GabrielCompleteHistoricalMatrixTests
                 var bytes=stream.ToArray();
                 return Task.FromResult(new GabrielHistoricalMatrixBuilder.Archive(bytes,Convert.ToHexString(SHA256.HashData(bytes))));
             },default);
-        Assert.Equal(new[]{5,6,7,8,9,10},months);
+        Assert.Equal(Enumerable.Range(5,6).SelectMany(m=>Enumerable.Repeat(m,count)),months);
         using var doc=JsonDocument.Parse(json);
         Assert.False(doc.RootElement.GetProperty("TradingAuthorized").GetBoolean());
         Assert.False(doc.RootElement.GetProperty("IndependentValidation").GetBoolean());
-        Assert.Equal(144,doc.RootElement.GetProperty("Rows").GetArrayLength());
-        var matrix=GabrielExperimentMatrix.Read(json,new[]{"ABCUSDT"});
-        Assert.Equal(24,matrix.Count);
-        Assert.All(matrix,row=>Assert.Equal("ABCUSDT",row.Symbol));
+        Assert.Equal(144*count,doc.RootElement.GetProperty("Rows").GetArrayLength());
+        var matrix=GabrielExperimentMatrix.Read(json,symbols);
+        Assert.Equal(24*count,matrix.Count);
+        Assert.All(matrix,row=>Assert.Contains(row.Symbol,symbols));
+        Console.WriteLine($"Historical probe: {count} symbols; {watch.Elapsed.TotalSeconds:F2}s; process-wide allocated bytes delta {GC.GetTotalAllocatedBytes(true)-allocated}");
+    }
+
+    [Fact]
+    public void ReplayRejectsCancelledWork()
+    {
+        using var cts=new CancellationTokenSource();
+        cts.Cancel();
+        var plan=ResearchExperimentPlan.Build(["ABCUSDT"]);
+        Assert.ThrowsAny<OperationCanceledException>(()=>ResearchExperimentReplay.Run([],plan.First().Parameters,ct:cts.Token));
     }
 }
