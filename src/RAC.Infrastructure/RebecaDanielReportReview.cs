@@ -1,9 +1,10 @@
-﻿using RAC.Application;
+using RAC.Application;
 using System.Text.Json;
 namespace RAC.Infrastructure;
 public sealed record RebecaDanielReportResult(Guid MessageId,string Status,IReadOnlyList<DanielRankedCandidate> Candidates)
 {
     public bool TradingAuthorized=>false;
+    public string CoverageStatus {get;init;}="LEGACY_COVERAGE_UNKNOWN";
 }
 public static class RebecaDanielReportReview
 {
@@ -36,7 +37,11 @@ public static class RebecaDanielReportReview
             }
             if(candidates.Select(x=>x.Symbol).Distinct(StringComparer.Ordinal).Count()!=candidates.Count ||
                 !candidates.SequenceEqual(candidates.OrderByDescending(x=>x.QuoteVolume24h).ThenBy(x=>x.SpreadPercent).ThenBy(x=>x.Symbol,StringComparer.Ordinal))) return Invalid();
-            return new(evidence.MessageId,candidates.Count==0?"NO_CANDIDATES":"RESEARCH_ONLY",candidates.AsReadOnly());
+            var coverage=root.TryGetProperty("CoverageStatus",out var value)?value.GetString():"LEGACY_COVERAGE_UNKNOWN";
+            if(coverage is not ("LEGACY_COVERAGE_UNKNOWN" or "PARTIAL_COVERAGE" or "NO_VALID_OBSERVATIONS" or "NO_RESEARCH_CANDIDATES" or "RESEARCH_CANDIDATES_AVAILABLE")) return Invalid();
+            if((coverage is "NO_VALID_OBSERVATIONS" or "NO_RESEARCH_CANDIDATES") && candidates.Count!=0 ||
+                coverage=="RESEARCH_CANDIDATES_AVAILABLE" && candidates.Count==0) return Invalid();
+            return new(evidence.MessageId,candidates.Count==0?"NO_CANDIDATES":"RESEARCH_ONLY",candidates.AsReadOnly()) {CoverageStatus=coverage};
         }
         catch(Exception ex) when(ex is JsonException or InvalidOperationException or KeyNotFoundException or FormatException or OverflowException)
         {return Invalid();}

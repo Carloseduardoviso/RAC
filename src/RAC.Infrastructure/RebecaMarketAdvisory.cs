@@ -20,6 +20,7 @@ public sealed class RebecaMarketAdvisory(RebecaMarketEvidenceReader reader,IRacN
         if(daniel.Count!=1) reasons.Add(daniel.Count==0?"DANIEL:MISSING":"DANIEL:MULTIPLE");
         if(gabriel.Count!=1) reasons.Add(gabriel.Count==0?"GABRIEL:MISSING":"GABRIEL:MULTIPLE");
         reasons.AddRange(daniel.Select(x=>"DANIEL:"+x.Status));
+        reasons.AddRange(daniel.Select(x=>"DANIEL:COVERAGE:"+x.CoverageStatus));
         reasons.AddRange(gabriel.Select(x=>"GABRIEL:"+x.Status));
         var stableCalendar=calendar is RebecaNewsCalendar live?live.Capture():calendar;
         var news=daniel.Count==1 && daniel[0].Status=="RESEARCH_ONLY"
@@ -27,7 +28,7 @@ public sealed class RebecaMarketAdvisory(RebecaMarketEvidenceReader reader,IRacN
         reasons.AddRange(news.Select(x=>"NEWS:"+x.Symbol+":"+x.Status));
         var critical=daniel.Any(x=>x.Status=="INVALID_REPORT") || gabriel.Any(x=>x.Status=="INVALID_REPORT") ||
             news.Any(x=>x.Status is "HIGH_IMPACT_REVIEW" or "NEWS_CONFLICT");
-        var incomplete=daniel.Count!=1 || gabriel.Count!=1 || news.Any(x=>x.Status=="NEWS_UNAVAILABLE");
+        var incomplete=daniel.Count!=1 || gabriel.Count!=1 || daniel.Any(x=>x.CoverageStatus is "LEGACY_COVERAGE_UNKNOWN" or "PARTIAL_COVERAGE" or "NO_VALID_OBSERVATIONS") || news.Any(x=>x.Status=="NEWS_UNAVAILABLE");
         return new(critical?"CRITICAL_REVIEW":incomplete?"INCOMPLETE_EVIDENCE":"HUMAN_REVIEW_REQUIRED",
             Array.AsReadOnly(daniel.Select(x=>x.MessageId).Concat(gabriel.Select(x=>x.MessageId)).Distinct().OrderBy(x=>x).ToArray()),
             Array.AsReadOnly(reasons.Distinct(StringComparer.Ordinal).OrderBy(x=>x,StringComparer.Ordinal).ToArray()),

@@ -22,6 +22,8 @@ public sealed class RebecaMarketAdvisoryTests
         Assert.Equal(2,critical.EvidenceIds.Count);
         Assert.False(critical.TradingAuthorized);
         calendar.Publish(now.AddSeconds(1),[]);
+        Assert.Equal("INCOMPLETE_EVIDENCE",RebecaMarketAdvisory.Summarize([d],[g],calendar,now.AddSeconds(1)).Status);
+        d=d with {CoverageStatus="RESEARCH_CANDIDATES_AVAILABLE"};
         var review=RebecaMarketAdvisory.Summarize([d],[g],calendar,now.AddSeconds(1));
         Assert.Equal("HUMAN_REVIEW_REQUIRED",review.Status);
         Assert.False(review.TradingAuthorized);
