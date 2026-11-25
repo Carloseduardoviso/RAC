@@ -40,6 +40,19 @@ public sealed class RacAgentTaskStore(IDbContextFactory<RacDbContext> factory)
         return t;
     }
 
+    public async Task<bool> RenewAsync(Guid id,string specialist,Guid lease,CancellationToken ct)
+    {
+        await using var db=await factory.CreateDbContextAsync(ct);
+        var r=await db.AgentTasks.SingleOrDefaultAsync(x=>x.Id==id,ct);
+        if(r is null) return false;
+        RacAgentTask renewed;
+        try { renewed=RacTaskLifecycle.Renew(Map(r),specialist,lease,DateTimeOffset.UtcNow); }
+        catch(InvalidOperationException) { return false; }
+        Apply(r,renewed);
+        try { await db.SaveChangesAsync(ct); return true; }
+        catch(DbUpdateConcurrencyException) { return false; }
+    }
+
     public async Task<RacAgentTask> FinishAsync(Guid id,string specialist,Guid lease,bool success,CancellationToken ct)
     {
         await using var db=await factory.CreateDbContextAsync(ct);

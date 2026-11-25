@@ -1,4 +1,4 @@
-﻿using RAC.Application;
+using RAC.Application;
 namespace RAC.Tests;
 
 public class RacTaskLifecycleTests
@@ -30,5 +30,19 @@ public class RacTaskLifecycleTests
         }
         Assert.Equal(RacTaskStatus.Failed,task.Status);
         Assert.Equal(3,task.Attempts);
+    }
+
+    [Fact]
+    public void RenewalPreservesIdentityAndRejectsExpiredOrForeignLeases()
+    {
+        var now=DateTimeOffset.UtcNow;
+        var task=RacTaskLifecycle.Start(RacTaskLifecycle.Create("rebeca","gabriel","Research",now),"gabriel",now);
+        var lease=task.LeaseId!.Value;
+        var renewed=RacTaskLifecycle.Renew(task,"gabriel",lease,now.AddMinutes(4));
+        Assert.Equal(task with {LeaseUntilUtc=now.AddMinutes(9)},renewed);
+        Assert.Throws<InvalidOperationException>(()=>RacTaskLifecycle.Renew(task,"daniel",lease,now));
+        Assert.Throws<InvalidOperationException>(()=>RacTaskLifecycle.Renew(task,"gabriel",Guid.NewGuid(),now));
+        Assert.Throws<InvalidOperationException>(()=>RacTaskLifecycle.Renew(task,"gabriel",lease,now.AddMinutes(5)));
+        Assert.Equal(RacTaskStatus.Completed,RacTaskLifecycle.Finish(renewed,"gabriel",lease,true,now.AddMinutes(8)).Status);
     }
 }

@@ -1,4 +1,4 @@
-﻿namespace RAC.Application;
+namespace RAC.Application;
 
 public enum RacTaskStatus { Pending, Running, Completed, Failed }
 
@@ -25,6 +25,14 @@ public static class RacTaskLifecycle
             throw new InvalidOperationException("Task cannot be started.");
         return task with { Status = RacTaskStatus.Running, Attempts = task.Attempts + 1,
             UpdatedUtc = now.ToUniversalTime(), LeaseId = Guid.NewGuid(), LeaseUntilUtc = now.ToUniversalTime().AddMinutes(5) };
+    }
+
+    public static RacAgentTask Renew(RacAgentTask task,string specialist,Guid lease,DateTimeOffset now)
+    {
+        if(task.Specialist!=specialist || task.Status!=RacTaskStatus.Running ||
+            task.LeaseId!=lease || task.LeaseUntilUtc is null || now>=task.LeaseUntilUtc || now<task.UpdatedUtc)
+            throw new InvalidOperationException("Invalid or expired task lease.");
+        return task with {LeaseUntilUtc=now.ToUniversalTime().AddMinutes(5)};
     }
 
     public static RacAgentTask Finish(RacAgentTask task, string specialist, Guid lease, bool success, DateTimeOffset now)
