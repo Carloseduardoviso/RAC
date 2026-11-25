@@ -106,6 +106,18 @@ public sealed class CarlosFinancialEvidenceSqlTests
             var saved=await check.AnaAdvisories.SingleAsync();
             Assert.Contains(unknown.ToString(),saved.ReasonsJson);
             Assert.Contains(rafael.Id.ToString(),saved.EvidenceIdsJson);
+            var extra=Enumerable.Range(0,110).Select(_=>rafael with {Id=Guid.NewGuid()}).ToArray();
+            foreach(var item in extra) await store.SaveAsync(item,default);
+            var overflow=await publisher.PublishAsync(Guid.NewGuid(),rafaelTask,samuelTask,miguelTask,now,TimeSpan.FromMinutes(5),default);
+            Assert.Contains("CAPACITY_EXCEEDED",overflow.Content);
+            var recovery=new RacAnaFinancialCapacityRecovery(service);
+            var recovered=await recovery.ReviewAsync(overflow,TimeSpan.FromMinutes(5),default);
+            Assert.True(recovered.Verified);
+            Assert.Equal(113,recovered.EvidenceIds.Count);
+            Assert.False(recovered.TradingAuthorized);
+            var tampered=await recovery.ReviewAsync(overflow with {Id=Guid.NewGuid()},TimeSpan.FromMinutes(5),default);
+            Assert.False(tampered.Verified);
+            Assert.Empty(tampered.EvidenceIds);
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally
