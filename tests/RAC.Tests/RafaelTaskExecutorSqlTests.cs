@@ -1,7 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 using RAC.Infrastructure;
 using RAC.Domain;
+using RAC.Api;
+using Microsoft.Extensions.Logging.Abstractions;
 namespace RAC.Tests;
 public sealed class RafaelTaskExecutorSqlTests
 {
@@ -33,7 +35,21 @@ public sealed class RafaelTaskExecutorSqlTests
             var age=TimeSpan.FromMinutes(2);
             var executor=new RafaelTaskExecutor(tasks,messages,reporter,reader,limits,age,0.01m);
             var task=await tasks.EnqueueAsync("carlos","rafael","CAPITAL_ANALYSIS",default);
-            Assert.True(await executor.ExecuteNextAsync(default));
+            using(var worker=new RafaelCapitalWorker(executor,NullLogger<RafaelCapitalWorker>.Instance))
+            using(var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(30)))
+            {
+                await worker.StartAsync(timeout.Token);
+                try
+                {
+                    while(true)
+                    {
+                        await using var check=new RacDbContext(options);
+                        if(await check.AgentTasks.AnyAsync(x=>x.Id==task.Id && x.Status=="Completed",timeout.Token)) break;
+                        await Task.Delay(100,timeout.Token);
+                    }
+                }
+                finally { await worker.StopAsync(CancellationToken.None); }
+            }
             Assert.False(await executor.ExecuteNextAsync(default));
             Assert.Single(await messages.ReadInboxAsync("carlos",task.Id,10,default));
             var retry=await tasks.EnqueueAsync("carlos","rafael","CAPITAL_ANALYSIS",default);
