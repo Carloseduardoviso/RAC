@@ -66,6 +66,14 @@ public sealed class CarlosFinancialEvidenceSqlTests
             var ana=await new RacAnaInboxReview(store).ReviewAsync(correlation,now.AddSeconds(1),TimeSpan.FromMinutes(5),default);
             Assert.True(ana.RiskNoticePresent);
             Assert.Contains(published.Id,ana.RiskNoticeIds);
+            var financial=Assert.Single(ana.FinancialReports);
+            Assert.Equal("RISK_LOCKED",financial.Status);
+            Assert.Equal(3,financial.EvidenceIds.Count);
+            var advisory=RacAnaAdvisory.Summarize([ana]);
+            Assert.Equal("RISK_REVIEW_REQUIRED",advisory.Status);
+            Assert.Contains($"{correlation}:FINANCIAL:RISK_LOCKED",advisory.Reasons);
+            Assert.Contains(published.Id,advisory.EvidenceIds);
+            Assert.False(advisory.TradingAuthorized);
             Assert.Equal(4,await check.AgentMessages.CountAsync());
             var concurrentId=Guid.NewGuid();
             var concurrent=await Task.WhenAll(Enumerable.Range(0,8).Select(i=>

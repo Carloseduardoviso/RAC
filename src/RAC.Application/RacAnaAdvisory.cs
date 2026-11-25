@@ -15,13 +15,14 @@ public static class RacAnaAdvisory
         if(batch.Length == 0) reasons.Add("NO_EVIDENCE");
         foreach(var review in batch)
         {
+            foreach(var financial in review.FinancialReports) { reasons.Add($"{review.CorrelationId}:FINANCIAL:{financial.Status}"); }
             if(review.RiskNoticePresent) reasons.Add($"{review.CorrelationId}:RISK_NOTICE");
             foreach(var sender in review.Missing.OrderBy(x => x, StringComparer.Ordinal))
                 reasons.Add($"{review.CorrelationId}:MISSING:{sender}");
             foreach(var sender in review.Conflicting.OrderBy(x => x, StringComparer.Ordinal))
                 reasons.Add($"{review.CorrelationId}:CONFLICT:{sender}");
         }
-        var status = batch.Any(x => x.RiskNoticePresent) ? "RISK_REVIEW_REQUIRED" :
+        var status = batch.Any(x => x.RiskNoticePresent || x.FinancialReports.Any(f=>f.Status is "RISK_LOCKED" or "CRITICAL_REVIEW" or "INVALID_FINANCIAL_REPORT")) ? "RISK_REVIEW_REQUIRED" :
             reasons.Count > 0 ? "INCOMPLETE_REVIEW" : "HUMAN_REVIEW_REQUIRED";
         if(reasons.Count == 0) reasons.Add("SEMANTIC_REVIEW_REQUIRED");
         return new(status, reasons.AsReadOnly(), Array.AsReadOnly(batch.SelectMany(x => x.Evidence.Select(m => m.Id).Concat(x.RiskNoticeIds)).Distinct().OrderBy(x => x).ToArray()));
