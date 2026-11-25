@@ -29,7 +29,12 @@ public sealed class SamuelTaskExecutorSqlTests
             var executor=new SamuelTaskExecutor(tasks,messages,reporter,(symbol,ct)=>{
                 Assert.Equal("BTCUSDT",symbol); reads++; return Task.FromResult(Book());
             },"BTCUSDT",[1,2],1,2,2);
-            var task=await tasks.EnqueueAsync("carlos","samuel","LIQUIDITY_COST_ANALYSIS",default);
+            var now=DateTimeOffset.UtcNow;
+            var advisory=new RacAnaAdvisoryResult("RISK_REVIEW_REQUIRED",["review"],[Guid.NewGuid()]);
+            var requests=new RacAnaReviewRequestStore(factory);
+            Assert.Equal(2,await requests.SaveAsync(advisory,now,default));
+            var request=RacAnaReviewRequests.Create(advisory,now).Single(x=>x.Recipient=="carlos");
+            var task=RacCarlosReviewTasks.Create(request.Id,now).Single(x=>x.Specialist=="samuel");
             using(var worker=new SamuelLiquidityWorker(executor,NullLogger<SamuelLiquidityWorker>.Instance))
             using(var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(30)))
             {
@@ -47,6 +52,8 @@ public sealed class SamuelTaskExecutorSqlTests
             }
             Assert.False(await executor.ExecuteNextAsync(default));
             Assert.Single(await messages.ReadInboxAsync("carlos",task.Id,10,default));
+            Assert.Equal(0,await requests.SaveAsync(advisory,now.AddSeconds(1),default));
+            Assert.False(await executor.ExecuteNextAsync(default));
             var retry=await tasks.EnqueueAsync("carlos","samuel","LIQUIDITY_COST_ANALYSIS",default);
             Assert.NotNull(await tasks.ClaimAsync("samuel",default));
             await reporter.PublishAsync(retry.Id,"BTCUSDT",Book(),[1,2],1,2,2,DateTimeOffset.UtcNow,default);

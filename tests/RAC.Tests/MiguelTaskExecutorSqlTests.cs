@@ -1,3 +1,4 @@
+using RAC.Application;
 using RAC.Api;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.EntityFrameworkCore;
@@ -33,7 +34,12 @@ public sealed class MiguelTaskExecutorSqlTests
             var reader=new MiguelAuditReader(factory);
             var age=TimeSpan.FromMinutes(2);
             var executor=new MiguelTaskExecutor(tasks,messages,reporter,reader,0.01m,0.000001m,age);
-            var task=await tasks.EnqueueAsync("carlos","miguel","AUDIT",default);
+            var now=DateTimeOffset.UtcNow;
+            var advisory=new RacAnaAdvisoryResult("RISK_REVIEW_REQUIRED",["review"],[Guid.NewGuid()]);
+            var requests=new RacAnaReviewRequestStore(factory);
+            Assert.Equal(2,await requests.SaveAsync(advisory,now,default));
+            var request=RacAnaReviewRequests.Create(advisory,now).Single(x=>x.Recipient=="carlos");
+            var task=RacCarlosReviewTasks.Create(request.Id,now).Single(x=>x.Specialist=="miguel");
             using(var worker=new MiguelAuditWorker(executor,NullLogger<MiguelAuditWorker>.Instance))
             using(var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(30)))
             {
@@ -54,6 +60,8 @@ public sealed class MiguelTaskExecutorSqlTests
             using var json=JsonDocument.Parse(report.Content);
             Assert.Equal("CRITICAL_REVIEW",json.RootElement.GetProperty("Status").GetString());
             Assert.False(json.RootElement.GetProperty("TradingAuthorized").GetBoolean());
+            Assert.Equal(0,await requests.SaveAsync(advisory,now.AddSeconds(1),default));
+            Assert.False(await executor.ExecuteNextAsync(default));
             var retry=await tasks.EnqueueAsync("carlos","miguel","AUDIT",default);
             Assert.NotNull(await tasks.ClaimAsync("miguel",default));
             await reporter.PublishAsync(retry.Id,await reader.ReadAsync(0.01m,0.000001m,default),DateTimeOffset.UtcNow,age,default);

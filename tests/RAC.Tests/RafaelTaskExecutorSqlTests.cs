@@ -34,7 +34,12 @@ public sealed class RafaelTaskExecutorSqlTests
             var limits=new RafaelAllocationLimits(30,40,15);
             var age=TimeSpan.FromMinutes(2);
             var executor=new RafaelTaskExecutor(tasks,messages,reporter,reader,limits,age,0.01m);
-            var task=await tasks.EnqueueAsync("carlos","rafael","CAPITAL_ANALYSIS",default);
+            var now=DateTimeOffset.UtcNow;
+            var advisory=new RacAnaAdvisoryResult("RISK_REVIEW_REQUIRED",["review"],[Guid.NewGuid()]);
+            var requests=new RacAnaReviewRequestStore(factory);
+            Assert.Equal(2,await requests.SaveAsync(advisory,now,default));
+            var request=RacAnaReviewRequests.Create(advisory,now).Single(x=>x.Recipient=="carlos");
+            var task=RacCarlosReviewTasks.Create(request.Id,now).Single(x=>x.Specialist=="rafael");
             using(var worker=new RafaelCapitalWorker(executor,NullLogger<RafaelCapitalWorker>.Instance))
             using(var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(30)))
             {
@@ -52,6 +57,8 @@ public sealed class RafaelTaskExecutorSqlTests
             }
             Assert.False(await executor.ExecuteNextAsync(default));
             Assert.Single(await messages.ReadInboxAsync("carlos",task.Id,10,default));
+            Assert.Equal(0,await requests.SaveAsync(advisory,now.AddSeconds(1),default));
+            Assert.False(await executor.ExecuteNextAsync(default));
             var retry=await tasks.EnqueueAsync("carlos","rafael","CAPITAL_ANALYSIS",default);
             Assert.NotNull(await tasks.ClaimAsync("rafael",default));
             await reporter.PublishAsync(retry.Id,DateTimeOffset.UtcNow,await reader.ReadAsync(default),limits,age,0.01m,default);
