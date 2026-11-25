@@ -925,6 +925,37 @@ namespace RAC.Infrastructure.Migrations
                     b.ToTable("Users", "rac");
                 });
 
+            modelBuilder.Entity("RAC.Domain.ResearchExecutionManifestRecord", b =>
+                {
+                    b.Property<string>("ManifestId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("Assets")
+                        .HasColumnType("int");
+
+                    b.Property<string>("EngineVersion")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("EvidenceJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Executions")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("RecordedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("ManifestId");
+
+                    b.HasIndex("EngineVersion", "RecordedUtc");
+
+                    b.ToTable("ResearchExecutionManifests", "rac");
+                });
+
             modelBuilder.Entity("RAC.Domain.ResearchExecutionRecord", b =>
                 {
                     b.Property<long>("Id")

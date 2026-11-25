@@ -52,9 +52,17 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public DbSet<DanielDiscoveryRecord> DanielDiscoveries => Set<DanielDiscoveryRecord>();
     public DbSet<RacAnaAdvisoryRecord> AnaAdvisories => Set<RacAnaAdvisoryRecord>();
     public DbSet<ResearchQuantitativeExecutionRecord> ResearchQuantitativeExecutions => Set<ResearchQuantitativeExecutionRecord>();
+    public DbSet<ResearchExecutionManifestRecord> ResearchExecutionManifests => Set<ResearchExecutionManifestRecord>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<ResearchExecutionManifestRecord>(e=>{
+            e.HasKey(x=>x.ManifestId);
+            e.Property(x=>x.ManifestId).HasMaxLength(64);
+            e.Property(x=>x.EngineVersion).HasMaxLength(64).IsRequired();
+            e.Property(x=>x.EvidenceJson).IsRequired();
+            e.HasIndex(x=>new {x.EngineVersion,x.RecordedUtc});
+        });
         model.Entity<ResearchQuantitativeExecutionRecord>(e=>{
             e.HasKey(x=>x.ExecutionId);
             e.Property(x=>x.ExecutionId).HasMaxLength(64);
