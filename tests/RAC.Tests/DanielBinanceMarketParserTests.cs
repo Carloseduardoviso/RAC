@@ -36,5 +36,9 @@ public sealed class DanielBinanceMarketParserTests
         Assert.Equal("BBBUSDT",Assert.Single(coverage.RejectedTickers));
         Assert.Equal("CCCUSDT",Assert.Single(coverage.MissingTickers));
         Assert.False(coverage.TradingAuthorized);
+        Assert.Equal("INVALID_PRICE_RANGE",coverage.RejectionReasons["BBBUSDT"]);
+        var incomplete=DanielBinanceMarketParser.ParseCoverage(info,tickers.Replace(""""lowPrice":"0","highPrice":"103"""",""""lowPrice":"bad""""),DateTimeOffset.FromUnixTimeMilliseconds(1800000000000));
+        Assert.Single(incomplete.Observations);
+        Assert.Equal("MISSING_OR_INVALID_FIELD",incomplete.RejectionReasons["BBBUSDT"]);
     }
 }
