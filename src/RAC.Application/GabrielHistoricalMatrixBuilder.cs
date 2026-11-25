@@ -5,7 +5,7 @@ public static class GabrielHistoricalMatrixBuilder
 {
     public sealed record Archive(byte[] Bytes,string Sha256);
     public static async Task<string> BuildAsync(IReadOnlyList<string> symbols,
-        Func<string,int,int,CancellationToken,Task<Archive>> readArchive,CancellationToken ct)
+        Func<string,int,int,CancellationToken,Task<Archive>> readArchive,CancellationToken ct, Func<ResearchExperimentPlan.Row,string,DateOnly,ResearchExperimentReplay.Result,CancellationToken,Task>? recordResult=null)
     {
         var plan=ResearchExperimentPlan.Build(symbols);
         var rows=new List<GabrielExperimentMatrix.Row>();
@@ -19,8 +19,11 @@ public static class GabrielHistoricalMatrixBuilder
                 foreach(var row in group)
                 {
                     ct.ThrowIfCancellationRequested();
+                    var result=ResearchExperimentReplay.Run(data,row.Parameters,ct:ct);
+                    if(recordResult is not null) await recordResult(row,archive.Sha256,new DateOnly(2026,month,1),result,ct);
+                    ct.ThrowIfCancellationRequested();
                     rows.Add(new($"2026-{month:D2}",month<8?"EXPLORATORY_TRAINING":"REUSED_HISTORICAL_EVALUATION",
-                        row.Symbol,row.Parameters,ResearchExperimentReplay.Run(data,row.Parameters,ct:ct)));
+                        row.Symbol,row.Parameters,result));
                 }
             }
         }

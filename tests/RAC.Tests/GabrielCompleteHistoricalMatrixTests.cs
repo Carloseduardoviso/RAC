@@ -22,6 +22,8 @@ public sealed class GabrielCompleteHistoricalMatrixTests
         var initialCpu=process.TotalProcessorTime;
         var allocated=GC.GetTotalAllocatedBytes(true);
         var months=new List<int>();
+        var hashes=new Dictionary<(string,int),string>();
+        var executions=new HashSet<string>();
         var json=await GabrielHistoricalMatrixBuilder.BuildAsync(symbols,
             (symbol,year,month,ct)=>{
                 ct.ThrowIfCancellationRequested();
@@ -40,8 +42,15 @@ public sealed class GabrielCompleteHistoricalMatrixTests
                     }
                 }
                 var bytes=stream.ToArray();
-                return Task.FromResult(new GabrielHistoricalMatrixBuilder.Archive(bytes,Convert.ToHexString(SHA256.HashData(bytes))));
-            },default);
+                var hash=Convert.ToHexString(SHA256.HashData(bytes));
+                hashes.Add((symbol,month),hash);
+                return Task.FromResult(new GabrielHistoricalMatrixBuilder.Archive(bytes,hash));
+            },default,(row,hash,month,result,ct)=>{
+                Assert.Equal(hashes[(row.Symbol,month.Month)],hash);
+                Assert.True(executions.Add(ResearchExperimentExecutionIdentity.Create(row,hash,month,"REPLAY_V1")));
+                return Task.CompletedTask;
+            });
+        Assert.Equal(144*count,executions.Count);
         Assert.Equal(Enumerable.Range(5,6).SelectMany(m=>Enumerable.Repeat(m,count)),months);
         using var doc=JsonDocument.Parse(json);
         Assert.False(doc.RootElement.GetProperty("TradingAuthorized").GetBoolean());
