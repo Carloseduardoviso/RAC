@@ -53,7 +53,7 @@ Não habilite compra, venda, saques ou transferências nessa chave. O botão do 
 
 ## MVP 0.8 — Patrimônio real estimado em BRL
 
-Leia `MVP-0.8.md` para consultar a carteira Spot real, armazenar o histórico no SQL Server, registrar apenas declarações manuais de aportes e manter o planejamento de reinvestimento sem negociar na Binance. O histórico só começa depois que o administrador clicar no botão de registro.
+Leia `docs/history/MVP-0.8.md` para consultar a carteira Spot real, armazenar o histórico no SQL Server, registrar apenas declarações manuais de aportes e manter o planejamento de reinvestimento sem negociar na Binance. O histórico só começa depois que o administrador clicar no botão de registro.
 
 ## Testes
 

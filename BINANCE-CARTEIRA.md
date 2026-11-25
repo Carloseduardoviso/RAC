@@ -68,7 +68,7 @@ Endpoints: `GET /api/binance/spot/status` e `GET /api/binance/spot/balances`. Am
 
 O RAC possui agora uma segunda seção, **Patrimônio real Binance Spot — gestão e histórico**. Somente quando o administrador clicar em **Consultar Binance e registrar patrimônio**, a API consulta novamente os saldos reais, combina com as cotações Spot públicas, estima os valores em BRL e grava um histórico no SQL Server. **A consulta simples anterior de saldo não grava histórico.**
 
-Também existe um plano informativo de aportes de R$ 200/mês e reinvestimento pretendido de 100%, além de anotações manuais de depósitos/retiradas; nenhum botão realiza movimentação financeira. Consulte `MVP-0.8.md` para detalhes, limites e proteção de dados.
+Também existe um plano informativo de aportes de R$ 200/mês e reinvestimento pretendido de 100%, além de anotações manuais de depósitos/retiradas; nenhum botão realiza movimentação financeira. Consulte `docs/history/MVP-0.8.md` para detalhes, limites e proteção de dados.
 
 ## Controle financeiro e reinvestimento
 
