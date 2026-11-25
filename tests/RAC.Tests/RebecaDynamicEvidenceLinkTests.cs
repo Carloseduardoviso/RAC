@@ -8,6 +8,7 @@ public sealed class RebecaDynamicEvidenceLinkTests
 {
     [Theory]
     [InlineData("valid")]
+    [InlineData("schema-removed")]
     [InlineData("wrong-symbol")]
     [InlineData("wrong-message")]
     [InlineData("wrong-task")]
@@ -45,6 +46,12 @@ public sealed class RebecaDynamicEvidenceLinkTests
                     FurtherResearch=scenario=="assessment-total"?1:0,
                     TradingAuthorized=scenario=="assessment-trading"
                 }}}));
+        if(scenario=="schema-removed")
+        {
+            var node=System.Text.Json.Nodes.JsonNode.Parse(report.Content)!.AsObject();
+            node.Remove("Schema");
+            report=report with {Content=node.ToJsonString()};
+        }
         RebecaMarketEvidence[] sources=scenario=="missing"?[]:scenario=="duplicate"?[d,d]:[d];
         var result=RebecaDynamicEvidenceLink.Review(report,sources);
         Assert.Equal(scenario=="valid"?"INDEPENDENT_VALIDATION_REQUIRED":"INVALID_REPORT",result.Status);

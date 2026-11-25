@@ -30,7 +30,10 @@ public sealed class RacAnaMarketEvidenceAudit(IDbContextFactory<RacDbContext> fa
             try
             {
                 using var doc=System.Text.Json.JsonDocument.Parse(evidence.Content);
-                if(doc.RootElement.TryGetProperty("Schema",out _) &&
+                var v2Id=new Guid(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("GABRIEL:REPORT:V2:"+evidence.TaskId.ToString("N"))).AsSpan(0,16));
+                var hasSchema=doc.RootElement.TryGetProperty("Schema",out _);
+                if(evidence.MessageId==v2Id && !hasSchema) return false;
+                if(hasSchema &&
                     (quantitative.Count!=1 || RebecaDynamicEvidenceLink.Review(evidence,discovery).Status=="INVALID_REPORT"))
                     return false;
             }
