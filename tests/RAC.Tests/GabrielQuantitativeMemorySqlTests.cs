@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Infrastructure;
 using System.IO.Compression;
 using System.Security.Cryptography;
@@ -61,6 +61,31 @@ public sealed class GabrielQuantitativeMemorySqlTests
             await using var check=new RacDbContext(options);
             Assert.Equal(144,await check.ResearchQuantitativeExecutions.CountAsync());
             Assert.False(await check.TestnetOrders.AnyAsync());
+        }
+        finally {await using var db=new RacDbContext(options);await db.Database.EnsureDeletedAsync();}
+    }
+
+    [Fact]
+    public async Task PersistsTwentyAssetMatrixAtScale()
+    {
+        if(!OperatingSystem.IsWindows())return;
+        var options=new DbContextOptionsBuilder<RacDbContext>().UseSqlServer(@"Server=(localdb)\MSSQLLocalDB;Database=RAC_GABRIEL_SCALE_TEST_"+Guid.NewGuid().ToString("N")+";Integrated Security=True;TrustServerCertificate=True").Options;
+        try
+        {
+            await using(var db=new RacDbContext(options))await db.Database.MigrateAsync();
+            using var handler=new Handler();
+            using var http=new HttpClient(handler);
+            var source=new GabrielDynamicHistoricalSource(new GabrielPublicArchiveClient(http),new ResearchQuantitativeExecutionStore(new Factory(options)));
+            var symbols=Enumerable.Range(0,20).Select(i=>$"SYN{i:D2}USDT").ToArray();
+            var clock=System.Diagnostics.Stopwatch.StartNew();
+            await source.ReadAsync(symbols,default);
+            clock.Stop();
+            await using var check=new RacDbContext(options);
+            Assert.Equal(2880,await check.ResearchQuantitativeExecutions.CountAsync());
+            Assert.Equal(480,await check.ResearchQuantitativeExecutions.Select(x=>x.ConfigurationId).Distinct().CountAsync());
+            Assert.Equal(20,await check.ResearchQuantitativeExecutions.Select(x=>x.Symbol).Distinct().CountAsync());
+            Assert.False(await check.TestnetOrders.AnyAsync());
+            Console.WriteLine($"Quantitative scale: 2880 records in {clock.Elapsed.TotalSeconds:F2}s");
         }
         finally {await using var db=new RacDbContext(options);await db.Database.EnsureDeletedAsync();}
     }
