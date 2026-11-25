@@ -51,6 +51,35 @@ public sealed class DanielTaskExecutorSqlTests
         }
     }
     [Fact]
+    public async Task LivePublicDiscoveryHomologation()
+    {
+        if(!OperatingSystem.IsWindows() || Environment.GetEnvironmentVariable("RAC_DANIEL_LIVE_PROBE")!="1") return;
+        var options=new DbContextOptionsBuilder<RacDbContext>().UseSqlServer(
+            @"Server=(localdb)\MSSQLLocalDB;Database=RAC_DANIEL_EXEC_TEST_"+Guid.NewGuid().ToString("N")+
+            ";Integrated Security=True;Encrypt=True;TrustServerCertificate=True").Options;
+        try
+        {
+            await using(var db=new RacDbContext(options)) await db.Database.MigrateAsync();
+            var factory=new Factory(options);
+            var tasks=new RacAgentTaskStore(factory);
+            var task=await tasks.EnqueueAsync("rebeca","daniel","MARKET_DISCOVERY",default);
+            using var http=new HttpClient(new HttpClientHandler { AllowAutoRedirect=false }) { MaxResponseContentBufferSize=32*1024*1024 };
+            var executor=new DanielTaskExecutor(factory,new DanielBinancePublicClient(http),tasks,
+                new DanielDiscoveryStore(factory),new DanielDiscoveryReporter(factory));
+            Assert.True(await executor.ExecuteNextAsync(default));
+            Assert.False(await executor.ExecuteNextAsync(default));
+            await using var check=new RacDbContext(options);
+            Assert.Equal("Completed",(await check.AgentTasks.SingleAsync()).Status);
+            var discovery=await check.DanielDiscoveries.SingleAsync(); Assert.InRange(discovery.CandidateCount,0,20); Console.WriteLine("LIVE_CANDIDATES="+discovery.CandidateCount);
+            Assert.Equal(task.Id,(await check.AgentMessages.SingleAsync()).CorrelationId);
+        }
+        finally
+        {
+            await using var db=new RacDbContext(options);
+            await db.Database.EnsureDeletedAsync();
+        }
+    }
+    [Fact]
     public async Task RecoversPersistedDiscoveryAfterExpiredLease()
     {
         if(!OperatingSystem.IsWindows()) return;
