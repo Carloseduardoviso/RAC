@@ -58,6 +58,13 @@ public sealed class RacAnaRecentReview(IDbContextFactory<RacDbContext> factory)
             foreach(var id in audit.InvalidIds) findings.Add($"{report.MessageId}:INVALID_EVIDENCE:{id}");
             invalid|=audit.InvalidIds.Count>0;
         }
+        var marketAuditor=new RacAnaMarketEvidenceAudit(factory);
+        foreach(var report in batch.SelectMany(x=>x.MarketReports))
+        {
+            var verified=await marketAuditor.VerifyAsync(byId[report.MessageId],report,maxAge,ct);
+            findings.Add($"{report.MessageId}:MARKET_PROVENANCE:{(verified?"VERIFIED":"UNVERIFIED")}");
+            invalid|=!verified;
+        }
         return result with {Status=invalid?"RISK_REVIEW_REQUIRED":result.Status,
             Reasons=Array.AsReadOnly(result.Reasons.Concat(findings).Distinct().OrderBy(x=>x,StringComparer.Ordinal).ToArray()),
             EvidenceIds=Array.AsReadOnly(result.EvidenceIds.Concat(originals).Distinct().OrderBy(x=>x).ToArray())};

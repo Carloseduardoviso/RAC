@@ -85,6 +85,16 @@ public sealed class RacAnaInboxReviewSqlTests
             var market=RebecaMarketAdvisoryReport.Create(correlation,
                 new("CRITICAL_REVIEW",[daniel.Id,gabriel.Id],["NEWS:BTCUSDT:HIGH_IMPACT_REVIEW"],[]),now);
             await store.SaveAsync(market,default);
+            var provenance=new RacAnaMarketEvidenceAudit(factory);
+            Assert.True(await provenance.VerifyAsync(market,RacAnaMarketReportReview.Review(market),TimeSpan.FromMinutes(5),default));
+            var missing=RebecaMarketAdvisoryReport.Create(correlation,new("CRITICAL_REVIEW",[daniel.Id,Guid.NewGuid()],["missing"],[]),now);
+            Assert.False(await provenance.VerifyAsync(missing,RacAnaMarketReportReview.Review(missing),TimeSpan.FromMinutes(5),default));
+            var wrong=RebecaMarketAdvisoryReport.Create(Guid.NewGuid(),new("CRITICAL_REVIEW",[daniel.Id,gabriel.Id],["wrong correlation"],[]),now);
+            Assert.False(await provenance.VerifyAsync(wrong,RacAnaMarketReportReview.Review(wrong),TimeSpan.FromMinutes(5),default));
+            var stale=RebecaMarketAdvisoryReport.Create(correlation,new("CRITICAL_REVIEW",[daniel.Id,gabriel.Id],["stale"],[]),now.AddHours(1));
+            Assert.False(await provenance.VerifyAsync(stale,RacAnaMarketReportReview.Review(stale),TimeSpan.FromMinutes(5),default));
+            var altered=market with {Id=Guid.NewGuid()};
+            Assert.False(await provenance.VerifyAsync(altered,RacAnaMarketReportReview.Review(altered),TimeSpan.FromMinutes(5),default));
             await store.SaveAsync(RacAgentCommunication.Create("carlos","ana",RacMessageKind.Report,"financial evidence",correlation,now),default);
             await store.SaveAsync(RacAgentCommunication.Create("lucas","ana",RacMessageKind.Report,"health evidence",correlation,now),default);
             var result=await new RacAnaRecentReview(factory).ReviewAsync(now,TimeSpan.FromMinutes(5),default);
