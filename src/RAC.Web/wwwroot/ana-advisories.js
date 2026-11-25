@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
 const notice = document.getElementById("notice");
 const history = document.getElementById("history");
 const refresh = document.getElementById("refresh");
@@ -24,7 +24,13 @@ async function load() {
         for (const row of rows) {
             const card = document.createElement("article");
             card.className = "panel";
-            add(card, "h2", row.status);
+            const statuses = {
+                RISK_REVIEW_REQUIRED: "Revisao de risco necessaria",
+                INCOMPLETE_REVIEW: "Evidencias incompletas",
+                HUMAN_REVIEW_REQUIRED: "Revisao humana necessaria"
+            };
+            const heading = add(card, "h2", Object.hasOwn(statuses, row.status) ? statuses[row.status] : "Status desconhecido");
+            heading.className = row.status === "RISK_REVIEW_REQUIRED" ? "ana-critical" : "ana-warning";
             add(card, "p", new Date(row.createdUtc).toLocaleString("pt-BR"));
             add(card, "p", "Justificativas");
             const reasons = add(card, "ul", "");
