@@ -9,7 +9,7 @@ public sealed class DanielTaskExecutorSqlTests
     {
         public RacDbContext CreateDbContext()=>new(options);
     }
-    private sealed class Handler(bool empty=false):HttpMessageHandler
+    private sealed class Handler(bool empty=false,bool complete=false):HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,CancellationToken ct)
         {
@@ -18,11 +18,12 @@ public sealed class DanielTaskExecutorSqlTests
                 ? """{"symbols":[{"symbol":"ABCUSDT","status":"TRADING","quoteAsset":"USDT","isSpotTradingAllowed":true},{"symbol":"MISSINGUSDT","status":"TRADING","quoteAsset":"USDT","isSpotTradingAllowed":true}]}"""
                 : """[{"symbol":"ABCUSDT","lowPrice":"100","highPrice":"103","quoteVolume":"2000000","bidPrice":"101","askPrice":"101.1","closeTime":TIME}]"""
                     .Replace("TIME",DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString(System.Globalization.CultureInfo.InvariantCulture));
+            if(complete && request.RequestUri!.AbsolutePath.EndsWith("exchangeInfo")) body="""{"symbols":[{"symbol":"ABCUSDT","status":"TRADING","quoteAsset":"USDT","isSpotTradingAllowed":true}]}""";
             if(empty && !request.RequestUri!.AbsolutePath.EndsWith("exchangeInfo")) body="[]";
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK){Content=new StringContent(body)});
         }
     }
-    [Theory] [InlineData(false)] [InlineData(true)] public async Task ExecutesResearchAndPublishesReport(bool empty)
+    [Theory] [InlineData(false,false)] [InlineData(true,false)] [InlineData(false,true)] public async Task ExecutesResearchAndPublishesReport(bool empty,bool complete)
     {
         if(!OperatingSystem.IsWindows()) return;
         var options=new DbContextOptionsBuilder<RacDbContext>().UseSqlServer(
@@ -34,7 +35,7 @@ public sealed class DanielTaskExecutorSqlTests
             var factory=new Factory(options);
             var tasks=new RacAgentTaskStore(factory);
             var task=await tasks.EnqueueAsync("rebeca","daniel","MARKET_DISCOVERY",default);
-            using var http=new HttpClient(new Handler(empty));
+            using var http=new HttpClient(new Handler(empty,complete));
             var executor=new DanielTaskExecutor(factory,new DanielBinancePublicClient(http),tasks,
                 new DanielDiscoveryStore(factory),new DanielDiscoveryReporter(factory));
             Assert.True(await executor.ExecuteNextAsync(default));
@@ -44,14 +45,25 @@ public sealed class DanielTaskExecutorSqlTests
             Assert.Equal(empty?0:1,(await check.DanielDiscoveries.SingleAsync()).CandidateCount);
             var snapshot=(await check.DanielDiscoveries.SingleAsync()).ResearchSnapshotJson!;
             Assert.Contains("DANIEL_COVERAGE_V1",snapshot);
-            Assert.Contains("MISSINGUSDT",snapshot);
+            if(!complete) Assert.Contains("MISSINGUSDT",snapshot);
             var report=await check.AgentMessages.SingleAsync();
             using var json=System.Text.Json.JsonDocument.Parse(report.Content);
-            Assert.Equal(empty?"NO_VALID_OBSERVATIONS":"PARTIAL_COVERAGE",json.RootElement.GetProperty("CoverageStatus").GetString());
+            Assert.Equal(empty?"NO_VALID_OBSERVATIONS":complete?"RESEARCH_CANDIDATES_AVAILABLE":"PARTIAL_COVERAGE",json.RootElement.GetProperty("CoverageStatus").GetString());
             Assert.False(json.RootElement.GetProperty("TradingAuthorized").GetBoolean());
             var replay=await new DanielDiscoveryReporter(factory).CreateAsync(task.Id,default);
             Assert.Equal(report.Id,replay.Id);
             Assert.Equal(report.Content,replay.Content);
+            var reader=new GabrielDiscoveryEvidenceReader(new RebecaMarketEvidenceReader(new RacAgentMessageStore(factory)));
+            if(complete)
+            {
+                var evidence=await reader.ReadAsync(task.Id,DateTimeOffset.UtcNow,default);
+                Assert.Equal(report.Id,evidence.MessageId);
+                Assert.Equal("ABCUSDT",Assert.Single(evidence.Candidates).Symbol);
+                Assert.Equal("MATRIX_EVIDENCE_MISSING",Assert.Single(GabrielDiscoveryResearch.Assess(evidence,[])).Status);
+                Assert.False(evidence.TradingAuthorized);
+                await Assert.ThrowsAsync<InvalidOperationException>(()=>reader.ReadAsync(task.Id,DateTimeOffset.UtcNow.AddMinutes(16),default));
+            }
+            else await Assert.ThrowsAsync<InvalidOperationException>(()=>reader.ReadAsync(task.Id,DateTimeOffset.UtcNow,default));
             Assert.False(await check.TestnetOrders.AnyAsync());
             Assert.Equal(task.Id,(await check.AgentMessages.SingleAsync()).CorrelationId);
         }
