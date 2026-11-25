@@ -49,9 +49,16 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public DbSet<ResearchStrategyCatalogRecord> ResearchStrategyCatalogs => Set<ResearchStrategyCatalogRecord>();
     public DbSet<RacAgentMessageRecord> AgentMessages => Set<RacAgentMessageRecord>();
     public DbSet<RacAgentTaskRecord> AgentTasks => Set<RacAgentTaskRecord>();
+    public DbSet<DanielDiscoveryRecord> DanielDiscoveries => Set<DanielDiscoveryRecord>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<DanielDiscoveryRecord>(e =>
+        {
+            e.HasKey(x => x.TaskId);
+            e.Property(x => x.CandidatesJson).IsRequired();
+            e.HasIndex(x => x.ObservedUtc);
+        });
         model.Entity<RacAgentTaskRecord>(e =>
         {
             e.HasKey(x => x.Id);

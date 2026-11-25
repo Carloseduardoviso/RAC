@@ -102,6 +102,29 @@ namespace RAC.Infrastructure.Migrations
                     b.ToTable("Contributions", "rac");
                 });
 
+            modelBuilder.Entity("RAC.Domain.DanielDiscoveryRecord", b =>
+                {
+                    b.Property<Guid>("TaskId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("CandidateCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CandidatesJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTimeOffset>("ObservedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("TaskId");
+
+                    b.HasIndex("ObservedUtc");
+
+                    b.ToTable("DanielDiscoveries", "rac");
+                });
+
             modelBuilder.Entity("RAC.Domain.EquitySnapshot", b =>
                 {
                     b.Property<long>("Id")
