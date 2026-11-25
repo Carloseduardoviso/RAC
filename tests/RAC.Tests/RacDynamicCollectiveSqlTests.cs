@@ -1,5 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
+using RAC.Domain;
 using RAC.Infrastructure;
 using System.Text.Json;
 using System.Security.Cryptography;
@@ -54,8 +55,36 @@ public sealed class RacDynamicCollectiveSqlTests
             var market=RebecaMarketAdvisoryReport.Create(publication.CorrelationId,publication.Review,now);
             Assert.Equal(publication.MessageId,market.Id);
             Assert.Equal(!incompatible,await new RacAnaMarketEvidenceAudit(factory).VerifyAsync(market,RacAnaMarketReportReview.Review(market),TimeSpan.FromMinutes(5),default));
+            await using(var db=new RacDbContext(options))
+            {
+                db.PaperAccounts.Add(new PaperAccount {CashBrl=99,TotalContributionsBrl=100,LastEquityBrl=100,RiskLocked=true,Running=false});
+                await db.SaveChangesAsync();
+            }
+            var tasks=new RacAgentTaskStore(factory);
+            var service=new CarlosFinancialEvidenceService(new CarlosRafaelEvidenceReader(store),new CarlosSamuelEvidenceReader(store),new CarlosMiguelEvidenceReader(store));
+            var batch=new CarlosReviewRequestBatch(factory,new CarlosReviewRequestPublisher(factory,new CarlosFinancialAdvisoryPublisher(service,store)));
+            var cycle=new RacAnaAdvisoryCycle(new RacAnaRecentReview(factory),new RacAnaAdvisoryStore(factory),new RacAnaReviewRequestStore(factory),batch);
+            var first=await cycle.RunAsync(DateTimeOffset.UtcNow,TimeSpan.FromMinutes(5),default);
+            Assert.False(first.TradingAuthorized);
+            var rafael=new RafaelTaskExecutor(tasks,store,new RafaelFinancialReporter(store),new RafaelCapitalReader(factory),new RafaelAllocationLimits(30,40,15),TimeSpan.FromMinutes(2),0.01m);
+            var samuel=new SamuelTaskExecutor(tasks,store,new SamuelLiquidityReporter(store),(symbol,ct)=>Task.FromResult(new SamuelDepthSnapshot(1,DateTimeOffset.UtcNow,[new(99,1)],[new(100,1)])),"BTCUSDT",[1,2],1,2,2);
+            var miguel=new MiguelTaskExecutor(tasks,store,new MiguelAuditReporter(store),new MiguelAuditReader(factory),0.01m,0.000001m,TimeSpan.FromMinutes(2));
+            var lucas=new LucasTaskExecutor(tasks,store,new LucasConnectivityReporter(store),ct=>Task.FromResult(LucasConnectivityAnalysis.Evaluate(new[]{("BINANCE","PUBLIC"),("BINANCE","TESTNET")},[],DateTimeOffset.UtcNow,TimeSpan.FromSeconds(30),TimeSpan.FromSeconds(1),TimeSpan.FromMilliseconds(500))));
+            Assert.True(await rafael.ExecuteNextAsync(default));
+            Assert.True(await samuel.ExecuteNextAsync(default));
+            Assert.True(await miguel.ExecuteNextAsync(default));
+            Assert.True(await lucas.ExecuteNextAsync(default));
+            var final=await cycle.RunAsync(DateTimeOffset.UtcNow,TimeSpan.FromMinutes(5),default);
+            Assert.Equal("RISK_REVIEW_REQUIRED",final.Status);
+            Assert.False(final.TradingAuthorized);
+            await cycle.RunAsync(DateTimeOffset.UtcNow,TimeSpan.FromMinutes(5),default);
             await using var check=new RacDbContext(options);
-            Assert.Equal(3,await check.AgentMessages.CountAsync());
+            Assert.Equal(2,await check.AgentMessages.CountAsync(x=>x.Kind=="TaskRequest"));
+            Assert.Equal(4,await check.AgentTasks.CountAsync());
+            Assert.Equal(4,await check.AgentTasks.CountAsync(x=>x.Status=="Completed"));
+            Assert.Contains((await check.AgentMessages.SingleAsync(x=>x.Sender=="carlos" && x.Recipient=="ana")).Id,final.EvidenceIds);
+            Assert.Contains((await check.AgentMessages.SingleAsync(x=>x.Sender=="lucas" && x.Recipient=="ana")).Id,final.EvidenceIds);
+            Assert.True((await check.PaperAccounts.SingleAsync()).RiskLocked);
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally
