@@ -11,7 +11,9 @@ public sealed class GabrielTaskExecutor(RacAgentTaskStore tasks,RacAgentMessageS
         var task=await tasks.ClaimAsync("gabriel",ct);
         if(task is null) return false;
         var lease=task.LeaseId!.Value;
-        if(task.Description!="QUANTITATIVE_RESEARCH" || task.Leader!="rebeca")
+        var linked=task.Description.StartsWith("QUANTITATIVE_RESEARCH:",StringComparison.Ordinal);
+        var discoveryId=Guid.Empty;
+        if(task.Leader!="rebeca" || (task.Description!="QUANTITATIVE_RESEARCH" && (!linked || !Guid.TryParseExact(task.Description["QUANTITATIVE_RESEARCH:".Length..],"N",out discoveryId) || discoveryId==Guid.Empty)))
         {
             await tasks.FinishAsync(task.Id,"gabriel",lease,false,ct);
             return true;
@@ -22,7 +24,20 @@ public sealed class GabrielTaskExecutor(RacAgentTaskStore tasks,RacAgentMessageS
             var json=await readMatrix(ct);
             if(json.Length>8*1024*1024) throw new InvalidDataException("Matrix too large.");
             var hash=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
-            await tasks.CompleteWithReportAsync(task.Id,"gabriel",lease,reporter.Create(task.Id,task.UpdatedUtc,hash,json),ct);
+            var report=reporter.Create(task.Id,task.UpdatedUtc,hash,json);
+            if(linked)
+            {
+                var evidence=await new GabrielDiscoveryEvidenceReader(new RebecaMarketEvidenceReader(messages)).ReadAsync(discoveryId,DateTimeOffset.UtcNow,ct);
+                var assessments=GabrielDiscoveryResearch.Assess(evidence,GabrielExperimentMatrix.Read(json));
+                var content=System.Text.Json.Nodes.JsonNode.Parse(report.Content)!.AsObject();
+                content["DanielTaskId"]=System.Text.Json.Nodes.JsonValue.Create(discoveryId);
+                content["DanielMessageId"]=System.Text.Json.Nodes.JsonValue.Create(evidence.MessageId);
+                content["DiscoveryAssessments"]=System.Text.Json.JsonSerializer.SerializeToNode(assessments);
+                var enriched=content.ToJsonString();
+                if(enriched.Length>4096) throw new InvalidDataException("Linked research report too large.");
+                report=report with {Content=enriched};
+            }
+            await tasks.CompleteWithReportAsync(task.Id,"gabriel",lease,report,ct);
             return true;
         }
         await tasks.CompleteWithReportAsync(task.Id,"gabriel",lease,null,ct);
