@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Infrastructure;
 using System.Net;
 namespace RAC.Tests;
@@ -50,4 +50,47 @@ public sealed class DanielTaskExecutorSqlTests
             await db.Database.EnsureDeletedAsync();
         }
     }
+    [Fact]
+    public async Task RecoversPersistedDiscoveryAfterExpiredLease()
+    {
+        if(!OperatingSystem.IsWindows()) return;
+        var options=new DbContextOptionsBuilder<RacDbContext>().UseSqlServer(
+            @"Server=(localdb)\MSSQLLocalDB;Database=RAC_DANIEL_EXEC_TEST_"+Guid.NewGuid().ToString("N")+
+            ";Integrated Security=True;Encrypt=True;TrustServerCertificate=True").Options;
+        try
+        {
+            await using(var db=new RacDbContext(options)) await db.Database.MigrateAsync();
+            var factory=new Factory(options);
+            var tasks=new RacAgentTaskStore(factory);
+            var task=await tasks.EnqueueAsync("rebeca","daniel","MARKET_DISCOVERY",default);
+            using var http=new HttpClient(new Handler());
+            var executor=new DanielTaskExecutor(factory,new DanielBinancePublicClient(http),tasks,
+                new DanielDiscoveryStore(factory),new DanielDiscoveryReporter(factory));
+                        // Simulate interruption after persistence but before report publication.
+            var claimed=(await tasks.ClaimAsync("daniel",default))!;
+            var now=DateTimeOffset.UtcNow;
+            await new DanielDiscoveryStore(factory).SaveAsync(task.Id,claimed.LeaseId!.Value,
+                new[]{new RAC.Application.DanielMarketObservation("ABCUSDT",true,2000000m,100m,100.1m,3m,now)},now,default);
+            await using(var interrupted=new RacDbContext(options))
+            {
+                var row=await interrupted.AgentTasks.SingleAsync();
+                row.UpdatedUtc=now.AddMinutes(-10);
+                row.LeaseUntilUtc=now.AddMinutes(-5);
+                await interrupted.SaveChangesAsync();
+            }
+            Assert.Equal(1,await tasks.RecoverExpiredAsync(default));
+            Assert.True(await executor.ExecuteNextAsync(default));
+            Assert.False(await executor.ExecuteNextAsync(default));
+            await using var check=new RacDbContext(options);
+            Assert.Equal("Completed",(await check.AgentTasks.SingleAsync()).Status);
+            Assert.Equal(1,(await check.DanielDiscoveries.SingleAsync()).CandidateCount);
+            Assert.Equal(task.Id,(await check.AgentMessages.SingleAsync()).CorrelationId);
+        }
+        finally
+        {
+            await using var db=new RacDbContext(options);
+            await db.Database.EnsureDeletedAsync();
+        }
+    }
+
 }
