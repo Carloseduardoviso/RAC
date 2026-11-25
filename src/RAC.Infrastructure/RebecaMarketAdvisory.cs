@@ -11,7 +11,9 @@ public sealed class RebecaMarketAdvisory(RebecaMarketEvidenceReader reader,IRacN
         if(danielTask==gabrielTask || danielTask==Guid.Empty || gabrielTask==Guid.Empty) throw new ArgumentException("Invalid specialist tasks.");
         var d=await reader.ReadAsync("daniel",danielTask,now,maximumAge,ct);
         var g=await reader.ReadAsync("gabriel",gabrielTask,now,maximumAge,ct);
-        return Summarize(d.Select(RebecaDanielReportReview.Review).ToArray(),g.Select(RebecaGabrielReportReview.Review).ToArray(),calendar,now);
+        var reviewed=d.Select(RebecaDanielReportReview.Review).ToArray();
+        var quantitative=g.Select(x=>RebecaDynamicEvidenceLink.Review(x,d)).ToArray();
+        return Summarize(reviewed,quantitative,calendar,now);
     }
     public static RebecaMarketAdvisoryResult Summarize(IReadOnlyList<RebecaDanielReportResult> daniel,
         IReadOnlyList<RebecaGabrielReportResult> gabriel,IRacNewsCalendar calendar,DateTimeOffset now)
