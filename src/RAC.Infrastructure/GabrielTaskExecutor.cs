@@ -1,4 +1,4 @@
-﻿using RAC.Application;
+using RAC.Application;
 using System.Security.Cryptography;
 using System.Text;
 namespace RAC.Infrastructure;
@@ -22,9 +22,10 @@ public sealed class GabrielTaskExecutor(RacAgentTaskStore tasks,RacAgentMessageS
             var json=await readMatrix(ct);
             if(json.Length>8*1024*1024) throw new InvalidDataException("Matrix too large.");
             var hash=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
-            await reporter.PublishAsync(task.Id,task.UpdatedUtc,hash,json,ct);
+            await tasks.CompleteWithReportAsync(task.Id,"gabriel",lease,reporter.Create(task.Id,task.UpdatedUtc,hash,json),ct);
+            return true;
         }
-        await tasks.FinishAsync(task.Id,"gabriel",lease,true,ct);
+        await tasks.CompleteWithReportAsync(task.Id,"gabriel",lease,null,ct);
         return true;
     }
 }

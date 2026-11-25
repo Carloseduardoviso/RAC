@@ -1,4 +1,4 @@
-﻿namespace RAC.Infrastructure;
+namespace RAC.Infrastructure;
 public sealed class MiguelTaskExecutor(RacAgentTaskStore tasks,RacAgentMessageStore messages,
     MiguelAuditReporter reporter,MiguelAuditReader reader,decimal moneyTolerance,
     decimal quantityTolerance,TimeSpan maximumAge)
@@ -17,9 +17,10 @@ public sealed class MiguelTaskExecutor(RacAgentTaskStore tasks,RacAgentMessageSt
         if(!existing.Any(x=>x.Sender=="miguel" && x.Kind=="Report"))
         {
             var data=await reader.ReadAsync(moneyTolerance,quantityTolerance,ct);
-            await reporter.PublishAsync(task.Id,data,DateTimeOffset.UtcNow,maximumAge,ct);
+            await tasks.CompleteWithReportAsync(task.Id,"miguel",lease,reporter.Create(task.Id,data,DateTimeOffset.UtcNow,maximumAge),ct);
+            return true;
         }
-        await tasks.FinishAsync(task.Id,"miguel",lease,true,ct);
+        await tasks.CompleteWithReportAsync(task.Id,"miguel",lease,null,ct);
         return true;
     }
 }

@@ -1,4 +1,4 @@
-﻿using RAC.Application;
+using RAC.Application;
 namespace RAC.Infrastructure;
 public sealed class SamuelTaskExecutor(RacAgentTaskStore tasks,RacAgentMessageStore messages,
     SamuelLiquidityReporter reporter,Func<string,CancellationToken,Task<SamuelDepthSnapshot>> read,
@@ -18,9 +18,10 @@ public sealed class SamuelTaskExecutor(RacAgentTaskStore tasks,RacAgentMessageSt
         if(!existing.Any(x=>x.Sender=="samuel" && x.Kind=="Report"))
         {
             var book=await read(symbol,ct);
-            await reporter.PublishAsync(task.Id,symbol,book,quantities,feePercent,maxImpactPercent,maxCostPercent,DateTimeOffset.UtcNow,ct);
+            await tasks.CompleteWithReportAsync(task.Id,"samuel",lease,reporter.Create(task.Id,symbol,book,quantities,feePercent,maxImpactPercent,maxCostPercent,DateTimeOffset.UtcNow),ct);
+            return true;
         }
-        await tasks.FinishAsync(task.Id,"samuel",lease,true,ct);
+        await tasks.CompleteWithReportAsync(task.Id,"samuel",lease,null,ct);
         return true;
     }
 }

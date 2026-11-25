@@ -1,4 +1,4 @@
-﻿using RAC.Application;
+using RAC.Application;
 namespace RAC.Infrastructure;
 
 public sealed class RafaelTaskExecutor(RacAgentTaskStore tasks,RacAgentMessageStore messages,
@@ -19,9 +19,10 @@ public sealed class RafaelTaskExecutor(RacAgentTaskStore tasks,RacAgentMessageSt
         if(!existing.Any(x=>x.Sender=="rafael" && x.Kind=="Report"))
         {
             var data=await reader.ReadAsync(ct);
-            await reporter.PublishAsync(task.Id,DateTimeOffset.UtcNow,data,limits,maximumAge,tolerance,ct);
+            await tasks.CompleteWithReportAsync(task.Id,"rafael",lease,reporter.Create(task.Id,DateTimeOffset.UtcNow,data,limits,maximumAge,tolerance),ct);
+            return true;
         }
-        await tasks.FinishAsync(task.Id,"rafael",lease,true,ct);
+        await tasks.CompleteWithReportAsync(task.Id,"rafael",lease,null,ct);
         return true;
     }
 }

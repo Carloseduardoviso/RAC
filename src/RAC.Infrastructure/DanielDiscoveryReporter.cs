@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 using System.Text.Json;
 
@@ -6,7 +6,7 @@ namespace RAC.Infrastructure;
 
 public sealed class DanielDiscoveryReporter(IDbContextFactory<RacDbContext> factory)
 {
-    public async Task<bool> PublishAsync(Guid taskId,CancellationToken ct)
+    public async Task<RacAgentMessage> CreateAsync(Guid taskId,CancellationToken ct)
     {
         await using var db=await factory.CreateDbContextAsync(ct);
         var discovery=await db.DanielDiscoveries.AsNoTracking().SingleAsync(x=>x.TaskId==taskId,ct);
@@ -18,6 +18,7 @@ public sealed class DanielDiscoveryReporter(IDbContextFactory<RacDbContext> fact
             discovery.TaskId,discovery.ObservedUtc,Candidates=candidates });
         var message=RacAgentCommunication.Create("daniel","rebeca",RacMessageKind.Report,content,taskId,discovery.ObservedUtc);
         var hash=System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes("DANIEL:REPORT:V1:"+taskId.ToString("N")));
-        return await new RacAgentMessageStore(factory).SaveAsync(message with { Id=new Guid(hash.AsSpan(0,16)) },ct);
+        return message with { Id=new Guid(hash.AsSpan(0,16)) };
     }
+    public async Task<bool> PublishAsync(Guid taskId,CancellationToken ct) => await new RacAgentMessageStore(factory).SaveAsync(await CreateAsync(taskId,ct),ct);
 }
