@@ -23,7 +23,9 @@ public sealed class GabrielTaskExecutor(RacAgentTaskStore tasks,RacAgentMessageS
         {
             var evidence=linked?await new GabrielDiscoveryEvidenceReader(new RebecaMarketEvidenceReader(messages)).ReadAsync(discoveryId,DateTimeOffset.UtcNow,ct):null;
             var symbols=evidence is not null && readDynamicMatrix is not null?evidence.Candidates.Select(x=>x.Symbol).ToArray():null;
-            var json=symbols is null?await readMatrix(ct):await readDynamicMatrix!(symbols,ct);
+            var json=symbols is null?await readMatrix(ct):await GabrielResearchLease.RunAsync(
+                token=>readDynamicMatrix!(symbols,token),
+                token=>tasks.RenewAsync(task.Id,"gabriel",lease,token),TimeSpan.FromMinutes(1),ct);
             if(json.Length>8*1024*1024) throw new InvalidDataException("Matrix too large.");
             var hash=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
             var report=reporter.Create(task.Id,task.UpdatedUtc,hash,json,symbols);
