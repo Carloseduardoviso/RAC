@@ -28,7 +28,7 @@ public static class CarlosFinancialAdvisoryReport
         return message with {Id=new Guid(SHA256.HashData(Encoding.UTF8.GetBytes(key)).AsSpan(0,16))};
     }
     public static RacAgentMessage CreateForPublication(Guid correlationId,CarlosFinancialEvidenceResult result,
-        Guid rafaelTask,Guid samuelTask,Guid miguelTask,DateTimeOffset observedUtc)
+        Guid rafaelTask,Guid samuelTask,Guid miguelTask,DateTimeOffset observedUtc,TimeSpan? evidenceWindow=null)
     {
         try { return Create(correlationId,result,observedUtc); }
         catch(CarlosFinancialCapacityException)
@@ -41,7 +41,7 @@ public static class CarlosFinancialAdvisoryReport
                 TradingAuthorized=false,HumanReviewRequired=true,Status="CRITICAL_REVIEW",
                 EvidenceIds=Array.Empty<Guid>(),Reasons=new[]{"CAPACITY_EXCEEDED","ORIGINAL_STATUS:"+result.Status},
                 EvidenceCount=result.EvidenceIds.Distinct().Count(),EvidenceDigest=digest,
-                RafaelTask=rafaelTask,SamuelTask=samuelTask,MiguelTask=miguelTask});
+                RafaelTask=rafaelTask,SamuelTask=samuelTask,MiguelTask=miguelTask, EvidenceWindowTicks=evidenceWindow?.Ticks});
             var message=RacAgentCommunication.Create("carlos","ana",RacMessageKind.RiskNotice,content,correlationId,observedUtc);
             return message with {Id=new Guid(SHA256.HashData(Encoding.UTF8.GetBytes("CARLOS:CAPACITY:V1:"+correlationId.ToString("N")+":"+content)).AsSpan(0,16))};
         }

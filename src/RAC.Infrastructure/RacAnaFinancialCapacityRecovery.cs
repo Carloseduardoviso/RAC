@@ -1,4 +1,4 @@
-﻿using RAC.Application;
+using RAC.Application;
 using System.Text.Json;
 namespace RAC.Infrastructure;
 public sealed record RacAnaFinancialCapacityRecoveryResult(bool Verified,IReadOnlyList<Guid> EvidenceIds)
@@ -18,8 +18,12 @@ public sealed class RacAnaFinancialCapacityRecovery(CarlosFinancialEvidenceServi
         var r=root.GetProperty("RafaelTask").GetGuid();
         var s=root.GetProperty("SamuelTask").GetGuid();
         var m=root.GetProperty("MiguelTask").GetGuid();
-        var result=await service.ReviewAsync(r,s,m,message.CreatedUtc,maximumAge,ct);
-        var rebuilt=CarlosFinancialAdvisoryReport.CreateForPublication(message.CorrelationId,result,r,s,m,message.CreatedUtc);
+        TimeSpan? originalWindow=null;
+        if(root.TryGetProperty("EvidenceWindowTicks",out var ticks) && ticks.ValueKind!=JsonValueKind.Null)
+            originalWindow=TimeSpan.FromTicks(ticks.GetInt64());
+        if(originalWindow.HasValue && (originalWindow.Value<=TimeSpan.Zero || originalWindow.Value>TimeSpan.FromDays(1))) return new(false,[]);
+        var result=await service.ReviewAsync(r,s,m,message.CreatedUtc,originalWindow??maximumAge,ct);
+        var rebuilt=CarlosFinancialAdvisoryReport.CreateForPublication(message.CorrelationId,result,r,s,m,message.CreatedUtc,originalWindow);
         var verified=rebuilt.Id==message.Id && rebuilt.Content==message.Content && rebuilt.Kind==message.Kind;
         return new(verified,verified?result.EvidenceIds:Array.Empty<Guid>());
     }

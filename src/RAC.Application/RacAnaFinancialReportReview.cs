@@ -32,6 +32,7 @@ public static class RacAnaFinancialReportReview
                 var tasks=new[]{r.GetProperty("RafaelTask").GetGuid(),r.GetProperty("SamuelTask").GetGuid(),r.GetProperty("MiguelTask").GetGuid()};
                 var digest=r.GetProperty("EvidenceDigest").GetString();
                 var count=r.GetProperty("EvidenceCount").GetInt32();
+                if(r.TryGetProperty("EvidenceWindowTicks",out var window) && window.ValueKind!=JsonValueKind.Null && (!window.TryGetInt64(out var ticks) || ticks<=0 || ticks>TimeSpan.TicksPerDay)) return Invalid();
                 if(status!="CRITICAL_REVIEW" || ids.Length!=0 || count<0 || count>1500 ||
                     tasks.Contains(Guid.Empty) || tasks.Distinct().Count()!=3 ||
                     digest is null || digest.Length!=64 || !digest.All(Uri.IsHexDigit) ||

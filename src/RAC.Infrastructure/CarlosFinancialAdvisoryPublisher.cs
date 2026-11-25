@@ -5,9 +5,10 @@ public sealed class CarlosFinancialAdvisoryPublisher(CarlosFinancialEvidenceServ
     public async Task<RacAgentMessage> PublishAsync(Guid correlationId,Guid rafaelTask,Guid samuelTask,Guid miguelTask,
         DateTimeOffset observedUtc,TimeSpan maximumAge,CancellationToken ct)
     {
+        if(maximumAge<=TimeSpan.Zero || maximumAge>TimeSpan.FromDays(1)) throw new ArgumentException("Invalid evidence window.");
         if(correlationId==Guid.Empty) throw new ArgumentException("Invalid advisory correlation.");
         var result=await service.ReviewAsync(rafaelTask,samuelTask,miguelTask,observedUtc,maximumAge,ct);
-        var message=CarlosFinancialAdvisoryReport.CreateForPublication(correlationId,result,rafaelTask,samuelTask,miguelTask,observedUtc);
+        var message=CarlosFinancialAdvisoryReport.CreateForPublication(correlationId,result,rafaelTask,samuelTask,miguelTask,observedUtc,maximumAge);
         return await messages.SaveFinancialAdvisoryAsync(message,ct);
     }
 }

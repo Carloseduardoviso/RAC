@@ -113,6 +113,7 @@ public sealed class CarlosFinancialEvidenceSqlTests
             var recovery=new RacAnaFinancialCapacityRecovery(service);
             var recovered=await recovery.ReviewAsync(overflow,TimeSpan.FromMinutes(5),default);
             Assert.True(recovered.Verified);
+            Assert.True((await recovery.ReviewAsync(overflow,TimeSpan.FromTicks(1),default)).Verified);
             Assert.Equal(113,recovered.EvidenceIds.Count);
             Assert.False(recovered.TradingAuthorized);
             var tampered=await recovery.ReviewAsync(overflow with {Id=Guid.NewGuid()},TimeSpan.FromMinutes(5),default);
