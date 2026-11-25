@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,10 +18,10 @@ public sealed class RacAnaAdvisoryEndpointsTests
         app.MapRacAnaAdvisories();
         var endpoints=((IEndpointRouteBuilder)app).DataSources.SelectMany(x=>x.Endpoints).Cast<RouteEndpoint>().ToArray();
         Assert.Equal(2,endpoints.Length);
-        var get=Assert.Single(endpoints.Where(x=>x.RoutePattern.RawText=="/api/ana/advisories"));
+        var get=Assert.Single(endpoints,x=>x.RoutePattern.RawText=="/api/ana/advisories");
         Assert.Equal("RacRiskReviewer",get.Metadata.GetMetadata<IAuthorizeData>()?.Policy);
         Assert.Equal(new[]{"GET"},get.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods);
-        var publish=Assert.Single(endpoints.Where(x=>x.RoutePattern.RawText=="/api/ana/rebeca/market-review"));
+        var publish=Assert.Single(endpoints,x=>x.RoutePattern.RawText=="/api/ana/rebeca/market-review");
         Assert.Equal("RacRiskReviewer",publish.Metadata.GetMetadata<IAuthorizeData>()?.Policy);
         Assert.Equal(new[]{"POST"},publish.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods);
     }
