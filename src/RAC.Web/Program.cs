@@ -33,7 +33,7 @@ app.UseStaticFiles();
 
 var getRoutes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
 {
-    "/api/health", "/api/state", "/api/history", "/api/auth/me",
+    "/api/ana/advisories", "/api/health", "/api/state", "/api/history", "/api/auth/me",
     "/api/research/shadow-dashboard", "/api/research/three-month-dashboard",
     "/api/research/overfit-screen", "/api/research/six-month-validation",
     "/api/research/frozen-decisions", "/api/research/robustness",
