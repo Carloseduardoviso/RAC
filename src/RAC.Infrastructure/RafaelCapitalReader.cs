@@ -1,10 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 using System.Data;
 namespace RAC.Infrastructure;
 
 public sealed record RafaelStoredCapital(RafaelCapitalSnapshot Snapshot,DateTimeOffset UpdatedUtc,
-    DateTimeOffset? LastCycleUtc,bool Running,int PositionCount,int FillCount,decimal RealizedNetProfit)
+    DateTimeOffset? LastCycleUtc,bool Running,int PositionCount,int FillCount,decimal RealizedNetProfit,decimal StoredEquity)
 {
     public bool TradingAuthorized=>false;
 }
@@ -25,6 +25,6 @@ public sealed class RafaelCapitalReader(IDbContextFactory<RacDbContext> factory)
         var snapshot=new RafaelCapitalSnapshot(account.CashBrl,marked,account.TotalContributionsBrl,account.RiskLocked);
         RafaelCapitalAnalysis.Evaluate(snapshot);
         await tx.CommitAsync(ct);
-        return new(snapshot,account.UpdatedUtc,account.LastCycleUtc,account.Running,positions.Count,fills,realized);
+        return new(snapshot,account.UpdatedUtc,account.LastCycleUtc,account.Running,positions.Count,fills,realized,account.LastEquityBrl);
     }
 }
