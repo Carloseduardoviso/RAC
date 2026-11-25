@@ -1,4 +1,4 @@
-﻿using RAC.Application;
+using RAC.Application;
 using RAC.Infrastructure;
 using Xunit;
 namespace RAC.Tests;
@@ -22,4 +22,13 @@ public sealed class RebecaMarketAdvisoryReportTests
         Assert.Throws<ArgumentException>(()=>RebecaMarketAdvisoryReport.Create(task,result with {EvidenceIds=[]},now));
         Assert.Throws<InvalidOperationException>(()=>RebecaMarketAdvisoryReport.Create(task,result with {EvidenceIds=Enumerable.Range(0,150).Select(_=>Guid.NewGuid()).ToArray()},now));
     }
-}
+    [Fact]
+    public void CorrelationIsStableForTheSameSpecialistTaskPair()
+    {
+        var daniel=Guid.NewGuid(); var gabriel=Guid.NewGuid();
+        Assert.Equal(RebecaMarketAdvisoryPublisher.CreateCorrelationId(daniel,gabriel),
+            RebecaMarketAdvisoryPublisher.CreateCorrelationId(daniel,gabriel));
+        Assert.NotEqual(RebecaMarketAdvisoryPublisher.CreateCorrelationId(daniel,gabriel),
+            RebecaMarketAdvisoryPublisher.CreateCorrelationId(gabriel,daniel));
+        Assert.Throws<ArgumentException>(()=>RebecaMarketAdvisoryPublisher.CreateCorrelationId(daniel,daniel));
+    }}

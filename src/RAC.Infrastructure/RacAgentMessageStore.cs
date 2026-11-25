@@ -30,7 +30,7 @@ public sealed class RacAgentMessageStore(IDbContextFactory<RacDbContext> factory
         {
             if (existing.CorrelationId != row.CorrelationId || existing.Sender != row.Sender ||
                 existing.Recipient != row.Recipient || existing.Kind != row.Kind ||
-                existing.Content != row.Content || existing.CreatedUtc != row.CreatedUtc)
+                existing.Content != row.Content)
                 throw new InvalidOperationException("Message ID collision.");
             return false;
         }

@@ -6,20 +6,23 @@ using Microsoft.EntityFrameworkCore;
 using RAC.Api;
 using RAC.Infrastructure;
 using Xunit;
-
 namespace RAC.Tests;
 public sealed class RacAnaAdvisoryEndpointsTests
 {
     [Fact]
-    public async Task HistoryIsGetOnlyAndRequiresRiskReviewer()
+    public async Task AdvisoryEndpointsRequireRiskReviewerAndUseReadAndExplicitPublishMethods()
     {
         var builder=WebApplication.CreateBuilder();
         builder.Services.AddDbContextFactory<RacDbContext>(o=>o.UseSqlServer("Server=(localdb)\\MSSQLLocalDB;Database=Unused;Integrated Security=True"));
         await using var app=builder.Build();
         app.MapRacAnaAdvisories();
-        var endpoint=Assert.Single(((IEndpointRouteBuilder)app).DataSources.SelectMany(x=>x.Endpoints));
-        Assert.Equal("RacRiskReviewer",endpoint.Metadata.GetMetadata<IAuthorizeData>()?.Policy);
-        Assert.Equal(new[]{"GET"},endpoint.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods);
-        Assert.Equal("/api/ana/advisories",((RouteEndpoint)endpoint).RoutePattern.RawText);
+        var endpoints=((IEndpointRouteBuilder)app).DataSources.SelectMany(x=>x.Endpoints).Cast<RouteEndpoint>().ToArray();
+        Assert.Equal(2,endpoints.Length);
+        var get=Assert.Single(endpoints.Where(x=>x.RoutePattern.RawText=="/api/ana/advisories"));
+        Assert.Equal("RacRiskReviewer",get.Metadata.GetMetadata<IAuthorizeData>()?.Policy);
+        Assert.Equal(new[]{"GET"},get.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods);
+        var publish=Assert.Single(endpoints.Where(x=>x.RoutePattern.RawText=="/api/ana/rebeca/market-review"));
+        Assert.Equal("RacRiskReviewer",publish.Metadata.GetMetadata<IAuthorizeData>()?.Policy);
+        Assert.Equal(new[]{"POST"},publish.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods);
     }
 }
