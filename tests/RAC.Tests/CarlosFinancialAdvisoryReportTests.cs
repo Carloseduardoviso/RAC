@@ -30,10 +30,29 @@ public sealed class CarlosFinancialAdvisoryReportTests
     {
         var ids=Enumerable.Range(0,150).Select(_=>Guid.NewGuid()).ToArray();
         var result=new CarlosFinancialEvidenceResult("RISK_LOCKED",ids,["MIGUEL:RISK_LOCKED"]);
-        Assert.Throws<InvalidOperationException>(()=>CarlosFinancialAdvisoryReport.Create(Guid.NewGuid(),result,DateTimeOffset.UtcNow));
+        Assert.Throws<CarlosFinancialCapacityException>(()=>CarlosFinancialAdvisoryReport.Create(Guid.NewGuid(),result,DateTimeOffset.UtcNow));
         Assert.Equal(150,result.EvidenceIds.Count);
         Assert.False(result.TradingAuthorized);
         Assert.Throws<ArgumentException>(()=>CarlosFinancialAdvisoryReport.Create(Guid.NewGuid(),new("RISK_LOCKED",[],["TEST"]),DateTimeOffset.UtcNow));
     }
 
+    [Fact]
+    public void OversizedPublicationProducesExplicitRiskNotice()
+    {
+        var ids=Enumerable.Range(0,150).Select(_=>Guid.NewGuid()).ToArray();
+        var result=new CarlosFinancialEvidenceResult("RISK_LOCKED",ids,["MIGUEL:RISK_LOCKED"]);
+        var correlation=Guid.NewGuid(); var r=Guid.NewGuid(); var s=Guid.NewGuid(); var m=Guid.NewGuid();
+        var now=DateTimeOffset.UtcNow;
+        var report=CarlosFinancialAdvisoryReport.CreateForPublication(correlation,result,r,s,m,now);
+        Assert.Equal(RacMessageKind.RiskNotice,report.Kind);
+        Assert.True(report.Content.Length<=4096);
+        Assert.Equal(report.Id,CarlosFinancialAdvisoryReport.CreateForPublication(correlation,result,r,s,m,now).Id);
+        using var json=JsonDocument.Parse(report.Content);
+        Assert.Equal(150,json.RootElement.GetProperty("EvidenceCount").GetInt32());
+        Assert.Equal(r,json.RootElement.GetProperty("RafaelTask").GetGuid());
+        Assert.False(json.RootElement.GetProperty("TradingAuthorized").GetBoolean());
+        Assert.Contains("CAPACITY_EXCEEDED",report.Content);
+        // Existing Ana review rejects incomplete evidence, while RiskNotice still requires risk review.
+        Assert.Equal("INVALID_FINANCIAL_REPORT",RacAnaFinancialReportReview.Review(report).Status);
+    }
 }

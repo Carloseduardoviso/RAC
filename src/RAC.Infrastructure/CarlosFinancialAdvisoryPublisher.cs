@@ -7,7 +7,7 @@ public sealed class CarlosFinancialAdvisoryPublisher(CarlosFinancialEvidenceServ
     {
         if(correlationId==Guid.Empty) throw new ArgumentException("Invalid advisory correlation.");
         var result=await service.ReviewAsync(rafaelTask,samuelTask,miguelTask,observedUtc,maximumAge,ct);
-        var message=CarlosFinancialAdvisoryReport.Create(correlationId,result,observedUtc);
+        var message=CarlosFinancialAdvisoryReport.CreateForPublication(correlationId,result,rafaelTask,samuelTask,miguelTask,observedUtc);
         return await messages.SaveFinancialAdvisoryAsync(message,ct);
     }
 }
