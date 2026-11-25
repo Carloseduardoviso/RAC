@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+using RAC.Api;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.EntityFrameworkCore;
 using RAC.Infrastructure;
 using RAC.Domain;
 using System.Text.Json;
@@ -32,7 +34,21 @@ public sealed class MiguelTaskExecutorSqlTests
             var age=TimeSpan.FromMinutes(2);
             var executor=new MiguelTaskExecutor(tasks,messages,reporter,reader,0.01m,0.000001m,age);
             var task=await tasks.EnqueueAsync("carlos","miguel","AUDIT",default);
-            Assert.True(await executor.ExecuteNextAsync(default));
+            using(var worker=new MiguelAuditWorker(executor,NullLogger<MiguelAuditWorker>.Instance))
+            using(var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(30)))
+            {
+                await worker.StartAsync(timeout.Token);
+                try
+                {
+                    while(true)
+                    {
+                        await using var check=new RacDbContext(options);
+                        if(await check.AgentTasks.AnyAsync(x=>x.Id==task.Id && x.Status=="Completed",timeout.Token)) break;
+                        await Task.Delay(100,timeout.Token);
+                    }
+                }
+                finally { await worker.StopAsync(CancellationToken.None); }
+            }
             Assert.False(await executor.ExecuteNextAsync(default));
             var report=Assert.Single(await messages.ReadInboxAsync("carlos",task.Id,10,default));
             using var json=JsonDocument.Parse(report.Content);
