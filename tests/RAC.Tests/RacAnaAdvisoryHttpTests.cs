@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
@@ -21,6 +21,8 @@ public sealed class RacAnaAdvisoryHttpTests
         var builder=WebApplication.CreateBuilder();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
         builder.Services.AddDbContextFactory<RacDbContext>(o=>o.UseSqlServer(connection));
+        builder.Configuration["Specialists:AnaAdvisory:Enabled"]="true";
+        builder.Services.AddRacAnaAdvisory(builder.Configuration);
         builder.Services.AddAuthentication("test").AddCookie("test",o=>{
             o.Events.OnRedirectToLogin=c=>{c.Response.StatusCode=401;return Task.CompletedTask;};
             o.Events.OnRedirectToAccessDenied=c=>{c.Response.StatusCode=403;return Task.CompletedTask;};
@@ -35,10 +37,17 @@ public sealed class RacAnaAdvisoryHttpTests
         try
         {
             await db.Database.MigrateAsync();
-            var id=Guid.NewGuid();
-            var store=new RacAnaAdvisoryStore(factory);
-            await store.SaveAsync(new("RISK_REVIEW_REQUIRED",["risk"],[id]),DateTimeOffset.UtcNow,default);
+            var now=DateTimeOffset.UtcNow;
+            var taskId=Guid.NewGuid();
+            var notice=RacAgentCommunication.Create("carlos","ana",RacMessageKind.RiskNotice,"isolated risk",taskId,now);
+            await new RacAgentMessageStore(factory).SaveAsync(notice,default);
+            var id=notice.Id;
             await app.StartAsync();
+            using(var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(20)))
+            {
+                while(!await db.AnaAdvisories.AsNoTracking().AnyAsync(timeout.Token))
+                    await Task.Delay(100,timeout.Token);
+            }
             using var client=new HttpClient { BaseAddress=new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()) };
             Assert.Equal(HttpStatusCode.Unauthorized,(await client.GetAsync("/api/ana/advisories")).StatusCode);
             var provider=app.Services.GetRequiredService<Microsoft.AspNetCore.Authentication.IAuthenticationSchemeProvider>();
@@ -60,6 +69,8 @@ public sealed class RacAnaAdvisoryHttpTests
             var row=Assert.Single(json.RootElement.EnumerateArray());
             Assert.Equal(id,row.GetProperty("evidenceIds")[0].GetGuid());
             Assert.False(row.GetProperty("tradingAuthorized").GetBoolean());
+            Assert.Equal("RISK_REVIEW_REQUIRED",row.GetProperty("status").GetString());
+            Assert.Equal(1,await db.AgentMessages.CountAsync());
             Assert.Equal(1,await db.AnaAdvisories.CountAsync());
             Assert.False(await db.TestnetOrders.AnyAsync());
         }
