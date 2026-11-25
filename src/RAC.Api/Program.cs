@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using RAC.Api.Models;
@@ -113,15 +113,16 @@ var danielEnabled = builder.Configuration.GetValue<bool>("Specialists:Daniel:Ena
 var gabrielEnabled = builder.Configuration.GetValue<bool>("Specialists:Gabriel:Enabled");
 var rafaelEnabled = builder.Configuration.GetValue<bool>("Specialists:Rafael:Enabled");
 var samuelEnabled = builder.Configuration.GetValue<bool>("Specialists:Samuel:Enabled");
+var miguelEnabled = builder.Configuration.GetValue<bool>("Specialists:Miguel:Enabled");
 var enabledSpecialists = new[] { danielEnabled ? "daniel" : null, gabrielEnabled ? "gabriel" : null,
-    rafaelEnabled ? "rafael" : null, samuelEnabled ? "samuel" : null }.OfType<string>().ToArray();
+    rafaelEnabled ? "rafael" : null, samuelEnabled ? "samuel" : null, miguelEnabled ? "miguel" : null }.OfType<string>().ToArray();
 if (enabledSpecialists.Length > 0)
 {
     builder.Services.AddSingleton<RacAgentTaskStore>();
     builder.Services.AddSingleton<RacAgentMessageStore>();
     builder.Services.AddSingleton<RacSpecialistDispatcher>(sp =>
         new RacSpecialistDispatcher(sp.GetRequiredService<IDbContextFactory<RacDbContext>>(),
-            enabledSpecialists[0], enabledSpecialists.ElementAtOrDefault(1), enabledSpecialists.ElementAtOrDefault(2), enabledSpecialists.ElementAtOrDefault(3)));
+            enabledSpecialists[0], enabledSpecialists.ElementAtOrDefault(1), enabledSpecialists.ElementAtOrDefault(2), enabledSpecialists.ElementAtOrDefault(3), enabledSpecialists.ElementAtOrDefault(4)));
     builder.Services.AddHostedService<RAC.Api.RacSpecialistDispatchWorker>();
 }
 if (danielEnabled)
@@ -195,6 +196,24 @@ if (samuelEnabled)
         sp.GetRequiredService<SamuelLiquidityReporter>(),sp.GetRequiredService<SamuelBinanceDepthClient>().ReadAsync,
         symbol,quantities,fee,impact,cost));
     builder.Services.AddHostedService<RAC.Api.SamuelLiquidityWorker>();
+}
+
+if (miguelEnabled)
+{
+    var section = builder.Configuration.GetSection("Specialists:Miguel");
+    var moneyTolerance = section.GetValue<decimal>("MoneyToleranceBrl",0.01m);
+    var quantityTolerance = section.GetValue<decimal>("QuantityTolerance",0.000001m);
+    var maximumAgeSeconds = section.GetValue<int>("MaximumAgeSeconds",120);
+    if (moneyTolerance<0 || moneyTolerance>0.01m || quantityTolerance<0 ||
+        quantityTolerance>0.000001m || maximumAgeSeconds<1 || maximumAgeSeconds>300)
+        throw new InvalidOperationException("Invalid Miguel audit configuration.");
+    builder.Services.AddSingleton<MiguelAuditReader>();
+    builder.Services.AddSingleton<MiguelAuditReporter>();
+    builder.Services.AddSingleton<MiguelTaskExecutor>(sp => new MiguelTaskExecutor(
+        sp.GetRequiredService<RacAgentTaskStore>(),sp.GetRequiredService<RacAgentMessageStore>(),
+        sp.GetRequiredService<MiguelAuditReporter>(),sp.GetRequiredService<MiguelAuditReader>(),
+        moneyTolerance,quantityTolerance,TimeSpan.FromSeconds(maximumAgeSeconds)));
+    builder.Services.AddHostedService<RAC.Api.MiguelAuditWorker>();
 }
 
 var app = builder.Build();
