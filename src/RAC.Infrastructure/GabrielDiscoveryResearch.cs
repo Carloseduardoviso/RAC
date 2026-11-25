@@ -1,4 +1,4 @@
-﻿using RAC.Application;
+using RAC.Application;
 
 namespace RAC.Infrastructure;
 
@@ -16,7 +16,7 @@ public static class GabrielDiscoveryResearch
         return Array.AsReadOnly(discovery.Candidates.Select(candidate=>
         {
             var rows=ranked[candidate.Symbol].ToArray();
-            return new GabrielDiscoveryAssessment(candidate.Symbol,rows.Length==0?"MATRIX_EVIDENCE_MISSING":"INDEPENDENT_VALIDATION_REQUIRED",rows.Length,rows.Count(x=>x.Status=="INDEPENDENT_VALIDATION_REQUIRED"));
+            return new GabrielDiscoveryAssessment(candidate.Symbol,rows.Length==0?"MATRIX_EVIDENCE_MISSING":rows.Any(x=>x.Status=="INDEPENDENT_VALIDATION_REQUIRED")?"INDEPENDENT_VALIDATION_REQUIRED":"NO_QUALIFYING_CONFIGURATION",rows.Length,rows.Count(x=>x.Status=="INDEPENDENT_VALIDATION_REQUIRED"));
         }).ToArray());
     }
 }
