@@ -58,7 +58,7 @@ public sealed class GabrielEligibleFreezeSqlTests
             var factory=new Factory(options);
             var source=new GabrielDynamicHistoricalSource(new GabrielPublicArchiveClient(http),new ResearchQuantitativeExecutionStore(factory),new ResearchExecutionManifestStore(factory),new IndependentResearchFreezeStore(factory,new FreezeClock()));
             var first=await source.ReadAsync(["ABCUSDT"],default);
-            var candidates=RAC.Application.GabrielStrategyRanking.FreezeCandidates(RAC.Application.GabrielExperimentMatrix.Read(first,["ABCUSDT"]));
+            var candidates=RAC.Application.GabrielStrategyRanking.FreezePairs(RAC.Application.GabrielExperimentMatrix.Read(first,["ABCUSDT"]));
             Assert.NotEmpty(candidates);
             Assert.Equal(first,await source.ReadAsync(["ABCUSDT"],default));
             await using var check=new RacDbContext(options);
