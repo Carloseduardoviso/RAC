@@ -1,4 +1,4 @@
-﻿namespace RAC.Application;
+namespace RAC.Application;
 
 public sealed record RafaelAgentEvidence(string AgentId,decimal ExistingExposure,decimal QualityScore,bool IndependentValidation);
 public sealed record RafaelAgentAllocation(string AgentId,decimal ResearchAmount)
@@ -11,8 +11,8 @@ public static class RafaelCapitalDistribution
         RafaelAllocationLimits limits,IReadOnlyList<RafaelAgentEvidence> agents)
     {
         var capacity=RafaelAllocationCapacity.Evaluate(snapshot,limits);
-        if(agents.Count>12 || agents.Select(x=>x.AgentId).Distinct(StringComparer.Ordinal).Count()!=agents.Count ||
-            agents.Any(x=>string.IsNullOrWhiteSpace(x.AgentId)||x.ExistingExposure<0||x.QualityScore is <0 or >1) ||
+        if(agents.Count>12 || agents.Select(x=>x.AgentId).Distinct(StringComparer.OrdinalIgnoreCase).Count()!=agents.Count ||
+            agents.Any(x=>string.IsNullOrWhiteSpace(x.AgentId)||x.AgentId!=x.AgentId.Trim()||x.ExistingExposure<0||x.QualityScore is <0 or >1) ||
             agents.Sum(x=>x.ExistingExposure)>snapshot.MarkedPositions)
             throw new ArgumentException("Invalid agent evidence.");
         var remaining=snapshot.RiskLocked?0:Math.Min(capacity.CashHeadroom,capacity.ExposureHeadroom);
