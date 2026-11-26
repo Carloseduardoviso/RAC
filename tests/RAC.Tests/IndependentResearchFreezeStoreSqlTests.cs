@@ -13,6 +13,19 @@ public sealed class IndependentResearchFreezeStoreSqlTests
         public DateTimeOffset Now=now;
         public override DateTimeOffset GetUtcNow()=>Now;
     }
+    private sealed class CommitFault:Microsoft.EntityFrameworkCore.Diagnostics.DbTransactionInterceptor
+    {
+        public bool Armed {get;set;}
+        public override Task TransactionCommittedAsync(System.Data.Common.DbTransaction transaction,Microsoft.EntityFrameworkCore.Diagnostics.TransactionEndEventData eventData,CancellationToken cancellationToken=default)
+        {
+            if(Armed)
+            {
+                Armed=false;
+                throw new InvalidOperationException("Simulated lost commit acknowledgement.");
+            }
+            return Task.CompletedTask;
+        }
+    }
     [Fact]
     public async Task FreezeRequiresVerifiedEvidenceAndRejectsLateRegistration()
     {
@@ -152,6 +165,21 @@ public sealed class IndependentResearchFreezeStoreSqlTests
                 Assert.Equal(8,await db.IndependentResearchFreezes.CountAsync());
                 Assert.Equal(2,await db.IndependentResearchFreezes.CountAsync(x=>retried.Contains(x.FreezeId)));
             }
+            // Simulate loss of acknowledgement after the database commits.
+            var fault=new CommitFault();
+            var faultOptions=new DbContextOptionsBuilder<RacDbContext>(options).AddInterceptors(fault).Options;
+            var faultStore=new IndependentResearchFreezeStore(new Factory(faultOptions),clock);
+            var committedStress=plan.First(x=>x.Parameters.SlippagePctPerSide==.20m && x!=stress && x!=legacyStress && x!=failingStress && x.Parameters!=(plan[0].Parameters with {SlippagePctPerSide=.20m}) && x.Parameters!=(plan[1].Parameters with {SlippagePctPerSide=.20m}));
+            fault.Armed=true;
+            var lost=await Assert.ThrowsAsync<InvalidOperationException>(()=>faultStore.SavePairAsync(committedStress,manifest.Id,default));
+            Assert.Equal("Simulated lost commit acknowledgement.",lost.Message);
+            var recoveredCommit=await store.SavePairAsync(committedStress,manifest.Id,default);
+            Assert.Equal(2,recoveredCommit.Distinct().Count());
+            await using(var db=factory.CreateDbContext())
+            {
+                Assert.Equal(10,await db.IndependentResearchFreezes.CountAsync());
+                Assert.Equal(2,await db.IndependentResearchFreezes.CountAsync(x=>recoveredCommit.Contains(x.FreezeId)));
+            }
             clock.Now=IndependentResearchFreeze.ValidationStart;
             await Assert.ThrowsAsync<ArgumentException>(()=>store.SaveAsync(plan[2],manifest.Id,default));
             await using var check=factory.CreateDbContext();
@@ -166,7 +194,7 @@ public sealed class IndependentResearchFreezeStoreSqlTests
             Assert.Equal(plan[0].Symbol,frozen.Symbol);
             Assert.Equal(id,frozen.FreezeId);
             Assert.Equal(now,frozen.FrozenUtc);
-            Assert.Equal(8,await check.IndependentResearchFreezes.CountAsync());
+            Assert.Equal(10,await check.IndependentResearchFreezes.CountAsync());
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally
