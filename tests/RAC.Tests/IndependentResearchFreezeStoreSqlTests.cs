@@ -35,6 +35,27 @@ public sealed class IndependentResearchFreezeStoreSqlTests
             var result=new ResearchExperimentReplay.Result(0,0,0,0,null,0,false);
             foreach(var item in evidence)await executions.SaveAsync(item.Row,item.SourceSha256,item.Month,engine,result,now,default);
             await new ResearchExecutionManifestStore(factory).SaveAsync(symbols,engine,evidence,now,default);
+            var stress=plan.First(x=>x.Parameters.SlippagePctPerSide==.20m && x.Parameters!= (plan[0].Parameters with {SlippagePctPerSide=.20m}) && x.Parameters!=(plan[1].Parameters with {SlippagePctPerSide=.20m}));
+            var normal=stress with {Parameters=stress.Parameters with {SlippagePctPerSide=.05m}};
+            var normalId=ResearchExperimentIdentity.Create(normal);
+            await using(var db=factory.CreateDbContext())
+            {
+                var record=await db.ResearchQuantitativeExecutions.FirstAsync(x=>x.ConfigurationId==normalId);
+                record.ResultJson=System.Text.Json.JsonSerializer.Serialize(result with {NetPct=1});
+                await db.SaveChangesAsync();
+                await Assert.ThrowsAsync<InvalidOperationException>(()=>store.SavePairAsync(stress,manifest.Id,default));
+                Assert.False(await db.IndependentResearchFreezes.AnyAsync());
+                record.ResultJson=System.Text.Json.JsonSerializer.Serialize(result);
+                await db.SaveChangesAsync();
+            }
+            var pairs=await Task.WhenAll(Enumerable.Range(0,4).Select(_=>store.SavePairAsync(stress,manifest.Id,default)));
+            Assert.All(pairs,pair=>Assert.Equal(pairs[0].ToArray(),pair.ToArray()));
+            Assert.Equal(2,pairs[0].Distinct().Count());
+            await using(var db=factory.CreateDbContext())
+            {
+                Assert.Equal(2,await db.IndependentResearchFreezes.CountAsync());
+                Assert.All(await db.IndependentResearchFreezes.ToListAsync(),x=>Assert.Equal(now,x.FrozenUtc));
+            }
             var concurrent=await Task.WhenAll(Enumerable.Range(0,8).Select(_=>store.SaveAsync(plan[0],manifest.Id,default)));
             var id=Assert.Single(concurrent.Distinct());
             clock.Now=now.AddHours(1);
@@ -96,7 +117,7 @@ public sealed class IndependentResearchFreezeStoreSqlTests
             Assert.Equal(plan[0].Symbol,frozen.Symbol);
             Assert.Equal(id,frozen.FreezeId);
             Assert.Equal(now,frozen.FrozenUtc);
-            Assert.Equal(2,await check.IndependentResearchFreezes.CountAsync());
+            Assert.Equal(4,await check.IndependentResearchFreezes.CountAsync());
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally

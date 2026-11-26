@@ -14,16 +14,44 @@ public sealed class IndependentResearchFreezeStore(IDbContextFactory<RacDbContex
             catch(Exception ex) when(attempt<3 && IsRetryable(ex)) { await Task.Delay(50*(attempt+1),ct); }
         }
     }
+    public async Task<IReadOnlyList<string>> SavePairAsync(ResearchExperimentPlan.Row stress,string manifestId,CancellationToken ct)
+    {
+        if(stress.Parameters.SlippagePctPerSide!=.20m)throw new ArgumentException("Stress configuration required.",nameof(stress));
+        var normal=stress with {Parameters=stress.Parameters with {SlippagePctPerSide=.05m}};
+        for(var attempt=0;;attempt++)
+        {
+            try
+            {
+                await using var db=await factory.CreateDbContextAsync(ct);
+                await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
+                var now=clock.GetUtcNow();
+                var first=await StageAsync(db,stress,manifestId,now,ct);
+                var second=await StageAsync(db,normal,manifestId,now,ct);
+                if(clock.GetUtcNow()>=IndependentResearchFreeze.ValidationStart)throw new InvalidOperationException("Freeze window closed.");
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+                return new[]{first,second};
+            }
+            catch(Exception ex) when(attempt<3 && IsRetryable(ex)) { await Task.Delay(50*(attempt+1),ct); }
+        }
+    }
     private static bool IsRetryable(Exception ex)=>ex is Microsoft.Data.SqlClient.SqlException sql && sql.Number is 1205 or 2601 or 2627 || ex.InnerException is not null && IsRetryable(ex.InnerException);
     private async Task<string> SaveOnceAsync(ResearchExperimentPlan.Row row,string manifestId,CancellationToken ct)
     {
-        var configuration=ResearchExperimentIdentity.Create(row);
-        var engine=ResearchEngineCatalog.Current.Id;
-        var now=clock.GetUtcNow();
-        var id=IndependentResearchFreeze.Create(row,engine,manifestId,now);
-        manifestId=manifestId.ToUpperInvariant();
         await using var db=await factory.CreateDbContextAsync(ct);
         await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
+        var id=await StageAsync(db,row,manifestId,clock.GetUtcNow(),ct);
+        if(clock.GetUtcNow()>=IndependentResearchFreeze.ValidationStart)throw new InvalidOperationException("Freeze window closed.");
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return id;
+    }
+    private async Task<string> StageAsync(RacDbContext db,ResearchExperimentPlan.Row row,string manifestId,DateTimeOffset now,CancellationToken ct)
+    {
+        var configuration=ResearchExperimentIdentity.Create(row);
+        var engine=ResearchEngineCatalog.Current.Id;
+        var id=IndependentResearchFreeze.Create(row,engine,manifestId,now);
+        manifestId=manifestId.ToUpperInvariant();
         var manifest=await db.ResearchExecutionManifests.SingleAsync(x=>x.ManifestId==manifestId,ct);
         if(manifest.EngineVersion!=engine || manifest.RecordedUtc>now)
             throw new InvalidOperationException("Invalid historical manifest.");
@@ -62,8 +90,6 @@ public sealed class IndependentResearchFreezeStore(IDbContextFactory<RacDbContex
         if(clock.GetUtcNow()>=IndependentResearchFreeze.ValidationStart)
             throw new InvalidOperationException("Freeze window closed.");
         db.IndependentResearchFreezes.Add(new IndependentResearchFreezeRecord{FreezeId=id,ConfigurationId=configuration,ManifestId=manifestId,EngineVersion=engine,Symbol=row.Symbol,ParametersJson=JsonSerializer.Serialize(row.Parameters),FrozenUtc=now});
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
         return id;
     }
 }
