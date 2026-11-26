@@ -54,6 +54,21 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public DbSet<ResearchQuantitativeExecutionRecord> ResearchQuantitativeExecutions => Set<ResearchQuantitativeExecutionRecord>();
     public DbSet<ResearchExecutionManifestRecord> ResearchExecutionManifests => Set<ResearchExecutionManifestRecord>();
     public DbSet<IndependentResearchFreezeRecord> IndependentResearchFreezes => Set<IndependentResearchFreezeRecord>();
+    private void GuardResearchFreezes()
+    {
+        if(ChangeTracker.Entries<IndependentResearchFreezeRecord>().Any(x=>x.State is EntityState.Modified or EntityState.Deleted))
+            throw new InvalidOperationException("Frozen research configurations cannot be modified or deleted.");
+    }
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        GuardResearchFreezes();
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess,CancellationToken cancellationToken=default)
+    {
+        GuardResearchFreezes();
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess,cancellationToken);
+    }
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
