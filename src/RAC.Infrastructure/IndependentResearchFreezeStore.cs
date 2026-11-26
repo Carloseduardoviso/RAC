@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RAC.Application;
 using RAC.Domain;
 using System.Text.Json;
@@ -7,6 +7,15 @@ namespace RAC.Infrastructure;
 public sealed class IndependentResearchFreezeStore(IDbContextFactory<RacDbContext> factory,TimeProvider clock)
 {
     public async Task<string> SaveAsync(ResearchExperimentPlan.Row row,string manifestId,CancellationToken ct)
+    {
+        for(var attempt=0;;attempt++)
+        {
+            try { return await SaveOnceAsync(row,manifestId,ct); }
+            catch(Exception ex) when(attempt<3 && IsRetryable(ex)) { await Task.Delay(50*(attempt+1),ct); }
+        }
+    }
+    private static bool IsRetryable(Exception ex)=>ex is Microsoft.Data.SqlClient.SqlException sql && sql.Number is 1205 or 2601 or 2627 || ex.InnerException is not null && IsRetryable(ex.InnerException);
+    private async Task<string> SaveOnceAsync(ResearchExperimentPlan.Row row,string manifestId,CancellationToken ct)
     {
         var configuration=ResearchExperimentIdentity.Create(row);
         var engine=ResearchEngineCatalog.Current.Id;
