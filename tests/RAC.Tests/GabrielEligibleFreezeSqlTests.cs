@@ -70,6 +70,17 @@ public sealed class GabrielEligibleFreezeSqlTests
                 var id=RAC.Application.ResearchExperimentIdentity.Create(candidate);
                 Assert.Contains(frozen,x=>x.ConfigurationId==id && x.ManifestId==manifest.ManifestId);
             }
+            foreach(var stress in candidates.Where(x=>x.Parameters.SlippagePctPerSide==.20m))
+            {
+                var normal=stress with {Parameters=stress.Parameters with {SlippagePctPerSide=.05m}};
+                var stressId=RAC.Application.ResearchExperimentIdentity.Create(stress);
+                var normalId=RAC.Application.ResearchExperimentIdentity.Create(normal);
+                var firstFreeze=Assert.Single(frozen,x=>x.ConfigurationId==stressId);
+                var secondFreeze=Assert.Single(frozen,x=>x.ConfigurationId==normalId);
+                Assert.Equal(firstFreeze.ManifestId,secondFreeze.ManifestId);
+                Assert.Equal(firstFreeze.EngineVersion,secondFreeze.EngineVersion);
+                Assert.Equal(firstFreeze.FrozenUtc,secondFreeze.FrozenUtc);
+            }
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally {await using var db=new RacDbContext(options);await db.Database.EnsureDeletedAsync();}
