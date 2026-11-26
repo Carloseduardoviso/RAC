@@ -17,7 +17,10 @@ public sealed class RacAnaAdvisoryEndpointsTests
         await using var app=builder.Build();
         app.MapRacAnaAdvisories();
         var endpoints=((IEndpointRouteBuilder)app).DataSources.SelectMany(x=>x.Endpoints).Cast<RouteEndpoint>().ToArray();
-        Assert.Equal(2,endpoints.Length);
+        Assert.Equal(3,endpoints.Length);
+        var audit=Assert.Single(endpoints,x=>x.RoutePattern.RawText=="/api/ana/research/freeze-audit/{configurationId}");
+        Assert.Equal("RacRiskReviewer",audit.Metadata.GetMetadata<IAuthorizeData>()?.Policy);
+        Assert.Equal(new[]{"GET"},audit.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods);
         var get=Assert.Single(endpoints,x=>x.RoutePattern.RawText=="/api/ana/advisories");
         Assert.Equal("RacRiskReviewer",get.Metadata.GetMetadata<IAuthorizeData>()?.Policy);
         Assert.Equal(new[]{"GET"},get.Metadata.GetMetadata<HttpMethodMetadata>()!.HttpMethods);
