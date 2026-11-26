@@ -30,8 +30,8 @@ public sealed class GabrielDynamicHistoricalSource(GabrielPublicArchiveClient ar
         if(freezes is not null)
         {
             var manifest=ResearchExecutionManifest.Create(symbols,ResearchEngineCatalog.Current.Id,evidence);
-            foreach(var candidate in GabrielStrategyRanking.Rank(GabrielExperimentMatrix.Read(result,symbols)).Where(x=>x.Status=="INDEPENDENT_VALIDATION_REQUIRED"))
-                await freezes.SaveAsync(new(candidate.Assessment.Symbol,candidate.Assessment.Parameters),manifest.Id,deadline.Token);
+            foreach(var candidate in GabrielStrategyRanking.FreezeCandidates(GabrielExperimentMatrix.Read(result,symbols)))
+                await freezes.SaveAsync(candidate,manifest.Id,deadline.Token);
         }
         deadline.Token.ThrowIfCancellationRequested();
         return result;

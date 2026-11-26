@@ -1,4 +1,4 @@
-﻿namespace RAC.Application;
+namespace RAC.Application;
 
 public static class GabrielStrategyRanking
 {
@@ -6,6 +6,9 @@ public static class GabrielStrategyRanking
     {
         public bool TradingAuthorized => false;
     }
+    public static IReadOnlyList<ResearchExperimentPlan.Row> FreezeCandidates(IReadOnlyList<GabrielExperimentMatrix.Assessment> rows)
+        => Rank(rows).Where(x=>x.Status=="INDEPENDENT_VALIDATION_REQUIRED" && x.Assessment.Evidence.Months==6)
+            .Select(x=>new ResearchExperimentPlan.Row(x.Assessment.Symbol,x.Assessment.Parameters)).Distinct().ToArray();
     public static IReadOnlyList<Ranked> Rank(IReadOnlyList<GabrielExperimentMatrix.Assessment> rows)
     {
         return rows.Where(x=>x.Parameters.SlippagePctPerSide==.20m)
