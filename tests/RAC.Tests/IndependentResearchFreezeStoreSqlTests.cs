@@ -143,6 +143,15 @@ public sealed class IndependentResearchFreezeStoreSqlTests
                     await db.Database.ExecuteSqlRawAsync("DROP TRIGGER rac.TR_TestFreezeInsertFailure");
                 }
             }
+            // Retry after the database failure has been removed.
+            var retried=await store.SavePairAsync(failingStress,manifest.Id,default);
+            Assert.Equal(2,retried.Distinct().Count());
+            Assert.Equal(retried.ToArray(),(await store.SavePairAsync(failingStress,manifest.Id,default)).ToArray());
+            await using(var db=factory.CreateDbContext())
+            {
+                Assert.Equal(8,await db.IndependentResearchFreezes.CountAsync());
+                Assert.Equal(2,await db.IndependentResearchFreezes.CountAsync(x=>retried.Contains(x.FreezeId)));
+            }
             clock.Now=IndependentResearchFreeze.ValidationStart;
             await Assert.ThrowsAsync<ArgumentException>(()=>store.SaveAsync(plan[2],manifest.Id,default));
             await using var check=factory.CreateDbContext();
@@ -157,7 +166,7 @@ public sealed class IndependentResearchFreezeStoreSqlTests
             Assert.Equal(plan[0].Symbol,frozen.Symbol);
             Assert.Equal(id,frozen.FreezeId);
             Assert.Equal(now,frozen.FrozenUtc);
-            Assert.Equal(6,await check.IndependentResearchFreezes.CountAsync());
+            Assert.Equal(8,await check.IndependentResearchFreezes.CountAsync());
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally
