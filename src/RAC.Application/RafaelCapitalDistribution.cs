@@ -21,6 +21,8 @@ public static class RafaelCapitalDistribution
         {
             var amount=agent.IndependentValidation && agent.QualityScore>0
                 ? Math.Min(remaining,Math.Max(0,capacity.SinglePositionCeiling-agent.ExistingExposure)):0;
+            // Round down to eight decimal places to avoid allocating fractional excess.
+            amount=decimal.Round(amount,8,MidpointRounding.ToZero);
             remaining-=amount;
             result.Add(new(agent.AgentId,amount));
         }
