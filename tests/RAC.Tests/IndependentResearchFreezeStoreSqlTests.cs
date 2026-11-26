@@ -103,6 +103,46 @@ public sealed class IndependentResearchFreezeStoreSqlTests
             var resumed=await store.SaveAsync(plan[1],manifest.Id,default);
             Assert.NotEqual(id,resumed);
             Assert.Equal(resumed,await store.SaveAsync(plan[1],manifest.Id,default));
+            // Recover a legacy single configuration without rewriting its timestamp or identity.
+            var legacyStress=plan.First(x=>x.Parameters.SlippagePctPerSide==.20m && x!=stress && x.Parameters!=(plan[0].Parameters with {SlippagePctPerSide=.20m}) && x.Parameters!=(plan[1].Parameters with {SlippagePctPerSide=.20m}));
+            var legacyNormal=legacyStress with {Parameters=legacyStress.Parameters with {SlippagePctPerSide=.05m}};
+            var legacyId=await store.SaveAsync(legacyStress,manifest.Id,default);
+            var legacyTime=clock.Now;
+            clock.Now=legacyTime.AddMinutes(1);
+            var recovered=await store.SavePairAsync(legacyStress,manifest.Id,default);
+            Assert.Equal(legacyId,recovered[0]);
+            Assert.Equal(recovered.ToArray(),(await store.SavePairAsync(legacyStress,manifest.Id,default)).ToArray());
+            await using(var db=factory.CreateDbContext())
+            {
+                var old=await db.IndependentResearchFreezes.SingleAsync(x=>x.FreezeId==legacyId);
+                var companion=await db.IndependentResearchFreezes.SingleAsync(x=>x.FreezeId==recovered[1]);
+                Assert.Equal(legacyTime,old.FrozenUtc);
+                Assert.Equal(clock.Now,companion.FrozenUtc);
+                Assert.Equal(ResearchExperimentIdentity.Create(legacyNormal),companion.ConfigurationId);
+                Assert.Equal(old.ManifestId,companion.ManifestId);
+                Assert.Equal(6,await db.IndependentResearchFreezes.CountAsync());
+            }
+            // Force a database-side insert failure after evidence validation.
+            var failingStress=plan.First(x=>x.Parameters.SlippagePctPerSide==.20m && x!=stress && x!=legacyStress && x.Parameters!=(plan[0].Parameters with {SlippagePctPerSide=.20m}) && x.Parameters!=(plan[1].Parameters with {SlippagePctPerSide=.20m}));
+            var failingNormal=failingStress with {Parameters=failingStress.Parameters with {SlippagePctPerSide=.05m}};
+            var failingId=ResearchExperimentIdentity.Create(failingNormal);
+            Assert.Matches("^[0-9A-F]{64}$",failingId);
+            await using(var db=factory.CreateDbContext())
+            {
+                #pragma warning disable EF1003 // Test-only DDL; configuration digest validated as uppercase hexadecimal.
+                await db.Database.ExecuteSqlRawAsync("CREATE TRIGGER rac.TR_TestFreezeInsertFailure ON rac.IndependentResearchFreezes AFTER INSERT AS BEGIN SET NOCOUNT ON; IF EXISTS (SELECT 1 FROM inserted WHERE ConfigurationId = '"+failingId+"') THROW 51002, 'Injected insert failure.', 1; END");
+                #pragma warning restore EF1003
+                try
+                {
+                    var failure=await Assert.ThrowsAsync<DbUpdateException>(()=>store.SavePairAsync(failingStress,manifest.Id,default));
+                    Assert.Equal(51002,Assert.IsType<Microsoft.Data.SqlClient.SqlException>(failure.InnerException).Number);
+                    Assert.Equal(6,await db.IndependentResearchFreezes.CountAsync());
+                }
+                finally
+                {
+                    await db.Database.ExecuteSqlRawAsync("DROP TRIGGER rac.TR_TestFreezeInsertFailure");
+                }
+            }
             clock.Now=IndependentResearchFreeze.ValidationStart;
             await Assert.ThrowsAsync<ArgumentException>(()=>store.SaveAsync(plan[2],manifest.Id,default));
             await using var check=factory.CreateDbContext();
@@ -117,7 +157,7 @@ public sealed class IndependentResearchFreezeStoreSqlTests
             Assert.Equal(plan[0].Symbol,frozen.Symbol);
             Assert.Equal(id,frozen.FreezeId);
             Assert.Equal(now,frozen.FrozenUtc);
-            Assert.Equal(4,await check.IndependentResearchFreezes.CountAsync());
+            Assert.Equal(6,await check.IndependentResearchFreezes.CountAsync());
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally
