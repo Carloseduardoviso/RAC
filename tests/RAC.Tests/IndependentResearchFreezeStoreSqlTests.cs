@@ -64,10 +64,28 @@ public sealed class IndependentResearchFreezeStoreSqlTests
                 stored.EvidenceJson=original;
                 await db.SaveChangesAsync();
             }
+            // Simulate a stopped batch after its first committed configuration.
+            using(var stopped=new CancellationTokenSource())
+            {
+                stopped.Cancel();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(()=>store.SaveAsync(plan[1],manifest.Id,stopped.Token));
+            }
+            // Restore the deliberately corrupted historical result before resuming.
+            await using(var db=factory.CreateDbContext())
+            {
+                var configuration=ResearchExperimentIdentity.Create(plan[0]);
+                var records=await db.ResearchQuantitativeExecutions.Where(x=>x.ConfigurationId==configuration).ToListAsync();
+                foreach(var record in records) record.ResultJson=System.Text.Json.JsonSerializer.Serialize(result);
+                await db.SaveChangesAsync();
+            }
+            Assert.Equal(id,await store.SaveAsync(plan[0],manifest.Id,default));
+            var resumed=await store.SaveAsync(plan[1],manifest.Id,default);
+            Assert.NotEqual(id,resumed);
+            Assert.Equal(resumed,await store.SaveAsync(plan[1],manifest.Id,default));
             clock.Now=IndependentResearchFreeze.ValidationStart;
-            await Assert.ThrowsAsync<ArgumentException>(()=>store.SaveAsync(plan[1],manifest.Id,default));
+            await Assert.ThrowsAsync<ArgumentException>(()=>store.SaveAsync(plan[2],manifest.Id,default));
             await using var check=factory.CreateDbContext();
-            var frozen=await check.IndependentResearchFreezes.SingleAsync();
+            var frozen=await check.IndependentResearchFreezes.SingleAsync(x=>x.FreezeId==id);
             Assert.Equal(id,frozen.FreezeId);
             Assert.Equal(now,frozen.FrozenUtc);
             var update=await Assert.ThrowsAsync<Microsoft.Data.SqlClient.SqlException>(()=>check.Database.ExecuteSqlRawAsync("UPDATE rac.IndependentResearchFreezes SET Symbol = 'CHANGED'"));
@@ -78,7 +96,7 @@ public sealed class IndependentResearchFreezeStoreSqlTests
             Assert.Equal(plan[0].Symbol,frozen.Symbol);
             Assert.Equal(id,frozen.FreezeId);
             Assert.Equal(now,frozen.FrozenUtc);
-            Assert.Equal(1,await check.IndependentResearchFreezes.CountAsync());
+            Assert.Equal(2,await check.IndependentResearchFreezes.CountAsync());
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally
