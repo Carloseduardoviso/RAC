@@ -6,7 +6,10 @@ public static class ResearchExperimentReplay
     public const string HistoricalEngineVersion="REPLAY_V1";
     public sealed record Minute(decimal Open,decimal Close,decimal QuoteVolume);
     public sealed record Result(decimal NetPct,decimal DrawdownPct,int Trades,int Wins,decimal? ProfitFactor,decimal Costs,bool Unresolved);
+    public sealed record DetailedResult(Result Summary,decimal RealizedProfit,decimal RealizedLoss);
     public static Result Run(IReadOnlyList<Minute> data,ResearchBacktestParameters.Experiment p,bool qualityFilters=false,ResearchEntryFilter filters=ResearchEntryFilter.All,CancellationToken ct=default)
+        => RunDetailed(data,p,qualityFilters,filters,ct).Summary;
+    public static DetailedResult RunDetailed(IReadOnlyList<Minute> data,ResearchBacktestParameters.Experiment p,bool qualityFilters=false,ResearchEntryFilter filters=ResearchEntryFilter.All,CancellationToken ct=default)
     {
         ct.ThrowIfCancellationRequested();
         if(p.TradingAuthorized||p.Status!="RESEARCH_ONLY"||p.CandleMinutes is not (60 or 120)||p.SlowPeriod<2||p.FastPeriod<0||p.FastPeriod>=p.SlowPeriod||p.ExposurePct<=0||p.ExposurePct>100||p.StopPct<=0||p.TargetPct<=0||p.FeePctPerSide<0||p.SlippagePctPerSide<0||p.FeePctPerSide+p.SlippagePctPerSide>=100||data.Any(x=>x.Open<=0||x.Close<=0||x.QuoteVolume<0))throw new ArgumentException("Invalid experiment");
@@ -59,6 +62,6 @@ public static class ResearchExperimentReplay
         }
         ct.ThrowIfCancellationRequested();
         var final=cash+(data.Count==0?0:qty*data[^1].Close*(1-cost));dd=Math.Max(dd,1-final/peak);
-        return new((final/1000-1)*100,dd*100,trades,wins,loss>0?profit/loss:null,costs,qty>0);
+        return new(new Result((final/1000-1)*100,dd*100,trades,wins,loss>0?profit/loss:null,costs,qty>0),profit,loss);
     }
 }
