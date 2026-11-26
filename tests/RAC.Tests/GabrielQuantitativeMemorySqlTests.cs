@@ -10,6 +10,10 @@ public sealed class GabrielQuantitativeMemorySqlTests
     {
         public RacDbContext CreateDbContext()=>new(options);
     }
+    private sealed class FreezeClock:TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow()=>new(2026,11,30,0,0,0,TimeSpan.Zero);
+    }
     private sealed class Handler:HttpMessageHandler
     {
         private readonly Dictionary<string,byte[]> archives=new();
@@ -51,7 +55,7 @@ public sealed class GabrielQuantitativeMemorySqlTests
             await using(var db=new RacDbContext(options))await db.Database.MigrateAsync();
             using var handler=new Handler{Interrupt=true};
             using var http=new HttpClient(handler);
-            var source=new GabrielDynamicHistoricalSource(new GabrielPublicArchiveClient(http),new ResearchQuantitativeExecutionStore(new Factory(options)),new ResearchExecutionManifestStore(new Factory(options)));
+            var source=new GabrielDynamicHistoricalSource(new GabrielPublicArchiveClient(http),new ResearchQuantitativeExecutionStore(new Factory(options)),new ResearchExecutionManifestStore(new Factory(options)),new IndependentResearchFreezeStore(new Factory(options),new FreezeClock()));
             await Assert.ThrowsAsync<HttpRequestException>(()=>source.ReadAsync(["ABCUSDT"],default));
             await using(var db=new RacDbContext(options))Assert.Equal(24,await db.ResearchQuantitativeExecutions.CountAsync());
             await using(var db=new RacDbContext(options))Assert.False(await db.ResearchExecutionManifests.AnyAsync());
@@ -62,6 +66,8 @@ public sealed class GabrielQuantitativeMemorySqlTests
             await using var check=new RacDbContext(options);
             Assert.Equal(144,await check.ResearchQuantitativeExecutions.CountAsync());
             Assert.Equal(144,(await check.ResearchExecutionManifests.SingleAsync()).Executions);
+            Assert.Empty(RAC.Application.GabrielStrategyRanking.FreezeCandidates(RAC.Application.GabrielExperimentMatrix.Read(first,["ABCUSDT"])));
+            Assert.False(await check.IndependentResearchFreezes.AnyAsync());
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally {await using var db=new RacDbContext(options);await db.Database.EnsureDeletedAsync();}
