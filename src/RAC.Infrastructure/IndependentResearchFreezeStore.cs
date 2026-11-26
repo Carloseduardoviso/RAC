@@ -31,6 +31,10 @@ public sealed class IndependentResearchFreezeStore(IDbContextFactory<RacDbContex
         if(document.RootElement.GetProperty("Schema").GetString()!="RAC_MANIFEST_RESULTS_V2")
             throw new InvalidOperationException("Version two manifest required.");
         var hashes=document.RootElement.GetProperty("Results").EnumerateObject().ToDictionary(x=>x.Name,x=>x.Value.GetString(),StringComparer.Ordinal);
+        var canonical="RAC:MANIFEST:V1|"+engine+"|"+string.Join("|",hashes.Keys.OrderBy(x=>x,StringComparer.Ordinal));
+        var computed=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(canonical)));
+        if(computed!=manifestId || hashes.Any(x=>x.Key.Length!=64 || !x.Key.All(Uri.IsHexDigit) || x.Value is null || x.Value.Length!=64 || !x.Value.All(Uri.IsHexDigit)))
+            throw new InvalidOperationException("Invalid manifest identity or digest.");
         if(hashes.Count!=manifest.Executions)
             throw new InvalidOperationException("Incomplete manifest.");
         var records=await db.ResearchQuantitativeExecutions.AsNoTracking().Where(x=>x.ConfigurationId==configuration && x.EngineVersion==engine).ToListAsync(ct);

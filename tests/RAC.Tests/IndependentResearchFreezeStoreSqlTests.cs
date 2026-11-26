@@ -47,6 +47,23 @@ public sealed class IndependentResearchFreezeStoreSqlTests
                 await db.SaveChangesAsync();
                 await Assert.ThrowsAsync<InvalidOperationException>(()=>store.SaveAsync(plan[0],manifest.Id,default));
             }
+            await using(var db=factory.CreateDbContext())
+            {
+                var stored=await db.ResearchExecutionManifests.SingleAsync();
+                var original=stored.EvidenceJson;
+                var node=System.Text.Json.Nodes.JsonNode.Parse(original)!;
+                var hashes=node["Results"]!.AsObject();
+                var key=hashes.First().Key;
+                var value=hashes[key]!.GetValue<string>();
+                hashes.Remove(key);
+                hashes.Add(new string('F',64),value);
+                stored.EvidenceJson=node.ToJsonString();
+                await db.SaveChangesAsync();
+                var error=await Assert.ThrowsAsync<InvalidOperationException>(()=>store.SaveAsync(plan[1],manifest.Id,default));
+                Assert.Contains("Invalid manifest identity",error.Message);
+                stored.EvidenceJson=original;
+                await db.SaveChangesAsync();
+            }
             clock.Now=IndependentResearchFreeze.ValidationStart;
             await Assert.ThrowsAsync<ArgumentException>(()=>store.SaveAsync(plan[1],manifest.Id,default));
             await using var check=factory.CreateDbContext();
