@@ -53,9 +53,21 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public DbSet<RacAnaAdvisoryRecord> AnaAdvisories => Set<RacAnaAdvisoryRecord>();
     public DbSet<ResearchQuantitativeExecutionRecord> ResearchQuantitativeExecutions => Set<ResearchQuantitativeExecutionRecord>();
     public DbSet<ResearchExecutionManifestRecord> ResearchExecutionManifests => Set<ResearchExecutionManifestRecord>();
+    public DbSet<IndependentResearchFreezeRecord> IndependentResearchFreezes => Set<IndependentResearchFreezeRecord>();
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<IndependentResearchFreezeRecord>(e=>{
+            e.HasKey(x=>x.FreezeId);
+            e.Property(x=>x.FreezeId).HasMaxLength(64);
+            e.Property(x=>x.ConfigurationId).HasMaxLength(64).IsRequired();
+            e.Property(x=>x.ManifestId).HasMaxLength(64).IsRequired();
+            e.Property(x=>x.EngineVersion).HasMaxLength(64).IsRequired();
+            e.Property(x=>x.Symbol).HasMaxLength(40).IsRequired();
+            e.Property(x=>x.ParametersJson).IsRequired();
+            e.HasIndex(x=>x.ConfigurationId).IsUnique();
+            e.HasOne<ResearchExecutionManifestRecord>().WithMany().HasForeignKey(x=>x.ManifestId).OnDelete(DeleteBehavior.Restrict);
+        });
         model.Entity<ResearchExecutionManifestRecord>(e=>{
             e.HasKey(x=>x.ManifestId);
             e.Property(x=>x.ManifestId).HasMaxLength(64);
