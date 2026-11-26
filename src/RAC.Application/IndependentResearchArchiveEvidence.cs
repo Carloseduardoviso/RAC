@@ -1,4 +1,4 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Text;
 namespace RAC.Application;
 
@@ -22,6 +22,25 @@ public static class IndependentResearchArchiveEvidence
         var data=GabrielHistoricalArchiveReader.Read(row.Symbol,month.Year,month.Month,archive,sha256);
         var evidence=IndependentResearchGate.ReplayMonth(month,row,data,ct);
         return new(execution,freeze,sha256.ToUpperInvariant(),evidence,Digest(execution,freeze,evidence));
+    }
+    // Checks the record against its expected configuration and frozen identity.
+    // Does not substitute for replaying an independently sourced archive.
+    public static bool Verify(Record record,ResearchExperimentPlan.Row row,string historicalManifestId,DateTimeOffset frozenAt)
+    {
+        try
+        {
+            var freeze=IndependentResearchFreeze.Create(row,ResearchExperimentReplay.HistoricalEngineVersion,historicalManifestId,frozenAt);
+            var e=record.Evidence;
+            var execution=ResearchExperimentExecutionIdentity.Create(row,record.SourceSha256,e.Month,ResearchExperimentReplay.HistoricalEngineVersion);
+            return e.Month>=new DateOnly(2026,12,1) && e.Month<new DateOnly(2027,6,1)
+                && e.Cost==(row.Parameters.FeePctPerSide+row.Parameters.SlippagePctPerSide)/100
+                && e.Trades>=0 && e.Profit>=0 && e.Loss>=0 && e.DrawdownPct>=0 && e.DrawdownPct<=100
+                && (e.Trades!=0 || (e.Profit==0 && e.Loss==0))
+                && string.Equals(record.FreezeId,freeze,StringComparison.Ordinal)
+                && string.Equals(record.ExecutionId,execution,StringComparison.Ordinal)
+                && string.Equals(record.Digest,Digest(execution,freeze,e),StringComparison.Ordinal);
+        }
+        catch(ArgumentException){return false;}
     }
     public static string Digest(string execution,string freeze,IndependentResearchGate.Evidence evidence)
     {

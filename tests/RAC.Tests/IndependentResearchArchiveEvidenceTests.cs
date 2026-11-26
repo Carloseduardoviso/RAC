@@ -1,4 +1,4 @@
-﻿using RAC.Application;
+using RAC.Application;
 namespace RAC.Tests;
 public class IndependentResearchArchiveEvidenceTests
 {
@@ -22,5 +22,22 @@ public class IndependentResearchArchiveEvidenceTests
         var month=new DateOnly(2026,12,1);
         Assert.Throws<ArgumentException>(()=>IndependentResearchArchiveEvidence.Replay(row,month,[],id,id,frozen,frozen));
         Assert.Throws<InvalidDataException>(()=>IndependentResearchArchiveEvidence.Replay(row,month,[],id,id,frozen,frozen.AddMonths(2)));
+    }
+    [Fact]
+    public void VerificationRejectsReboundConfigurationAndAlteredMetrics()
+    {
+        var row=ResearchExperimentPlan.Build()[0];var hash=new string('A',64);
+        var frozen=new DateTimeOffset(2026,11,20,0,0,0,TimeSpan.Zero);
+        var month=new DateOnly(2026,12,1);
+        var e=new IndependentResearchGate.Evidence(month,(row.Parameters.FeePctPerSide+row.Parameters.SlippagePctPerSide)/100,10,20,10,2,false);
+        var freeze=IndependentResearchFreeze.Create(row,ResearchExperimentReplay.HistoricalEngineVersion,hash,frozen);
+        var execution=ResearchExperimentExecutionIdentity.Create(row,hash,month,ResearchExperimentReplay.HistoricalEngineVersion);
+        var record=new IndependentResearchArchiveEvidence.Record(execution,freeze,hash,e,IndependentResearchArchiveEvidence.Digest(execution,freeze,e));
+        Assert.True(IndependentResearchArchiveEvidence.Verify(record,row,hash,frozen));
+        Assert.False(IndependentResearchArchiveEvidence.Verify(record with {Evidence=e with {Profit=21}},row,hash,frozen));
+        Assert.False(IndependentResearchArchiveEvidence.Verify(record with {SourceSha256=new string('B',64)},row,hash,frozen));
+        Assert.False(IndependentResearchArchiveEvidence.Verify(record,row,new string('B',64),frozen));
+        Assert.False(IndependentResearchArchiveEvidence.Verify(record,row,frozenAt:frozen.AddDays(1),historicalManifestId:hash));
+        Assert.False(record.TradingAuthorized);
     }
 }
