@@ -198,7 +198,12 @@ namespace RAC.Infrastructure.Migrations
 
                     b.HasIndex("ManifestId");
 
-                    b.ToTable("IndependentResearchFreezes", "rac");
+                    b.ToTable("IndependentResearchFreezes", "rac", t =>
+                        {
+                            t.HasTrigger("TR_IndependentResearchFreezes_AppendOnly");
+                        });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
                 });
 
             modelBuilder.Entity("RAC.Domain.MarketCandle", b =>

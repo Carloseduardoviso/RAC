@@ -53,6 +53,15 @@ public sealed class IndependentResearchFreezeStoreSqlTests
             var frozen=await check.IndependentResearchFreezes.SingleAsync();
             Assert.Equal(id,frozen.FreezeId);
             Assert.Equal(now,frozen.FrozenUtc);
+            var update=await Assert.ThrowsAsync<Microsoft.Data.SqlClient.SqlException>(()=>check.Database.ExecuteSqlRawAsync("UPDATE rac.IndependentResearchFreezes SET Symbol = 'CHANGED'"));
+            Assert.Equal(51001,update.Number);
+            var delete=await Assert.ThrowsAsync<Microsoft.Data.SqlClient.SqlException>(()=>check.Database.ExecuteSqlRawAsync("DELETE FROM rac.IndependentResearchFreezes"));
+            Assert.Equal(51001,delete.Number);
+            await check.Entry(frozen).ReloadAsync();
+            Assert.Equal(plan[0].Symbol,frozen.Symbol);
+            Assert.Equal(id,frozen.FreezeId);
+            Assert.Equal(now,frozen.FrozenUtc);
+            Assert.Equal(1,await check.IndependentResearchFreezes.CountAsync());
             Assert.False(await check.TestnetOrders.AnyAsync());
         }
         finally

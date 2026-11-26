@@ -73,6 +73,7 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     {
         model.HasDefaultSchema("rac");
         model.Entity<IndependentResearchFreezeRecord>(e=>{
+            e.ToTable("IndependentResearchFreezes",t=>t.HasTrigger("TR_IndependentResearchFreezes_AppendOnly"));
             e.HasKey(x=>x.FreezeId);
             e.Property(x=>x.FreezeId).HasMaxLength(64);
             e.Property(x=>x.ConfigurationId).HasMaxLength(64).IsRequired();
