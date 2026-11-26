@@ -91,6 +91,12 @@ public sealed class RacAnaRecentReview(IDbContextFactory<RacDbContext> factory, 
                     if(ResearchExperimentIdentity.Create(row)!=record.ConfigurationId)throw new InvalidOperationException("Invalid configuration.");
                     if(p.SlippagePctPerSide!=.20m)continue;
                     foreach(var id in await research.AuditPairAsync(row,record.ManifestId,ct))verified.Add(id);
+                var reader=new IndependentResearchReviewReader(factory,research,TimeProvider.System);
+                var assessment=await reader.ReadAsync(row,record.ManifestId,ct);
+                findings.Add($"RESEARCH:CLASSIFICATION:{assessment.Classification.Status}");
+                findings.Add($"RESEARCH:DETERIORATION:{assessment.Deterioration.Status}");
+                findings.AddRange(assessment.Recommendations.Actions.Select(x=>$"RESEARCH:ACTION:{x}"));
+                invalid|=assessment.Classification.Status=="INVALID_EVIDENCE" || assessment.Deterioration.Status is "INVALID_EVIDENCE" or "DETERIORATION_REVIEW_REQUIRED";
                 }
                 catch(Exception ex) when(ex is ArgumentException or InvalidOperationException or System.Text.Json.JsonException)
                 {
@@ -99,7 +105,8 @@ public sealed class RacAnaRecentReview(IDbContextFactory<RacDbContext> factory, 
             }
             invalid|=records.Any(x=>!verified.Contains(x.FreezeId));
             findings.Add($"RESEARCH:VERIFIED_FREEZES:{verified.Count}:{records.Count}");
-            findings.AddRange(verified.OrderBy(x=>x,StringComparer.Ordinal).Select(x=>$"RESEARCH:FREEZE:{x}"));
+            var digest=Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(string.Join("|",verified.OrderBy(x=>x,StringComparer.Ordinal)))));
+        findings.Add($"RESEARCH:FREEZE_SET:{digest}");
         }
         findings.Add("RESEARCH:INDEPENDENT_VALIDATION_REQUIRED");
         return result with {Status=invalid?"RISK_REVIEW_REQUIRED":result.Status,

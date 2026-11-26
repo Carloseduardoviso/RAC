@@ -124,6 +124,8 @@ public sealed class RacAnaAdvisoryHttpTests
             var verifiedReview=await review.ReviewAsync(now,TimeSpan.FromHours(1),default);
             Assert.Contains("RESEARCH:VERIFIED_FREEZES:2:2",verifiedReview.Reasons);
             Assert.Contains("RESEARCH:INDEPENDENT_VALIDATION_REQUIRED",verifiedReview.Reasons);
+        Assert.Contains("RESEARCH:CLASSIFICATION:VALIDATION_PENDING",verifiedReview.Reasons);
+        Assert.Contains("RESEARCH:ACTION:COLLECT_COMPLETE_INDEPENDENT_EVIDENCE",verifiedReview.Reasons);
             Assert.False(verifiedReview.TradingAuthorized);
             var path="/api/ana/research/freeze-audit/";
             var config=ResearchExperimentIdentity.Create(stress);
