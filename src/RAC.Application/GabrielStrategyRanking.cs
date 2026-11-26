@@ -9,6 +9,20 @@ public static class GabrielStrategyRanking
     public static IReadOnlyList<ResearchExperimentPlan.Row> FreezeCandidates(IReadOnlyList<GabrielExperimentMatrix.Assessment> rows)
         => Rank(rows).Where(x=>x.Status=="INDEPENDENT_VALIDATION_REQUIRED" && x.Assessment.Evidence.Months==6)
             .Select(x=>new ResearchExperimentPlan.Row(x.Assessment.Symbol,x.Assessment.Parameters)).Distinct().ToArray();
+    // Stress evidence selects candidates; normal-cost evidence is a required companion.
+    public static IReadOnlyList<ResearchExperimentPlan.Row> FreezePairs(IReadOnlyList<GabrielExperimentMatrix.Assessment> rows)
+    {
+        var result=new List<ResearchExperimentPlan.Row>();
+        foreach(var stress in FreezeCandidates(rows))
+        {
+            var normal=stress with {Parameters=stress.Parameters with {SlippagePctPerSide=.05m}};
+            if(rows.Count(x=>x.Symbol==normal.Symbol && x.Parameters==normal.Parameters && x.Evidence.Months==6)!=1)
+                throw new InvalidOperationException("Missing or ambiguous normal-cost companion.");
+            result.Add(stress);
+            result.Add(normal);
+        }
+        return result.Distinct().ToArray();
+    }
     public static IReadOnlyList<Ranked> Rank(IReadOnlyList<GabrielExperimentMatrix.Assessment> rows)
     {
         return rows.Where(x=>x.Parameters.SlippagePctPerSide==.20m)

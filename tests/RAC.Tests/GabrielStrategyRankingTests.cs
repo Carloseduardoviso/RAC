@@ -24,4 +24,18 @@ public sealed class GabrielStrategyRankingTests
         Assert.Equal(new ResearchExperimentPlan.Row(eligible.Symbol,eligible.Parameters),candidate);
         Assert.Equal(candidate,Assert.Single(GabrielStrategyRanking.FreezeCandidates(rows.Reverse().ToArray())));
     }
+    [Fact]
+    public void FreezePairsRequireMatchingCompleteNormalCostEvidence()
+    {
+        var p=ResearchExperimentPlan.Build().First().Parameters with {SlippagePctPerSide=.20m};
+        var stress=new GabrielExperimentMatrix.Assessment("BTCUSDT",p,new(6,1,1,2,30,20,0,"EXPLORATORY_ONLY"));
+        var normal=stress with {Parameters=p with {SlippagePctPerSide=.05m}};
+        Assert.Throws<InvalidOperationException>(()=>GabrielStrategyRanking.FreezePairs(new[]{stress}));
+        Assert.Throws<InvalidOperationException>(()=>GabrielStrategyRanking.FreezePairs(new[]{stress,normal,normal}));
+        var pair=GabrielStrategyRanking.FreezePairs(new[]{stress,normal});
+        Assert.Equal(2,pair.Count);
+        Assert.Equal(p,pair[0].Parameters);
+        Assert.Equal(normal.Parameters,pair[1].Parameters);
+        Assert.Empty(GabrielStrategyRanking.FreezePairs(new[]{normal}));
+    }
 }
