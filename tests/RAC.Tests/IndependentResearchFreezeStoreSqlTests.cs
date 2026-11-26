@@ -182,6 +182,29 @@ public sealed class IndependentResearchFreezeStoreSqlTests
             }
             clock.Now=IndependentResearchFreeze.ValidationStart;
             await Assert.ThrowsAsync<ArgumentException>(()=>store.SaveAsync(plan[2],manifest.Id,default));
+            // Audit after the registration window closes without creating or changing freezes.
+            Assert.Equal(recoveredCommit.ToArray(),(await store.AuditPairAsync(committedStress,manifest.Id,default)).ToArray());
+            var absent=plan.First(x=>x.Parameters.SlippagePctPerSide==.20m && x!=stress && x!=legacyStress && x!=failingStress && x!=committedStress && x.Parameters!=(plan[0].Parameters with {SlippagePctPerSide=.20m}) && x.Parameters!=(plan[1].Parameters with {SlippagePctPerSide=.20m}));
+            await Assert.ThrowsAsync<InvalidOperationException>(()=>store.AuditPairAsync(absent,manifest.Id,default));
+            await using(var auditDb=factory.CreateDbContext())
+            {
+                var config=ResearchExperimentIdentity.Create(committedStress);
+                var execution=await auditDb.ResearchQuantitativeExecutions.FirstAsync(x=>x.ConfigurationId==config);
+                var original=execution.ResultJson;
+                execution.ResultJson=System.Text.Json.JsonSerializer.Serialize(result with {NetPct=1});
+                await auditDb.SaveChangesAsync();
+                try
+                {
+                    await Assert.ThrowsAsync<InvalidOperationException>(()=>store.AuditPairAsync(committedStress,manifest.Id,default));
+                    Assert.Equal(10,await auditDb.IndependentResearchFreezes.CountAsync());
+                }
+                finally
+                {
+                    execution.ResultJson=original;
+                    await auditDb.SaveChangesAsync();
+                }
+            }
+            Assert.Equal(recoveredCommit.ToArray(),(await store.AuditPairAsync(committedStress,manifest.Id,default)).ToArray());
             await using var check=factory.CreateDbContext();
             var frozen=await check.IndependentResearchFreezes.SingleAsync(x=>x.FreezeId==id);
             Assert.Equal(id,frozen.FreezeId);

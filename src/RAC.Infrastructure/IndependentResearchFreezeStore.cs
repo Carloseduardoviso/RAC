@@ -35,6 +35,26 @@ public sealed class IndependentResearchFreezeStore(IDbContextFactory<RacDbContex
             catch(Exception ex) when(attempt<3 && IsRetryable(ex)) { await Task.Delay(50*(attempt+1),ct); }
         }
     }
+    // Read-only audit: revalidate both historical evidence sets and persisted identities.
+    public async Task<IReadOnlyList<string>> AuditPairAsync(ResearchExperimentPlan.Row stress,string manifestId,CancellationToken ct)
+    {
+        if(stress.Parameters.SlippagePctPerSide!=.20m)throw new ArgumentException("Stress configuration required.",nameof(stress));
+        var normal=stress with {Parameters=stress.Parameters with {SlippagePctPerSide=.05m}};
+        await using var db=await factory.CreateDbContextAsync(ct);
+        await using var tx=await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable,ct);
+        var ids=new List<string>();
+        foreach(var row in new[]{stress,normal})
+        {
+            var configuration=ResearchExperimentIdentity.Create(row);
+            var existing=await db.IndependentResearchFreezes.AsNoTracking().SingleOrDefaultAsync(x=>x.ConfigurationId==configuration,ct)
+                ?? throw new InvalidOperationException("Missing frozen configuration.");
+            if(existing.FrozenUtc>clock.GetUtcNow())throw new InvalidOperationException("Future freeze timestamp.");
+            ids.Add(await StageAsync(db,row,manifestId,existing.FrozenUtc,ct));
+        }
+        if(db.ChangeTracker.HasChanges())throw new InvalidOperationException("Audit must not modify evidence.");
+        await tx.CommitAsync(ct);
+        return ids.AsReadOnly();
+    }
     private static bool IsRetryable(Exception ex)=>ex is Microsoft.Data.SqlClient.SqlException sql && sql.Number is 1205 or 2601 or 2627 || ex.InnerException is not null && IsRetryable(ex.InnerException);
     private async Task<string> SaveOnceAsync(ResearchExperimentPlan.Row row,string manifestId,CancellationToken ct)
     {
