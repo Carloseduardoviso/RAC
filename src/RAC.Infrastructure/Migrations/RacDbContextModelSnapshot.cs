@@ -158,6 +158,50 @@ namespace RAC.Infrastructure.Migrations
                     b.ToTable("EquitySnapshots", "rac");
                 });
 
+            modelBuilder.Entity("RAC.Domain.IndependentResearchEvidenceRecord", b =>
+                {
+                    b.Property<string>("ExecutionId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("Digest")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("EvidenceJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FreezeId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateOnly>("Month")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("RecordedUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("SourceSha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("ExecutionId");
+
+                    b.HasIndex("FreezeId", "Month")
+                        .IsUnique();
+
+                    b.ToTable("IndependentResearchEvidence", "rac", t =>
+                        {
+                            t.HasTrigger("TR_IndependentResearchEvidence_AppendOnly");
+                        });
+
+                    b.HasAnnotation("SqlServer:UseSqlOutputClause", false);
+                });
+
             modelBuilder.Entity("RAC.Domain.IndependentResearchFreezeRecord", b =>
                 {
                     b.Property<string>("FreezeId")
@@ -1835,6 +1879,15 @@ namespace RAC.Infrastructure.Migrations
                     b.HasIndex("CreatedUtc");
 
                     b.ToTable("AnaAdvisories", "rac");
+                });
+
+            modelBuilder.Entity("RAC.Domain.IndependentResearchEvidenceRecord", b =>
+                {
+                    b.HasOne("RAC.Domain.IndependentResearchFreezeRecord", null)
+                        .WithMany()
+                        .HasForeignKey("FreezeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("RAC.Domain.IndependentResearchFreezeRecord", b =>

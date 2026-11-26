@@ -54,6 +54,7 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public DbSet<ResearchQuantitativeExecutionRecord> ResearchQuantitativeExecutions => Set<ResearchQuantitativeExecutionRecord>();
     public DbSet<ResearchExecutionManifestRecord> ResearchExecutionManifests => Set<ResearchExecutionManifestRecord>();
     public DbSet<IndependentResearchFreezeRecord> IndependentResearchFreezes => Set<IndependentResearchFreezeRecord>();
+    public DbSet<IndependentResearchEvidenceRecord> IndependentResearchEvidence => Set<IndependentResearchEvidenceRecord>();
     private void GuardResearchFreezes()
     {
         if(ChangeTracker.Entries<IndependentResearchFreezeRecord>().Any(x=>x.State is EntityState.Modified or EntityState.Deleted))
@@ -62,16 +63,29 @@ public sealed class RacDbContext(DbContextOptions<RacDbContext> options) : DbCon
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
         GuardResearchFreezes();
+        if(ChangeTracker.Entries<IndependentResearchEvidenceRecord>().Any(x=>x.State is EntityState.Modified or EntityState.Deleted)) throw new InvalidOperationException("Independent evidence is append-only.");
         return base.SaveChanges(acceptAllChangesOnSuccess);
     }
     public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess,CancellationToken cancellationToken=default)
     {
         GuardResearchFreezes();
+        if(ChangeTracker.Entries<IndependentResearchEvidenceRecord>().Any(x=>x.State is EntityState.Modified or EntityState.Deleted)) throw new InvalidOperationException("Independent evidence is append-only.");
         return base.SaveChangesAsync(acceptAllChangesOnSuccess,cancellationToken);
     }
     protected override void OnModelCreating(ModelBuilder model)
     {
         model.HasDefaultSchema("rac");
+        model.Entity<IndependentResearchEvidenceRecord>(e=>{
+            e.ToTable("IndependentResearchEvidence",t=>t.HasTrigger("TR_IndependentResearchEvidence_AppendOnly"));
+            e.HasKey(x=>x.ExecutionId);
+            e.Property(x=>x.ExecutionId).HasMaxLength(64);
+            e.Property(x=>x.FreezeId).HasMaxLength(64).IsRequired();
+            e.Property(x=>x.SourceSha256).HasMaxLength(64).IsRequired();
+            e.Property(x=>x.Digest).HasMaxLength(64).IsRequired();
+            e.Property(x=>x.EvidenceJson).IsRequired();
+            e.HasIndex(x=>new {x.FreezeId,x.Month}).IsUnique();
+            e.HasOne<IndependentResearchFreezeRecord>().WithMany().HasForeignKey(x=>x.FreezeId).OnDelete(DeleteBehavior.Restrict);
+        });
         model.Entity<IndependentResearchFreezeRecord>(e=>{
             e.ToTable("IndependentResearchFreezes",t=>t.HasTrigger("TR_IndependentResearchFreezes_AppendOnly"));
             e.HasKey(x=>x.FreezeId);
