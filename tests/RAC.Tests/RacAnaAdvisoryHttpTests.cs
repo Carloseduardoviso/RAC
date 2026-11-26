@@ -120,6 +120,11 @@ public sealed class RacAnaAdvisoryHttpTests
             var identity=new System.Security.Claims.ClaimsIdentity(new[]{new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role,"RiskReviewer")},"test");
             var ticket=new Microsoft.AspNetCore.Authentication.AuthenticationTicket(new System.Security.Claims.ClaimsPrincipal(identity),new Microsoft.AspNetCore.Authentication.AuthenticationProperties {ExpiresUtc=DateTimeOffset.UtcNow.AddMinutes(5)},"test");
             client.DefaultRequestHeaders.TryAddWithoutValidation("Cookie",options.Cookie.Name+"="+options.TicketDataFormat.Protect(ticket));
+            var review=new RacAnaRecentReview(factory,app.Services.GetRequiredService<IndependentResearchFreezeStore>());
+            var verifiedReview=await review.ReviewAsync(now,TimeSpan.FromHours(1),default);
+            Assert.Contains("RESEARCH:VERIFIED_FREEZES:2:2",verifiedReview.Reasons);
+            Assert.Contains("RESEARCH:INDEPENDENT_VALIDATION_REQUIRED",verifiedReview.Reasons);
+            Assert.False(verifiedReview.TradingAuthorized);
             var path="/api/ana/research/freeze-audit/";
             var config=ResearchExperimentIdentity.Create(stress);
             Assert.Equal(HttpStatusCode.NotFound,(await client.GetAsync(path+new string('F',64))).StatusCode);
@@ -138,6 +143,9 @@ public sealed class RacAnaAdvisoryHttpTests
             execution.ResultJson=JsonSerializer.Serialize(result with {NetPct=1});
             await db.SaveChangesAsync();
             Assert.Equal(HttpStatusCode.Conflict,(await client.GetAsync(path+config)).StatusCode);
+            var rejectedReview=await review.ReviewAsync(now,TimeSpan.FromHours(1),default);
+            Assert.Equal("RISK_REVIEW_REQUIRED",rejectedReview.Status);
+            Assert.False(rejectedReview.TradingAuthorized);
             execution.ResultJson=original;
             await db.SaveChangesAsync();
             Assert.Equal(HttpStatusCode.OK,(await client.GetAsync(path+config)).StatusCode);
