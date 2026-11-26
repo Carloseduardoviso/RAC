@@ -1,7 +1,7 @@
 # Etapa 08.02 - Memoria quantitativa
 
-Baseline confirmado: cb87e22, 597 testes aprovados, zero falhas e zero ignorados.
-Integracao automatica e recuperacao aprovadas em LocalDB; homologacao de escala e operacional pendentes.
+Baseline de escala confirmado: 01f7dd3, 598 testes aprovados, zero falhas e zero ignorados.
+Integracao automatica e recuperacao aprovadas em LocalDB; homologacao de escala sintetica aprovada; homologacao operacional pendente.
 
 ## Contrato
 - Identidade deterministica por configuracao, SHA256 da fonte, mes e versao do motor.
@@ -12,7 +12,7 @@ Integracao automatica e recuperacao aprovadas em LocalDB; homologacao de escala 
 
 ## Homologacao pendente
 - Aprovado em LocalDB: interrupcao apos 24 registros, recuperacao para 144, reexecucao sem duplicatas.
-- Medir persistencia de 2880 resultados para 20 ativos, tempo, concorrencia e consumo.
+- Aprovada persistencia de 2880 resultados sinteticos para 20 ativos; medicao isolada de consumo pendente.
 - A recuperacao recalcula resultados; nao existe cache de replay.
 - Registros parciais nao constituem uma matriz completa nem validacao independente.
 - SHA256 verifica integridade, nao autenticidade independente da fonte.
