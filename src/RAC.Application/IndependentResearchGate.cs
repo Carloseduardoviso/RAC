@@ -4,6 +4,18 @@ namespace RAC.Application;
 public static class IndependentResearchGate
 {
     public record Evidence(DateOnly Month, decimal Cost, int Trades, decimal Profit, decimal Loss, decimal DrawdownPct, bool Unresolved);
+    // Converts a replay into gate evidence; provenance and freeze audit remain separate requirements.
+    public static Evidence ReplayMonth(DateOnly month,ResearchExperimentPlan.Row row,IReadOnlyList<ResearchExperimentReplay.Minute> data,CancellationToken ct=default)
+    {
+        if(month.Day!=1 || month<new DateOnly(2026,12,1) || month>=new DateOnly(2027,6,1))
+            throw new ArgumentException("Outside independent validation window.",nameof(month));
+        _=ResearchExperimentIdentity.Create(row);
+        if(data.Count!=DateTime.DaysInMonth(month.Year,month.Month)*1440)
+            throw new ArgumentException("Incomplete monthly replay.",nameof(data));
+        var result=ResearchExperimentReplay.RunDetailed(data,row.Parameters,ct:ct);
+        return new Evidence(month,(row.Parameters.FeePctPerSide+row.Parameters.SlippagePctPerSide)/100,
+            result.Summary.Trades,result.RealizedProfit,result.RealizedLoss,result.Summary.DrawdownPct,result.Summary.Unresolved);
+    }
     public static string[] Evaluate(IReadOnlyList<Evidence> rows, DateTimeOffset? asOf=null)
     {
         var reasons=new List<string>();
